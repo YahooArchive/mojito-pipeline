@@ -1,8 +1,10 @@
 {
-  "name": "mojito-pipeline-app1",
-  "version": "0.0.1",
-  "description": "Test app 1",
-  "dependencies": {
-    "mojito": "0.7.x"
-  }
+    "name": "mojito-pipeline-app1",
+    "version": "0.0.1",
+    "description": "Test app 1",
+    "dependencies": {
+        "mojito-pipeline": "0.0.x",
+        "mojito": "0.7.x",
+        "mojito-cli": "~0.0.5"
+    }
 }

@@ -3,8 +3,9 @@
         "settings": [ "master" ],
         "specs": {
             "rootframe": {
-                "type": "PipelineHTMLFrameMojit",
+                "type": "HTMLFrameMojit",
                 "config": {
+                    "deploy": true,
                     "child": {
                         "type": "Master",
                         "sections": {

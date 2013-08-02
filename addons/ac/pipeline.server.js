@@ -20,6 +20,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             adapter: adapter,
             ac: ac
         });
+
+        this.events = new Y.Pipeline.Events();
         this.Task.prototype.pipeline = this;
 
         this.on('rendered', dispatchRender);
@@ -63,7 +65,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             child,
             originalTest = task.renderTest,
             childrenTest,
-            eventTargets = {};
+            eventTargets = {},
+            subscription;
 
         // TODO: get the event targets for the original renderTest
         // this is important in order to subscribe to events if necessary
@@ -87,7 +90,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             // subscribe to the events
             for (child in task.children) {
-                eventTargets[child] = ['render'];
+                eventTargets[child] = ['afterRender'];
             }
 
             // replace task's renderTest method with the combined childrenTest
@@ -100,9 +103,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         // test render condition
         if (task.renderTest()) {
             pipeline.render(function () {
-               if (--pipeline.numPushedTasks === 0) {
-                   pipeline.flushQueue();
-               }
+                if (--pipeline.numPushedTasks === 0) {
+                    pipeline.flushQueue();
+                }
             });
             return;
         }
@@ -112,10 +115,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         // it is important that any subscription for the sakes of rendering or flushing
         // should be done only once per task/action otherwise a task may have multiple subscribed events
         // trying to render or flush for the same target action
-        this.setEvents(eventTargets, function (event) {
+        subscription = this.events.subscribe(eventTargets, function (event) {
             if (task.renderTest()) {
                 // remove subscribed events such that this action doesn't get called again
-                event.unsubscribe();
+                subscription.unsubscribe();
                 pipeline.render(task);
             }
         });
@@ -125,52 +128,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         }
     };
     Pipeline.prototype.close = function () {
-    };
-
-    function Event(targetId, targetAction, eventGroup, pipeline) {
-        this.targetId = targetId;
-        this.targetAction = targetAction;
-        this.eventGroup = eventGroup;
-        this.pipeline = pipeline;
-    }
-
-    Event.prototype = {
-        unsubscribe: function () {
-            var targetId,
-                targetAction,
-                actionArray;
-            for (targetId in this.eventGroup) {
-                for (targetAction in this.eventGroup[targetId]) {
-                    actionArray = this.targets[targetId][targetAction];
-                    actionArray.splice(actionArray.indexOf(this.action));
-                }
-            };
-        }
-    }
-
-    /*
-     * Sets an event action for the targets specified
-     * These actions are executed whenever the target actions are executed
-     */
-    Pipeline.prototype.setEvents = function (targets, action) {
-        var pipeline = this,
-            targetId,
-            targetAction,
-            eventAction,
-            eventGroup = {};
-
-        for (targetId in targets) {
-            this.events[targetId] = this.events[targetId] || {};
-            eventGroup[targetId] = {};
-            for (targetAction in targets[targetId]) {
-                this.events[targetId][targetAction] = this.events[targetId][targetAction] || [];
-                eventAction = function () {
-                    action(new Event(targetId, targetAction, eventGroup, pipeline);
-                };
-                eventGroup[targetId][targetAction] = eventAction;
-                this.events[targetId][targetAction].push(eventAction);
-            }
-        }
     };
 
     function Task() {
@@ -199,5 +156,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     Pipeline.NAME = 'pipeline';
     Y.namespace('mojito.addons.ac').pipeline = Pipeline;
 }, '0.0.1', {
-    requires: ['base-base']
+    requires: [
+        'base-base',
+        'target-action-events'
+    ]
 });
