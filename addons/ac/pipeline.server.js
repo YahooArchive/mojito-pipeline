@@ -43,6 +43,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         // TODO: execute mojit
         // TODO: execute any actions subscribe to this task's render event
         // TODO: test flush condition, if true put in flush queue, else subscribe to events
+
     };
     Pipeline.prototype.flushQueue = function () {
     };
@@ -60,6 +61,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         var pipeline = this,
             child,
+            originalTest = task.renderTest,
             childrenTest,
             eventTargets = {};
 
@@ -91,7 +93,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             // replace task's renderTest method with the combined childrenTest
             // and the original renderTest
             task.renderTest = function () {
-                return task.renderTest() && childrenTest();
+                return originalTest() && childrenTest();
             };
         }
 
@@ -125,11 +127,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     Pipeline.prototype.close = function () {
     };
 
-    function Event(targetId, targetAction, targets, action, pipeline) {
+    function Event(targetId, targetAction, eventGroup, pipeline) {
         this.targetId = targetId;
         this.targetAction = targetAction;
-        this.targets = targets;
-        this.action = action;
+        this.eventGroup = eventGroup;
         this.pipeline = pipeline;
     }
 
@@ -138,8 +139,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             var targetId,
                 targetAction,
                 actionArray;
-            for (targetId in this.targets) {
-                for (targetAction in this.targets[targetId]) {
+            for (targetId in this.eventGroup) {
+                for (targetAction in this.eventGroup[targetId]) {
                     actionArray = this.targets[targetId][targetAction];
                     actionArray.splice(actionArray.indexOf(this.action));
                 }
@@ -154,15 +155,20 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     Pipeline.prototype.setEvents = function (targets, action) {
         var pipeline = this,
             targetId,
-            targetAction;
+            targetAction,
+            eventAction,
+            eventGroup = {};
 
         for (targetId in targets) {
             this.events[targetId] = this.events[targetId] || {};
+            eventGroup[targetId] = {};
             for (targetAction in targets[targetId]) {
                 this.events[targetId][targetAction] = this.events[targetId][targetAction] || [];
-                this.events[targetId][targetAction].push(function () {
-                    action(new Event(targetId, targetAction, targets, action, pipeline);
-                });
+                eventAction = function () {
+                    action(new Event(targetId, targetAction, eventGroup, pipeline);
+                };
+                eventGroup[targetId][targetAction] = eventAction;
+                this.events[targetId][targetAction].push(eventAction);
             }
         }
     };
