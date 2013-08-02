@@ -112,8 +112,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         // trying to render or flush for the same target action
         this.setEvents(eventTargets, function (event) {
             if (task.renderTest()) {
-                // remove subscribed action such that it doesn't get called again
-                event.remove();
+                // remove subscribed events such that this action doesn't get called again
+                event.unsubscribe();
                 pipeline.render(task);
             }
         });
@@ -125,25 +125,27 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     Pipeline.prototype.close = function () {
     };
 
-    function Event(targetId, targetAction, action, pipeline) {
+    function Event(targetId, targetAction, targets, action, pipeline) {
         this.targetId = targetId;
         this.targetAction = targetAction;
-        this.pipeline = pipeline;
+        this.targets = targets;
         this.action = action;
+        this.pipeline = pipeline;
     }
+
     Event.prototype = {
-        // remove subscribed action
-        remove: function () {
-            var i,
-                actionArray = this.pipeline.events[this.targetId][this.targetAction];
-            for (i = 0; i < actionArray; i++) {
-                if (this.action === actionArray[i]) {
-                    actionArray.splice(i, 1);
-                    break;
+        unsubscribe: function () {
+            var targetId,
+                targetAction,
+                actionArray;
+            for (targetId in this.targets) {
+                for (targetAction in this.targets[targetId]) {
+                    actionArray = this.targets[targetId][targetAction];
+                    actionArray.splice(actionArray.indexOf(this.action));
                 }
-            }
+            };
         }
-    };
+    }
 
     /*
      * Sets an event action for the targets specified
@@ -153,12 +155,13 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         var pipeline = this,
             targetId,
             targetAction;
+
         for (targetId in targets) {
             this.events[targetId] = this.events[targetId] || {};
             for (targetAction in targets[targetId]) {
                 this.events[targetId][targetAction] = this.events[targetId][targetAction] || [];
                 this.events[targetId][targetAction].push(function () {
-                    action(new Event(targetId, targetAction, action, pipeline));
+                    action(new Event(targetId, targetAction, targets, action, pipeline);
                 });
             }
         }
