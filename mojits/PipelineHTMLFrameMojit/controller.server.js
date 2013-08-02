@@ -1,0 +1,3 @@
+YUI.add('PipelineHTMLFrameMojit', function () {
+
+})

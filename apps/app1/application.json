@@ -1,0 +1,64 @@
+[
+    {
+        "settings": [ "master" ],
+        "specs": {
+            "rootframe": {
+                "type": "PipelineHTMLFrameMojit",
+                "config": {
+                    "child": {
+                        "type": "Master",
+                        "sections": {
+                            "a": {
+                                "type": "A",
+                                "default": true
+                            },
+                            "e": {
+                                "type": "E"
+                            },
+                            "b": {
+                                "type": "B"
+                            },
+                            "c": {
+                                "type": "C"
+                            },
+                            "d": {
+                                "type": "D"
+                            },
+                            "f": {
+                                "type": "F"
+                            },
+                            "g": {
+                                "type": "G",
+                                "sections": {
+                                    "g1": {
+                                        "type": "G1"
+                                    },
+                                    "g2": {
+                                        "type": "G2"
+                                    }
+                                }
+                            },
+                            "h": {
+                                "type": "H"
+                            },
+                            "i": {
+                                "type": "I"
+                            },
+                            "j": {
+                                "type": "J"
+                            },
+                            "k": {
+                                "type": "K",
+                                "sections": {
+                                    "k1": {
+                                        "type": "K1"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+]
