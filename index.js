@@ -39,6 +39,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         // this.rules = ...
     };
     Pipeline.prototype.render = function (task) {
+        // TODO: create action context
+        // TODO: execute mojit
+        // TODO: execute any actions subscribe to this task's render event
+        // TODO: test flush condition, if true put in flush queue, else subscribe to events
     };
     Pipeline.prototype.flushQueue = function () {
     };
@@ -93,26 +97,30 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         // test render condition
         if (task.renderTest()) {
-            pipeline.render();
-        } else {
-            // render condition is false so now need to subscribe to events
-
-            // it is important that any subscription for the sakes of rendering or flushing
-            // should be done only once per task/action otherwise a task may have multiple subscribed events
-            // trying to render or flush for the same target action
-            this.setEvents(eventTargets, function (event) {
-                if (task.renderTest()) {
-                    // remove subscribed action such that it doesn't get called again
-                    event.remove();
-                    pipeline.render(task);
-                }
+            pipeline.render(function () {
+               if (--pipeline.numPushedTasks === 0) {
+                   pipeline.flushQueue();
+               }
             });
+            return;
         }
+
+        // render condition is false so now need to subscribe to events
+
+        // it is important that any subscription for the sakes of rendering or flushing
+        // should be done only once per task/action otherwise a task may have multiple subscribed events
+        // trying to render or flush for the same target action
+        this.setEvents(eventTargets, function (event) {
+            if (task.renderTest()) {
+                // remove subscribed action such that it doesn't get called again
+                event.remove();
+                pipeline.render(task);
+            }
+        });
 
         if (--this.numPushedTasks === 0) {
             this.flushQueue();
         }
-
     };
     Pipeline.prototype.close = function () {
     };
