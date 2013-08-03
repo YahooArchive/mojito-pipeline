@@ -10,16 +10,20 @@ YUI.add('target-action-events', function (Y) {
          * @param {string} target The target.
          * @param {string} targetAction The target's action.
          */
-        fire: function (target, targetAction, emitter) {
+        fire: function (target, targetAction) {
             var subscribedActions = this.events[target] && this.events[target][targetAction],
-                i;
-            if (subscribedActions) {
-                for (i = 0; i < subscribedActions.length; i++) {
-                    subscribedActions[i]({
+                i,
+                actionArguments = [
+                    {
                         target: target,
                         targetAction: targetAction,
-                        emitter: emitter || this.emitter
-                    })
+                        emitter: this.emitter
+                    }
+                ];
+            Array.prototype.push.apply(actionArguments, Array.prototype.slice.call(arguments, 0).splice(2, arguments.length - 2));
+            if (subscribedActions) {
+                for (i = 0; i < subscribedActions.length; i++) {
+                    subscribedActions[i].apply(this, actionArguments);
                 }
             }
         },

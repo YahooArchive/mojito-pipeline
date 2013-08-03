@@ -41,6 +41,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         // this.rules = ...
     };
     Pipeline.prototype.render = function (task) {
+        this.events.fire(task.id, 'beforeRender');
         // TODO: create action context
         // TODO: execute mojit
         // TODO: execute any actions subscribe to this task's render event
