@@ -20,7 +20,7 @@ YUI.add('target-action-events', function (Y) {
                         emitter: this.emitter
                     }
                 ];
-            Array.prototype.push.apply(actionArguments, Array.prototype.slice.call(arguments, 0).splice(2, arguments.length - 2));
+            Array.prototype.push.apply(actionArguments, Array.prototype.slice.call(arguments, 0).slice(2));
             if (subscribedActions) {
                 for (i = 0; i < subscribedActions.length; i++) {
                     subscribedActions[i].apply(this, actionArguments);
