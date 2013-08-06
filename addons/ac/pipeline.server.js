@@ -60,10 +60,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         return this._pushedTasks[id];
     };
 
-    Pipeline.prototype.getRendered = function (id) {
-        return this.getTask(id) && this.getTask(id).getRendered();
-    };
-
     Pipeline.prototype.push = function (task) {
         var pipeline = this,
             renderRuleTargets = {};
@@ -100,11 +96,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 // if so, empty the queue
                 pipeline.flushQueue();
             }
-        });
-
-        // replace all
-        Y.Object.each(this.sections, function (config, sectionId) {
-            this._templateData[sectionId] = pipeline.getRendered(sectionId) || ('<div id="' + sectionId + '"></div>');
         });
     };
 
@@ -147,11 +138,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     Task.prototype.flush = function () {
         // this.prototype.flush();
     };
-
-    Task.prototype.getRendered = function () {
-        return this._rendered;
-    };
-
     Task.prototype._combineTests = function (test1, test2) {
         return function () {
             return test1() && test2();
