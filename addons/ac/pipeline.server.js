@@ -24,22 +24,23 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         this.events = new Y.Pipeline.Events();
         this.Task.prototype.pipeline = this;
 
-        this.on('rendered', dispatchRender);
-        this.numPushedTasks = 0;
+        this.unrenderedTasks = 0;
+    }
+    function Task() {
+        Task.superclass.constructor.apply(this, arguments);
     }
 
     Y.extend(Pipeline, Y.Base, {
         namespace: 'pipeline',
         initializer: function (config) {
-            this.sections = config.sections;
-            this.events = {};
+            this.sections     = config.sections;
+            this._pushedTasks = {};
+            this._flushQueue  = [];
             this._resolveRules();
-            this._flushQueue = [];
+            this.events = new Y.Pipeline.Events(this);
         }
     });
-    Pipeline.prototype._resolveRules = function () {
-        // this.rules = ...
-    };
+
     Pipeline.prototype.render = function (task) {
         this.events.fire(task.id, 'beforeRender');
         // TODO: create action context
@@ -48,100 +49,98 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         // TODO: test flush condition, if true put in flush queue, else subscribe to events
 
     };
+
     Pipeline.prototype.flushQueue = function () {
+        while (this._flushQueue.length) {
+            this._flushQueue.shift().flush();
+        }
     };
+
     Pipeline.prototype.getTask = function (id) {
+        return this._pushedTasks[id];
     };
+
+    Pipeline.prototype.getRendered = function (id) {
+        return this.getTask(id) && this.getTask(id).getRendered();
+    };
+
     Pipeline.prototype.push = function (task) {
-        // increment number of pushed tasks
-        // once all the pushed tasks have been handled, we need to flush anything in the flush queue
-        this.numPushedTasks++;
-
-        // TODO: create tasks for any default child section of this task
-
-        // release control in order to make this method asynchronous
-        process.nextTick();
-
         var pipeline = this,
-            child,
-            originalTest = task.renderTest,
-            childrenTest,
-            eventTargets = {},
-            subscription;
+            renderRuleTargets = {};
+        task.pipeline = pipeline;
 
-        // TODO: get the event targets for the original renderTest
-        // this is important in order to subscribe to events if necessary
-        /*
-            ex.
-            eventTargets = this.rules[task.section].targets
-         */
+        // keep track to know when to flush the batch
+        this.unrenderedTasks++;
+        this._pushedTasks[task.id] = task;
 
-        // if task has children then create a combination of the renderTest
-        if (task.children) {
-            // checks if all the children have been rendered
-            childrenTest = function () {
-                var child;
-                for (child in task.children) {
-                    if (!pipeline.getTask(child).rendered) {
-                        return false;
-                    }
-                }
-                return true;
-            };
+        // for each section in the config
+        Y.Object.each(task.sections, function (config, sectionId) {
 
-            // subscribe to the events
-            for (child in task.children) {
-                eventTargets[child] = ['afterRender'];
+            // push the default sections if they're not already there
+            if (config['default'] && !this.getTask(sectionId)) {
+                this.push(new Task({
+                    id: sectionId,
+                    config: config
+                }));
             }
+            // build the targets for the render rule of the task
+            renderRuleTargets[sectionId] = ['render'];
+        }, this);
 
-            // replace task's renderTest method with the combined childrenTest
-            // and the original renderTest
-            task.renderTest = function () {
-                return originalTest() && childrenTest();
-            };
-        }
 
-        // test render condition
-        if (task.renderTest()) {
-            pipeline.render(function () {
-                if (--pipeline.numPushedTasks === 0) {
-                    pipeline.flushQueue();
-                }
-            });
-            return;
-        }
 
-        // render condition is false so now need to subscribe to events
+        // subscribe to the events triggering the render action under some condition
+        this.attachAction('render', renderRuleTargets, this._combineTests(this.renderTest, this._sectionsRenderTest), function () {
 
-        // it is important that any subscription for the sakes of rendering or flushing
-        // should be done only once per task/action otherwise a task may have multiple subscribed events
-        // trying to render or flush for the same target action
-        subscription = this.events.subscribe(eventTargets, function (event) {
-            if (task.renderTest()) {
-                // remove subscribed events such that this action doesn't get called again
-                subscription.unsubscribe();
-                pipeline.render(task);
+            // when the rendering is done, push the task in the queue
+            pipeline._flushQueue.push(task);
+            // check if this was the last task in the current batch (uninterrupted js event loop)
+            pipeline.unrenderedTasks--;
+            if (pipeline.unrenderedTasks === 0) {
+                // if so, empty the queue
+                pipeline.flushQueue();
             }
         });
 
-        if (--this.numPushedTasks === 0) {
-            this.flushQueue();
-        }
-    };
-    Pipeline.prototype.close = function () {
+        // replace all
+        Y.Object.each(this.sections, function (config, sectionId) {
+            this._templateData[sectionId] = pipeline.getRendered(sectionId) || ('<div id="' + sectionId + '"></div>');
+        });
     };
 
-    function Task() {
-        Task.superclass.constructor.apply(this, arguments);
-    }
+    Pipeline.prototype.close = function () {
+
+    };
+
     Y.extend(Task, Y.Base, {
         initialize: function (options) {
-            this.config = options.config;
-            this.id = options.id;
-            this.action = options.action;
-            this.children = options.children;
+            this.config        = options.config;
+            this.id            = options.id;
+            this.action        = options.action;
+            this.sections      = this.config.sections;
+            this._templateData = {};
+            this._rendered     = undefined;
         }
     });
+
+    Task.prototype.attachAction = function (action, targets, testFn, afterAction) {
+        var subscription;
+        afterAction = afterAction || function () {};
+
+        if (testFn()) {
+            this[action].call(this, afterAction);
+        } else {
+            subscription = this.pipeline.events.subscribe(targets, function (e, done) {
+                if (testFn()) {
+                    subscription.unsubscribe();
+                    this[action].call(this, function () {
+                        afterAction();
+                        done();
+                    });
+                }
+            });
+        }
+    };
     Task.prototype.render = function () {
         // this.pipeline.render(this);
     };
@@ -149,6 +148,20 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         // this.prototype.flush();
     };
 
+    Task.prototype.getRendered = function () {
+        return this._rendered;
+    };
+
+    Task.prototype._combineTests = function (test1, test2) {
+        return function () {
+            return test1() && test2();
+        };
+    };
+    Task.prototype._sectionsRenderTest = function () {
+        return !Y.Object.some(this.sections, function (sectionConfig, sectionId) {
+            return !this.pipeline.getTask(sectionId).rendered;
+        }, this);
+    };
     Task.prototype.renderTest = Task.prototype.flushTest = function () {
         return true;
     };
