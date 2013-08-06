@@ -27,6 +27,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         this.ac = ac;
 
         this.events = new Y.Pipeline.Events();
+        this.tasks = {};
         this.closed = false;
         this.client = new Pipeline.Client();
         this.numPushedTasks = 0;
@@ -66,8 +67,14 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         }
     };
 
+
+
     Pipeline.prototype = {
         namespace: 'pipeline',
+
+        getTask: function (id) {
+
+        },
 
         on: function (targetAction, action) {
             this.events({
@@ -98,20 +105,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     var subscription;
                     task.data = data;
                     task.meta = meta;
-
-                    // task has been rendered, put task on flush queue
-                    debugger;
-                    if (task.flushTest()) {
-                        pipeline._flushQueue.push(task);
-                    } else {
-                        // subscribe to flush targets
-                        /*subscription = pipeline.events.subscribe(eventTargets, function (event) {
-                            if (task.flushTest()) {
-                                subscription.unsubscribe();
-                                pipeline._flushQueue.push(task);
-                            }
-                        });*/
-                    }
 
                     // fire after render event
                     pipeline.events.fire(task.id, 'afterRender', function () {
@@ -152,7 +145,41 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         getTask: function (id) {},
 
-        push: function (task) {
+        push: function (taskConfig) {
+            var pipeline = this,
+                renderRuleTargets = {},
+                flushRuleTargets = {},
+                task = pipeline.getTask(taskConfig.id);
+
+            // keep track to know when to flush the batch
+            this.unrenderedTasks++;
+
+            // for each section in the config
+            Y.Object.each(task.sections, function (config, sectionId) {
+
+                // push the default sections if they're not already there
+                if (config['default']) {
+                    this.push(taskConfig);
+                }
+                // build the targets for the render rule of the task
+                renderRuleTargets[taskConfig.id] = ['render'];
+            }, this);
+
+            // TODO: parse the render rules and combine the tests with sectionsRenderTest
+            task.renderTest = Task._combineTests(task.renderTest/* here */);
+
+            // subscribe to the events triggering the render action under some condition
+            this.attachAction('render', renderRuleTargets, task.renderTest, function (data, meta) {
+                this.attachAction('addToFlushQueue', flushRuleTargets, task.flushTest);
+
+                pipeline.unrenderedTasks--;
+                if (pipeline.unrenderedTasks === 0) {
+                    // if so, empty the queue
+                    pipeline.flushQueue();
+                }
+            });
+
+            return;
             var pipeline = this,
                 i,
                 targets,
@@ -255,10 +282,68 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
     Task.EVENT_TYPES = ['beforeRender', 'afterRender'];
 
+    Task._combineTests = function () {
+        return function () {
+            return !Y.Array.some(arguments, function (nextFn) {
+                return !nextFn.call();
+            });
+        };
+    };
+
     Task.prototype = {
-        render: function () {},
-        flush: function () {},
-        renderTest: function () {return true;},
+        render: function (task, done) {
+            var pipeline = this;
+            this.events.fire(task.id, 'beforeRender', function () {
+                var command = {
+                    instance: task,
+                    action: task.action || 'index',
+                    context: pipeline.command.context,
+                    params: task.params || pipeline.command.params
+                },
+                adapter = new Pipeline.Adapter(task, pipeline.adapter, function (data, meta) {
+                    var subscription;
+                    task.data = data;
+                    task.meta = meta;
+
+                    // fire after render event
+                    pipeline.events.fire(task.id, 'afterRender', function () {
+                        done(data, meta);
+                    }, data, meta);
+                });
+
+                pipeline.ac._dispatch(command, adapter);
+            }, task);
+        },
+
+        addToFlushQueue: function () {
+            this.pipeline._flushQueue.push(this);
+        },
+
+        attachAction: function (action, targets, testFn, afterAction) {
+            var subscription;
+            afterAction = afterAction || function () {};
+
+            if (testFn()) {
+                this[action].call(this, afterAction);
+            } else {
+                subscription = this.pipeline.events.subscribe(targets, function (e, done) {
+                    if (testFn()) {
+                        subscription.unsubscribe();
+                        this[action].call(this, function () {
+                            afterAction();
+                            done();
+                        });
+                    }
+                });
+            }
+        },
+
+        renderTest: function () {
+            return !Y.Object.some(this.children, function (task) {
+                return !task.rendered;
+            });
+        },
+
         flushTest: function () {return true;}
     };
 
