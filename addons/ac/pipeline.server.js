@@ -62,7 +62,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
     Pipeline.prototype.push = function (task) {
         var pipeline = this,
-            renderRuleTargets = {};
+            renderRuleTargets = {},
+            flushRuleTargets = {};
         task.pipeline = pipeline;
 
         // keep track to know when to flush the batch
@@ -83,10 +84,11 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             renderRuleTargets[sectionId] = ['render'];
         }, this);
 
-
+        // TODO: parse the render rules and combine the tests with sectionsRenderTest
+        task.renderTest = Task._combineTests(task.renderTest, task._sectionsRenderTest.bind(task));
 
         // subscribe to the events triggering the render action under some condition
-        this.attachAction('render', renderRuleTargets, this._combineTests(this.renderTest, this._sectionsRenderTest), function () {
+        this.attachAction('render', renderRuleTargets, task.renderTest.bind(task), function () {
 
             // when the rendering is done, push the task in the queue
             pipeline._flushQueue.push(task);
@@ -138,9 +140,11 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     Task.prototype.flush = function () {
         // this.prototype.flush();
     };
-    Task.prototype._combineTests = function (test1, test2) {
+    Task._combineTests = function () {
         return function () {
-            return test1() && test2();
+            return !Y.Array.some(arguments, function (nextFn) {
+                return !nextFn.call();
+            });
         };
     };
     Task.prototype._sectionsRenderTest = function () {
