@@ -1,60 +1,42 @@
 [
     {
         "settings": [ "master" ],
+        "actionTimeout": 0,
+        "staticHandling": {
+            "appName": "app"
+        },
         "specs": {
             "rootframe": {
-                "type": "HTMLFrameMojit",
+                "type": "PipelineHTMLFrameMojit",
                 "config": {
                     "deploy": true,
                     "child": {
                         "type": "Master",
+                        "render": "search-box.rendered",
                         "sections": {
-                            "a": {
-                                "type": "A",
+                            "search-box": {
+                                "type": "SearchBox",
                                 "default": true
                             },
-                            "e": {
-                                "type": "E"
+                            "search-results": {
+                                "type": "SearchResults"
                             },
-                            "b": {
-                                "type": "B"
-                            },
-                            "c": {
-                                "type": "C"
-                            },
-                            "d": {
-                                "type": "D"
-                            },
-                            "f": {
-                                "type": "F"
-                            },
-                            "g": {
-                                "type": "G",
+                            "ads": {
+                                "type": "Ads",
+                                "flush": "search-results.rendered",
                                 "sections": {
-                                    "g1": {
-                                        "type": "G1"
+                                    "north-ad": {
+                                        "type": "Ad"
                                     },
-                                    "g2": {
-                                        "type": "G2"
+                                    "south-ad": {
+                                        "type": "Ad",
+                                        "display": "north-ad.displayed"
                                     }
                                 }
                             },
-                            "h": {
-                                "type": "H"
-                            },
-                            "i": {
-                                "type": "I"
-                            },
-                            "j": {
-                                "type": "J"
-                            },
-                            "k": {
-                                "type": "K",
-                                "sections": {
-                                    "k1": {
-                                        "type": "K1"
-                                    }
-                                }
+                            "footer": {
+                                "type": "Footer",
+                                "default": true
                             }
                         }
                     }

@@ -9,22 +9,36 @@ YUI.add('target-action-events', function (Y) {
         /* Calls any subscribed actions to a target's action
          * @param {string} target The target.
          * @param {string} targetAction The target's action.
+         * @param {string} done The callback called after all subscribed actions have been called.
+         * @params optional arguments
          */
-        fire: function (target, targetAction) {
+        fire: function (target, targetAction, done) {
             var subscribedActions = this.events[target] && this.events[target][targetAction],
                 i,
-                actionArguments = [
-                    {
-                        target: target,
-                        targetAction: targetAction,
-                        emitter: this.emitter
+                eventsCompleted = 0,
+                event = {
+                    target: target,
+                    targetAction: targetAction,
+                    emitter: this.emitter
+                },
+                eventDone = function () {
+                    if (done && ++eventsCompleted === subscribedActions.length) {
+                        done(eventsCompleted);
                     }
+                },
+                actionArguments = [
+                    event,
+                    eventDone,
                 ];
-            Array.prototype.push.apply(actionArguments, Array.prototype.slice.call(arguments, 0).slice(2));
+
             if (subscribedActions) {
+                // add optional arguments to the arguments passed to the action
+                Array.prototype.push.apply(actionArguments, Array.prototype.slice.call(arguments, 0).slice(3));
                 for (i = 0; i < subscribedActions.length; i++) {
                     subscribedActions[i].apply(this, actionArguments);
                 }
+            } else if (done) {
+                done(0);
             }
         },
 

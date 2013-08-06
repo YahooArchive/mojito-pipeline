@@ -8,42 +8,24 @@ YUI.add('PipelineHTMLFrameMojit', function (Y, NAME) {
         index: function (ac) {
             var frameClosed = false,
                 self = this,
-                root = ac.config.get('root'),
+                root = ac.config.get('child'),
                 rootTask = new ac.pipeline.Task({
                     id: 'root',
                     type: root.type,
                     flushTest: function () {
                         return false;
                     },
-                    afterRender: function (rootHTML, meta) {
+                    afterRender: function (event, done, rootHTML, meta) {
                         self.flushFrame(ac, rootHTML, meta);
+                        done();
                     }
                 });
 
             ac.pipeline.push(rootTask);
-
-            /*
-
-            Pipeline should handle this automatically
-
-            // if this is pipe's last flush, append html end tag
-            ac.pipeline.beforeFlush(function (flushData) {
-                if (ac.pipeline.closed) {
-                    flushData += '</html>';
-                    frameClosed = true;
-                    ac.done();
-                }
-            });
-            // if pipe is closed after sending last flush, send html end tag
-            ac.pipeline.onClose(function () {
-                if (!flameClosed) {
-                    ac.done('</html>');
-                }
-            });*/
-
+            ac.pipeline.close();
         },
 
-        flushFrame: function (ac, rootHTML, meta) {
+        flushFrame: function (ac, rootHTML, meta) {debugger;
             // meta.assets from child should be piped into
             // the frame's assets before doing anything else.
             ac.assets.addAssets(meta.assets);
@@ -67,10 +49,9 @@ YUI.add('PipelineHTMLFrameMojit', function (Y, NAME) {
                 Y.merge(ac.pipeline.htmlData, ac.assets.renderLocations(), {
                     end: !ac.pipeline.client.jsEnabled || ac.pipeline.closed ? '</html>' : ''
                 }, {
-
                     title: ac.config.get('title') || 'Powered by Mojito Pipeline',
-                    mojito_version: Y.mojito.version
-
+                    mojito_version: Y.mojito.version,
+                    child: rootHTML
                 }),
                 Y.mojito.util.metaMerge(meta, {
 

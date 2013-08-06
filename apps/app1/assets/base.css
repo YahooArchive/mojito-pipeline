@@ -1,0 +1,21 @@
+.frameBorder {
+    border-color: black;
+    border-style: solid;
+    border-width: 3px;
+}
+
+.sectionBorder {
+    border: 1px solid black;
+}
+
+.default.section {
+    color: green;
+}
+
+.section {
+    color: blue;
+}
+
+.dependency {
+    color: red;
+}

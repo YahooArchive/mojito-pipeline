@@ -1,0 +1,15 @@
+artifacts
+npm-debug.log
+/index.js
+/server.js
+/node_modules/
+/dev
+/dev.sed
+/deploy.json
+/dimensions.json
+/grasshopper.json
+/shaker-meta.json
+/shaker-checksum
+/assets/compiled/
+/mojits/**/lang/*_*.js
+**/.*.sw?
