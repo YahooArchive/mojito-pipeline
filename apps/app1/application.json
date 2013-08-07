@@ -16,7 +16,7 @@
                         "sections": {
                             "search-box": {
                                 "type": "SearchBox",
-                                "default": true
+                                "default": false
                             },
                             "search-results": {
                                 "type": "SearchResults"
@@ -36,7 +36,7 @@
                             },
                             "footer": {
                                 "type": "Footer",
-                                "default": true
+                                "default": false
                             }
                         }
                     }
