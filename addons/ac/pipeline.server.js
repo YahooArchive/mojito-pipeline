@@ -260,7 +260,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 }
                 var targets = {};
                 targets[task.id] = [targetAction];
-                pipeline.events.subscribe(targets, task[targetAction]);
+                this.events.subscribe(targets, task[targetAction]);
             });
 
             // for each section in the config
@@ -268,9 +268,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 config.id = sectionId;
                 // push the default sections if they're not already there
                 if (config['default']) {
-                    pipeline.push(config);
+                    this.push(config);
                 }
-            });
+            }, this);
 
             // TODO: parse the render rules and combine the tests with sectionsRenderTest
             //task.renderTest = Task._combineTests(task.renderTest);
@@ -300,9 +300,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 if (task.renderTest()) {
                     // remove subscribed events such that this action doesn't get called again
                     renderSubscription.unsubscribe();
-                    task.render(function () {
-                        done();
-                    });
+                    task.render(done);
                 } else {
                     done();
                 }
