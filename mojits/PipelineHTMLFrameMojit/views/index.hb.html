@@ -18,99 +18,118 @@
 
 {{{child}}}
 
+<div id="parent">
+	<div id="hello"></div>
+</div>
 {{{bottom}}}
 
 <script type="text/javascript">
-var Pipeline = function Pipeline(config) {
-		this.events = new Y.Pipeline.Events();
-		this.sections = {};
-	},
-	Section = function Section(config, pipeline) {
-		this.pipeline = pipeline;
-		Y.mix(this, config, true);
-	};
+var pipeline = [];
 
-Pipeline.prototype.push = function (sectionConfig) {
-	var pipeline = this,
-		section = this.getSection(sectionConfig),
-		displaySubscription;
+YUI().use('target-action-events', 'node', function (Y) {
 
-	section.flushed = true;
-	Y.mix(section, sectionConfig, true);
-
-	// subscribe to any events specified by the task
-	Y.Array.each(Task.EVENT_TYPES, function (targetAction) {
-		if (!task[targetAction]) {
-			return;
-		}
-		var targets = {};
-		targets[task.id] = [targetAction];
-		this.events.subscribe(targets, task[targetAction]);
-	}, this);
-
-	// TODO: combine the default displayTest with the user's displayTest
-
-	// subscribe to events for the display action
-	if (section.displayTest()) {
-		pipeline.display(section);
-	} else {
-		displaySubscription = this.events.subscribe(section.displayTargets, function (event, done) {
-			if (section.displayTest(section)) {
-				displaySubscription.unsubscribe();
-				pipeline.display(section, done);
-			} else {
-				done();
-			}
-		});
-	}
-};
-
-Pipeline.prototype.getSection = function (config) {
-	var section;
-	if (typeof config === 'string' || typeof config === 'number') {
-		config = {
-			id: config
+	var Pipeline = function Pipeline(dummyPipeline) {
+			this.events = new Y.Pipeline.Events();
+			this.sections = {};
+			Y.Array.each(dummyPipeline, this.push.bind(this));
+		},
+		Section = function Section(config, pipeline) {
+			this.pipeline = pipeline;
+			Y.mix(this, config, true);
 		};
-		section = this.sections[config] = new Section(config, this);
-		return section;
-	}
-	section = this.sections[config.id];
-	if (section) {
-		Y.mix(section, config, true);
-	} else {
-		section = this.sections[config.id] = new Section(config, this);
-	}
-	return section;
-};
 
-Pipeline.prototype.display = function (section) {
-	var stub = document.getElementById(section.id),
-		pipeline = this,
-		sectionDOM;
-	if (stub) {
-		this.events.fire(section.id, 'beforeDisplay', function () {
-			sectionDOM = document.createElement();
-			sectionDOM.outerHTML = section.markup;
-			stub.parentNode.insertBefore(sectionDOM, stub);
-			pipeline.events.fire(section.id, 'afterDisplay');
-		});
-	}
-};
+	Pipeline.prototype.push = function (sectionConfig) {
+		var pipeline = this,
+			section = this.getSection(sectionConfig),
+			displaySubscription;
 
-Section._combineTests = function () {
-	return function () {
-		return !Y.Array.some(arguments, function (nextFn) {
-			return !nextFn.call();
-		});
+		section.flushed = true;
+		Y.mix(section, sectionConfig, true);
+
+		// subscribe to any events specified by the section
+		Y.Array.each(Section.EVENT_TYPES, function (targetAction) {
+			if (!section[targetAction]) {
+				return;
+			}
+			var targets = {};
+			targets[section.id] = [targetAction];
+			this.events.subscribe(targets, section[targetAction]);
+		}, this);
+
+		// TODO: combine the default displayTest with the user's displayTest
+
+		// subscribe to events for the display action
+		if (section.displayTest()) {
+			pipeline.display(section);
+		} else {
+			displaySubscription = this.events.subscribe(section.displayTargets, function (event, done) {
+				if (section.displayTest(section)) {
+					displaySubscription.unsubscribe();
+					pipeline.display(section, done);
+				} else {
+					done();
+				}
+			});
+		}
 	};
-};
-Section.EVENT_TYPES = ['beforeDisplay', 'afterDisplay'];
 
-Section.prototype.displayTest = function () {
-	return true;
-};
+	Pipeline.prototype.getSection = function (config) {
+		var section;
+		if (typeof config === 'string' || typeof config === 'number') {
+			config = {
+				id: config
+			};
+			section = this.sections[config] = new Section(config, this);
+			return section;
+		}
+		section = this.sections[config.id];
+		if (section) {
+			Y.mix(section, config, true);
+		} else {
+			section = this.sections[config.id] = new Section(config, this);
+		}
+		return section;
+	};
 
-Y.namespace('Pipeline') = Pipeline;
+	Pipeline.prototype.display = function (section) {
+		var stub = Y.one('#' + section.id),
+			pipeline = this,
+			sectionDOM;
+			this.events.fire(section.id, 'beforeDisplay', function () {
+				// sectionDOM = document.createElement();
+				// sectionDOM.outerHTML = section.markup;
+				stub.ancestor().insertBefore(section.markup, stub);
+				pipeline.events.fire(section.id, 'afterDisplay');
+			});
+	};
+
+	Section._combineTests = function () {
+		return function () {
+			return !Y.Array.some(arguments, function (nextFn) {
+				return !nextFn.call();
+			});
+		};
+	};
+	Section.EVENT_TYPES = ['beforeDisplay', 'afterDisplay'];
+
+	Section.prototype.displayTest = function () {
+		return !!document.getElementById(this.id);
+	};
+
+	pipeline = new Pipeline(pipeline);
+
+});
+
 </script>
 
-{{{end}}}
+<script type="text/javascript">
+	pipeline.push({
+		id: 'hello',
+		markup: '<span>HELLO WORLD!!</span>'
+	});
+</script>
+
+
+</body>
+</html>
+
