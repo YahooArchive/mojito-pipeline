@@ -9,7 +9,7 @@ YUI.add('PipelineHTMLFrameMojit', function (Y, NAME) {
             var frameClosed = false,
                 self = this,
                 root = ac.config.get('child'),
-                rootTask = new ac.pipeline.Task({
+                rootTask = {
                     id: 'root',
                     type: root.type,
                     flushTest: function () {
@@ -19,13 +19,13 @@ YUI.add('PipelineHTMLFrameMojit', function (Y, NAME) {
                         self.flushFrame(ac, rootHTML, meta);
                         done();
                     }
-                });
+                };
 
             ac.pipeline.push(rootTask);
             ac.pipeline.close();
         },
 
-        flushFrame: function (ac, rootHTML, meta) {debugger;
+        flushFrame: function (ac, rootHTML, meta) {
             // meta.assets from child should be piped into
             // the frame's assets before doing anything else.
             ac.assets.addAssets(meta.assets);
