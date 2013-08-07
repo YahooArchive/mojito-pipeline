@@ -27,8 +27,23 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         this._flushQueue = [];
     }
 
-    function Task(task) {
+    function Task(task, pipeline) {
+        this.pipeline = pipeline;
         var self = this;
+
+        // TODO: pipeline.sections should not have properties render nor flush
+        // these should be converted to targets
+        delete task.render;
+        delete task.flush;
+
+        if (pipeline.sections[task.id]) {
+
+            delete pipeline.sections[task.id].render;
+            delete pipeline.sections[task.id].flush;
+
+            Y.mix(this, pipeline.sections[task.id], true);
+        }
+
         Y.mix(this, task, true);
 
         // get children tasks
@@ -36,7 +51,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         this.children = {};
         this.renderTargets = {};
         Y.Array.each(task.dependencies, function (dependency) {
-            self.children[dependency] = self.pipeline.getTask(dependency);
+            self.children[dependency] = pipeline.getTask(dependency);
             self.renderTargets[dependency] = ['afterRender'];
         });
 
@@ -126,8 +141,45 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         }
     };
 
+    Pipeline._flattenSections = function (config) {
+        var sectionMap = {},
+            depthFirstWalk = function (callback, obj, id) {
+                callback(obj, id);
+                if (obj instanceof Object) {
+                    Y.Object.each(obj, depthFirstWalk.bind(null, callback));
+                }
+            };
+        depthFirstWalk(function (obj, id) {
+            if (id === 'sections') {
+                Y.Object.each(obj, function (sectionConfig, sectionId) {
+                    sectionMap[sectionId] = sectionConfig;
+                });
+            }
+        }, config, '');
+        return sectionMap;
+    };
+
+
     Pipeline.prototype = {
         namespace: 'pipeline',
+
+        configure: function (config) {
+            var pipeline = this;
+
+            this.sections = {};
+
+            var getSections = function (sections) {
+                if (!sections) {
+                    return;
+                }
+                Y.Object.each(sections, function (sectionConfig, sectionName) {
+                    pipeline.sections[sectionName] = sectionConfig;
+                    getSections(sectionConfig.sections);
+                });
+            };
+
+            getSections(config.sections);
+        },
 
         on: function (targetAction, action) {
             this.events({
@@ -171,7 +223,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             // if getting task by id get task if it exists,
             // if it doesn't exist create a dummy task
             if (typeof config === 'string') {
-                task = this.tasks[config] = new Task({});
+                config = {
+                    id: config
+                };
+                task = this.tasks[config] = new Task(config, this);
                 return task;
             }
 
@@ -183,7 +238,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             if (task) {
                 Y.mix(task, config, true);
             } else {
-                task = this.tasks[config.id] = new Task(config);
+                task = this.tasks[config.id] = new Task(config, this);
             }
             return task;
         },
@@ -195,7 +250,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 task = pipeline.getTask(taskConfig);
 
             task.pushed = true;
-            task.pipeline = this;
+
+            Y.mix(task, taskConfig, true);
 
             // keep track to know when to flush the batch
             this.unprocessedTasks++;
@@ -212,6 +268,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             // for each section in the config
             Y.Object.each(task.sections, function (config, sectionId) {
+                config.id = sectionId;
                 // push the default sections if they're not already there
                 if (config['default']) {
                     pipeline.push(config);
@@ -219,20 +276,21 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             });
 
             // TODO: parse the render rules and combine the tests with sectionsRenderTest
-            task.renderTest = Task._combineTests(task.renderTest);
-            task.flushTest = Task._combineTests(task.flushTest);
+            //task.renderTest = Task._combineTests(task.renderTest);
+            //task.flushTest = Task._combineTests(task.flushTest);
 
             // subscribe to flush events
-            flushSubscription = this.events.subscribe(task.flushTargets, function (event) {
+            flushSubscription = this.events.subscribe(task.flushTargets, function (event, done) {
                 if (task.flushTest()) {
                     // remove subscribed events such that this action doesn't get called again
                     flushSubscription.unsubscribe();
                     task.addToFlushQueue();
                 }
+                done();
             });
 
             if (task.renderTest()) {
-                task.render(function () {
+                task.render(function (data, meta) {
                     if (--pipeline.unprocessedTasks === 0) {
                         // if so, empty the queue
                         pipeline.flushQueue();
@@ -241,13 +299,18 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 return;
             }
 
-            renderSubscription = this.events.subscribe(task.renderTargets, function (event) {
+            renderSubscription = this.events.subscribe(task.renderTargets, function (event, done) {
                 if (task.renderTest()) {
                     // remove subscribed events such that this action doesn't get called again
                     renderSubscription.unsubscribe();
-                    task.render();
+                    task.render(function () {
+                        done();
+                    });
+                } else {
+                    done();
                 }
             });
+
 
             if (--pipeline.unprocessedTasks === 0) {
                 // if so, empty the queue

@@ -8,24 +8,25 @@ YUI.add('PipelineHTMLFrameMojit', function (Y, NAME) {
         index: function (ac) {
             var frameClosed = false,
                 self = this,
-                root = ac.config.get('child'),
-                rootTask = {
-                    id: 'root',
-                    type: root.type,
-                    flushTest: function () {
-                        return false;
-                    },
-                    afterRender: function (event, done, rootHTML, meta) {
-                        self.flushFrame(ac, rootHTML, meta);
-                        done();
-                    }
-                };
+                childConfig = ac.config.get('child');
 
-            ac.pipeline.push(rootTask);
+            Y.mix(childConfig, {
+                id: 'child',
+                flushTest: function () {
+                    return false;
+                },
+                afterRender: function (event, done, childHTML, meta) {
+                    self.flushFrame(ac, childHTML, meta);
+                    done();
+                }
+            });
+
+            ac.pipeline.configure(childConfig);
+            ac.pipeline.push(childConfig);
             ac.pipeline.close();
         },
 
-        flushFrame: function (ac, rootHTML, meta) {
+        flushFrame: function (ac, childHTML, meta) {
             // meta.assets from child should be piped into
             // the frame's assets before doing anything else.
             ac.assets.addAssets(meta.assets);
@@ -51,7 +52,7 @@ YUI.add('PipelineHTMLFrameMojit', function (Y, NAME) {
                 }, {
                     title: ac.config.get('title') || 'Powered by Mojito Pipeline',
                     mojito_version: Y.mojito.version,
-                    child: rootHTML
+                    child: childHTML
                 }),
                 Y.mojito.util.metaMerge(meta, {
 
