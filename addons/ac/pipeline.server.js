@@ -164,19 +164,18 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         namespace: 'pipeline',
 
         configure: function (config) {
-            var pipeline = this;
-
             this.sections = {};
 
-            var getSections = function (sections) {
-                if (!sections) {
-                    return;
-                }
-                Y.Object.each(sections, function (sectionConfig, sectionName) {
-                    pipeline.sections[sectionName] = sectionConfig;
-                    getSections(sectionConfig.sections);
-                });
-            };
+            var pipeline = this,
+                getSections = function (sections) {
+                    if (!sections) {
+                        return;
+                    }
+                    Y.Object.each(sections, function (sectionConfig, sectionName) {
+                        pipeline.sections[sectionName] = sectionConfig;
+                        getSections(sectionConfig.sections);
+                    });
+                };
 
             getSections(config.sections);
         },

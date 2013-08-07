@@ -1,4 +1,6 @@
+/*jslint plusplus: true, forin: true */
 YUI.add('target-action-events', function (Y) {
+    'use strict';
 
     var Events = function (emitter) {
         this.emmitter = emitter;
@@ -14,6 +16,7 @@ YUI.add('target-action-events', function (Y) {
          */
         fire: function (target, targetAction, done) {
             var subscribedActions = this.events[target] && this.events[target][targetAction],
+                numSubscribedActions = subscribedActions && subscribedActions.length,
                 i,
                 eventsCompleted = 0,
                 event = {
@@ -22,13 +25,13 @@ YUI.add('target-action-events', function (Y) {
                     emitter: this.emitter
                 },
                 eventDone = function () {
-                    if (done && ++eventsCompleted === subscribedActions.length) {
+                    if (done && ++eventsCompleted === numSubscribedActions) {
                         done(eventsCompleted);
                     }
                 },
                 actionArguments = [
                     event,
-                    eventDone,
+                    eventDone
                 ];
 
             if (subscribedActions) {
@@ -79,10 +82,10 @@ YUI.add('target-action-events', function (Y) {
          * the subscribed action
          */
         unsubscribe: function () {
-            var targetId,
+            var target,
                 i,
                 targetAction,
-                actionArray,
+                subscribedActions,
                 subscribedActionIndex;
             for (target in this.targets) {
                 for (i = 0; i < this.targets[target].length; i++) {
