@@ -261,7 +261,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 var targets = {};
                 targets[task.id] = [targetAction];
                 this.events.subscribe(targets, task[targetAction]);
-            });
+            }, this);
 
             // for each section in the config
             Y.Object.each(task.sections, function (config, sectionId) {
