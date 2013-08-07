@@ -18,9 +18,7 @@
 
 {{{child}}}
 
-<div id="parent">
-	<div id="hello"></div>
-</div>
+<div id="hello"></div>
 {{{bottom}}}
 
 <script type="text/javascript">
@@ -96,8 +94,6 @@ YUI().use('target-action-events', 'node', function (Y) {
 			pipeline = this,
 			sectionDOM;
 			this.events.fire(section.id, 'beforeDisplay', function () {
-				// sectionDOM = document.createElement();
-				// sectionDOM.outerHTML = section.markup;
 				stub.ancestor().insertBefore(section.markup, stub);
 				pipeline.events.fire(section.id, 'afterDisplay');
 			});
@@ -124,8 +120,17 @@ YUI().use('target-action-events', 'node', function (Y) {
 
 <script type="text/javascript">
 	pipeline.push({
+		id: 'world',
+		markup: '<span>HELLO WORLD!!</span>',
+		displayTargets: {
+			'hello': ['afterDisplay']
+		}
+	});
+</script>
+<script type="text/javascript">
+	pipeline.push({
 		id: 'hello',
-		markup: '<span>HELLO WORLD!!</span>'
+		markup: '<div id="world"></div>'
 	});
 </script>
 
