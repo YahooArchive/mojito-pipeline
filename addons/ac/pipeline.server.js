@@ -29,7 +29,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
     function Task(task, pipeline) {
         this.pipeline = pipeline;
-        var self = this;
 
         // TODO: pipeline.sections should not have properties render nor flush
         // these should be converted to targets
@@ -51,8 +50,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         this.children = {};
         this.renderTargets = {};
         Y.Array.each(task.dependencies, function (dependency) {
-            self.children[dependency] = pipeline.getTask(dependency);
-            self.renderTargets[dependency] = ['afterRender'];
+            this.children[dependency] = pipeline.getTask(dependency);
+            this.renderTargets[dependency] = ['afterRender'];
         });
 
         // by default the flush test has one target (the task's render event itself)
@@ -159,7 +158,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         return sectionMap;
     };
 
-
     Pipeline.prototype = {
         namespace: 'pipeline',
 
@@ -221,7 +219,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             var task;
             // if getting task by id get task if it exists,
             // if it doesn't exist create a dummy task
-            if (typeof config === 'string') {
+            if (typeof config === 'string' || typeof config === 'number') {
                 config = {
                     id: config
                 };

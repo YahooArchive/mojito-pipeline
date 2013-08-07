@@ -20,5 +20,40 @@
 
 {{{bottom}}}
 
+<script type="text/javascript">
+
+	var Pipeline = function Pipeline(argument) {
+	        this.events = new Y.Pipeline.Events();
+	        this.sections = {};
+		},
+		Section = function Section(options, pipeline) {
+			this.pipeline = pipeline;
+		};
+
+	Pipeline.prototype.push = function(config) {
+
+	};
+	Pipeline.prototype.getSection = function(config) {
+        var section;
+        if (typeof config === 'string' || typeof config === 'number') {
+            config = {
+                id: config
+            };
+            section = this.sections[config] = new Section(config, this);
+            return section;
+        }
+        section = this.sections[config.id];
+        if (section) {
+            Y.mix(section, config, true);
+        } else {
+            section = this.sections[config.id] = new Section(config, this);
+        }
+        return section;
+	};
+
+    Y.namespace('Pipeline') = Pipeline;
+
+</script>
+
 </body>
 </html>
