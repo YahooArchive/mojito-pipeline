@@ -1,15 +1,15 @@
+.master {
+    width: 700px;
+}
 
 .master .left {
     float: left;
+    width: 475px;
 }
 
 .master .right {
     float: left;
-}
-
-.master .container {
-    min-height: 140px;
-    min-width: 170px;
+    width: 220px;
 }
 
 .master .bottom, .master .middle {

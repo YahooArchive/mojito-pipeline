@@ -15,28 +15,28 @@
                         "render": "search-box.rendered",
                         "sections": {
                             "search-box": {
-                                "type": "SearchBox",
-                                "default": false
+                                "type": "Box",
+                                "default": true
                             },
                             "search-results": {
-                                "type": "SearchResults"
+                                "type": "Box"
                             },
                             "ads": {
-                                "type": "Ads",
+                                "type": "Box",
                                 "flush": "search-results.rendered",
                                 "sections": {
                                     "north-ad": {
-                                        "type": "Ad"
+                                        "type": "Box"
                                     },
                                     "south-ad": {
-                                        "type": "Ad",
+                                        "type": "Box",
                                         "display": "north-ad.displayed"
                                     }
                                 }
                             },
                             "footer": {
-                                "type": "Footer",
-                                "default": false
+                                "type": "Box",
+                                "default": true
                             }
                         }
                     }
