@@ -54,7 +54,12 @@
 					this.events.subscribe(targets, section[targetAction]);
 				}, this);
 
-				// TODO: combine the default displayTest with the user's displayTest
+				// merge default displayTest with user provided test
+				if (sectionConfig.displayTest) {
+					section.displayTest = function () {
+						return Section.prototype.displayTest() && sectionConfig.displayTest();
+					};
+				}
 
 				// subscribe to events for the display action
 				if (section.displayTest()) {
@@ -67,7 +72,7 @@
 						} else {
 							done();
 						}
-				});
+					});
 				}
 			};
 

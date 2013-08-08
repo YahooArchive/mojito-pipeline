@@ -78,7 +78,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 self.renderTargets[dependency] = ['afterRender'];
             });
 
-            childrenSections = pipeline._sections[task.id] && pipeline._sections[task.id].sections;
+            childrenSections = this.sections;
             Y.Object.each(childrenSections, function (childSection, childSectionId) {
                 // get child section task
                 self.childrenSections[childSectionId] = pipeline._getTask(childSectionId);
@@ -103,8 +103,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
                         // replace the test with combined test
                         self[action + 'Test'] = function () {
-                            return Task.protoype[action + 'Test'].bind(self).call(pipeline)
-                                && grammar.test(pipeline);
+                            return Task.protoype[action + 'Test'].bind(self).call(pipeline) &&
+                                grammar.test(pipeline);
                         };
 
                         // add the grammar targets
@@ -165,6 +165,27 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         toString: function () {
             return this.data === undefined && this.isSection ?  '<div id="' + this.id + '-section"/>' : this.data;
+        },
+
+        wrap: function () {
+            var displayTargets = this.displayTargets,
+                wrapped = 'pipeline.push({' +
+                    'id: ' + this.id + ',' +
+                    'markup: ' + this.toString;
+            if (this.parent) {
+                displayTargets[this.parent] = ['display'];
+            }
+            wrapped += ',' +
+                'displayTargets: ' + JSON.stringify(displayTargets);
+
+            if (this.displayTest) {
+                wrapped += ',' +
+                    'displayTest: ' + this.displayTest.toString();
+            }
+
+            wrapped += '});';
+
+            return wrapped;
         }
     };
 
@@ -424,12 +445,15 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             for (i = 0; i < this._flushQueue.length; i++) {
                 task = this._flushQueue[i];
-                flushData += task.data;
+                flushData += task.wrap();
                 Y.mojito.util.metaMerge(flushMeta, task.meta);
             }
             if (!flushData) {
                 return;
             }
+
+            flushData = '<script>' + flushData + '</script>';
+
             if (this.closed) {
                 this.ac.done(flushData + '</html>', flushMeta);
             } else {
