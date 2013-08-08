@@ -68,6 +68,30 @@ YUI.add('target-action-events', function (Y) {
             }
 
             return subscription;
+        },
+
+        mergeTargets: function () {
+            var i,
+                j,
+                targets,
+                target,
+                targetAction,
+                mergedTargets = {};
+
+            for (i = 0; i < arguments.length; i++) {
+                targets = arguments[i];
+                for (target in targets) {
+                    mergedTargets[target] = mergedTargets[target] || [];
+                    for (j = 0; j < targets[target].length; j++) {
+                        targetAction = targets[target][j];
+                        mergedTargets[target][targetAction] = mergedTargets[target][targetAction] || [];
+                        if (mergedTargets[target][targetAction].indexOf(targetAction) === -1) {
+                            mergedTargets[target][targetAction].push(targetAction);
+                        }
+                    }
+                }
+            }
+            return mergedTargets;
         }
     };
 

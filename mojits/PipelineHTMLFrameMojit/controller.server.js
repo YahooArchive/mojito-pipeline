@@ -11,19 +11,19 @@ YUI.add('PipelineHTMLFrameMojit', function (Y, NAME) {
                 childConfig = ac.config.get('child');
 
             Y.mix(childConfig, {
-                id: 'child',
-                flushTest: function () {
-                    return false;
-                },
+                id: 'root',
                 afterRender: function (event, done, childHTML, meta) {
                     self.flushFrame(ac, childHTML, meta);
                     done();
                 }
             });
 
-            ac.pipeline.configure(childConfig);
+            ac.pipeline.configure({
+                sections: {
+                    root: childConfig
+                }
+            });
             ac.pipeline.push(childConfig);
-            ac.pipeline.close();
         },
 
         flushFrame: function (ac, childHTML, meta) {
