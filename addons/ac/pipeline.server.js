@@ -321,7 +321,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             var task;
             // if getting task by id get task if it exists,
             // if it doesn't exist create a dummy task
-            if (typeof config === 'string') {
+            if (typeof config === 'string' || typeof config === 'number') {
                 config = {
                     id: config
                 };

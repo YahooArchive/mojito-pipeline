@@ -2,7 +2,6 @@
 /*global YUI*/
 YUI.add('PipelineHTMLFrameMojit', function (Y, NAME) {
     'use strict';
-
     Y.namespace('mojito.controllers')[NAME] = {
 
         index: function (ac) {
