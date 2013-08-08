@@ -281,7 +281,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     // listen to parent's render in order to remove flush subscription if
                     // this task has been rendered
                     if (task.parent) {
-                        targets = {}
+                        targets = {};
                         targets[task.parent.id] = ['render'];
                         this.data.events.once(targets, function (event, done) {
                             if (task.rendered) {
