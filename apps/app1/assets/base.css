@@ -26,3 +26,9 @@ h1 {
 .dependency {
     color: rgb(192, 79, 79);
 }
+
+.stub {
+    color: gray;
+    border: 2px solid silver;
+    padding: 5px;
+}

@@ -17,7 +17,7 @@
 	<body>
 
 		{{{child}}}
-		<div id="hello"></div>
+		<div id="world6"></div>
 		{{{bottom}}}
 
 		<script type="text/javascript">
@@ -29,6 +29,7 @@
 					this.events = new Y.Pipeline.Events();
 					this.sections = {};
 					Y.Array.each(dummyPipeline, this.push.bind(this));
+					this.notDisplayed = 0;
 				},
 				Section = function Section(config, pipeline) {
 					this.pipeline = pipeline;
@@ -66,7 +67,7 @@
 						} else {
 							done();
 						}
-					});
+				});
 				}
 			};
 
@@ -96,14 +97,14 @@
 						stub.ancestor().insertBefore(section.markup, stub);
 						section.displayed = true;
 						pipeline.events.fire(section.id, 'afterDisplay');
-					});
+				});
 			};
 
 			Section._combineTests = function () {
 				return function () {
 					return !Y.Array.some(arguments, function (nextFn) {
 						return !nextFn.call();
-					});
+				});
 				};
 			};
 			Section.EVENT_TYPES = ['beforeDisplay', 'afterDisplay'];
@@ -119,19 +120,71 @@
 		</script>
 
 		<script type="text/javascript">
-			pipeline.push({
-				id: 'world',
-				markup: '<span>HELLO WORLD!!</span>',
-				displayTargets: {
-					'hello': ['afterDisplay']
-				}
-			});
+			var numPushed = 0;
+		</script>
+
+		<script type="text/javascript">
+			setTimeout(function() {
+				pipeline.push({
+					id: 'world1',
+					markup: '<div class="stub">I was pushed #' + ++numPushed + '</div>',
+					displayTargets: {
+						'world2': ['afterDisplay']
+					}
+				});
+			}, 3000 * Math.random());
 		</script>
 		<script type="text/javascript">
-			pipeline.push({
-				id: 'hello',
-				markup: '<div><span>this is the hello section</span></div><div id="world"></div>'
-			});
+			setTimeout(function() {
+				pipeline.push({
+						id: 'world2',
+					markup: '<div class="stub">I was pushed #' + ++numPushed + '<div id="world1"></div></div>',
+					displayTargets: {
+						'world3': ['afterDisplay']
+					}
+				});
+			}, 3000 * Math.random());
+		</script>
+		<script type="text/javascript">
+			setTimeout(function() {
+					pipeline.push({
+						id: 'world3',
+					markup: '<div class="stub">I was pushed #' + ++numPushed + '<div id="world2"></div></div>',
+					displayTargets: {
+						'world4': ['afterDisplay']
+					}
+				});
+			}, 3000 * Math.random());
+		</script>
+		<script type="text/javascript">
+			setTimeout(function() {
+					pipeline.push({
+						id: 'world4',
+					markup: '<div class="stub">I was pushed #' + ++numPushed + '<div id="world3"></div></div>',
+					displayTargets: {
+						'world5': ['afterDisplay']
+					}
+				});
+			}, 3000 * Math.random());
+		</script>
+		<script type="text/javascript">
+			setTimeout(function() {
+				pipeline.push({
+						id: 'world5',
+					markup: '<div class="stub">I was pushed #' + ++numPushed + '<div id="world4"></div></div>',
+					displayTargets: {
+						'world6': ['afterDisplay']
+					}
+				});
+			}, 3000 * Math.random());
+		</script>
+		<script type="text/javascript">
+			setTimeout(function() {
+				pipeline.push({
+						id: 'world6',
+					markup: '<div class="stub">I was pushed #' + ++numPushed + '<div id="world5"></div></div>'
+				});
+			}, 3000 * Math.random());
 		</script>
 
 	</body>
