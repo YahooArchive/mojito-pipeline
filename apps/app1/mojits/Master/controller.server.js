@@ -27,8 +27,8 @@ YUI.add('MasterController', function (Y, NAME) {
             }
 
             // push sections
-            Y.Object.each(ac.pipeline._sections, function (section) {
-                if (section.sectionName === 'root') {
+            Y.Object.each(ac.pipeline.data.sections, function (section) {
+                if (section.sectionName === 'root' || section.sectionName === 'search-box' || section.sectionName === 'footer') {
                     return;
                 }
                 ac.pipeline.push({
@@ -45,6 +45,7 @@ YUI.add('MasterController', function (Y, NAME) {
             ac.pipeline.close();
 
             children = ac.params.body('children');
+
             if (ac.pipeline.client.jsEnabled) {
                 ac.done(children);
             } else {
