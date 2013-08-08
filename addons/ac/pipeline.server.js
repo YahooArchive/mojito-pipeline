@@ -3,6 +3,7 @@
  */
 
 /*jslint nomen: true, plusplus: true, forin: true */
+/*globals escape */
 YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     'use strict';
 
@@ -66,10 +67,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             Y.mix(this, task, true);
 
             var self = this,
-                childrenSections,
-                renderGrammar,
-                flushGrammar = pipeline._parseGrammar(this.flush),
-                displayGrammar = pipeline._parseGrammar(this.render);
+                childrenSections;
 
             Y.Array.each(task.dependencies, function (dependency) {
                 // get dependency task
@@ -78,7 +76,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 self.renderTargets[dependency] = ['afterRender'];
             });
 
-            childrenSections = pipeline.data.sections[task.id] && pipeline.data.sections[task.id].sections;
+            childrenSections = this.sections;
             Y.Object.each(childrenSections, function (childSection, childSectionId) {
                 // get child section task
                 self.childrenSections[childSectionId] = pipeline._getTask(childSectionId);
@@ -87,6 +85,12 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     self.renderTargets[childSectionId] = ['afterRender'];
                 }
             });
+
+            // if this task has a parent
+            // it should include its parent's display action as a display target
+            if (this.parent) {
+                this.displayTargets[this.parent.id] = ['display'];
+            }
 
             if (!pipeline.client.jsEnabled) {
                 // change to the noJS tests
@@ -97,14 +101,15 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 this.renderTargets.pipeline = ['close'];
             } else {
                 // if js is enabled combine tests with grammar
-                Y.Array.each(['render', 'flush', 'display'], function (action) {
+                // TODO how to handle display
+                Y.Array.each(['render', 'flush'], function (action) {
                     if (self[action]) {
                         var grammar = pipeline._parseGrammar(self[action]);
 
                         // replace the test with combined test
                         self[action + 'Test'] = function () {
-                            return Task.prototype[action + 'Test'].bind(self).call(pipeline)
-                                && grammar.test(pipeline);
+                            return Task.prototype[action + 'Test'].bind(self).call(pipeline) &&
+                                grammar.test(pipeline);
                         };
 
                         // add the grammar targets
@@ -163,8 +168,33 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             return this.rendered;
         },
 
+        displayTest: function (pipeline) {
+            if (this.parent) {
+                return this.parent.displayed;
+            }
+            return true;
+        },
+
         toString: function () {
-            return this.data === undefined && this.isSection ?  '<div id="' + this.id + '-section">' + this.sectionName + '</div>' : this.data;
+            return this.data === undefined && this.isSection ?  '<div id="' + this.id + '-section"></div>' : this.data;
+        },
+
+        wrap: function () {
+            var wrapped = 'pipeline.push({' +
+                'id: "' + this.id + '-section",' +
+                'markup: "' + escape(this.toString()) + '"';
+
+            wrapped += ',' +
+                'displayTargets: ' + JSON.stringify(this.displayTargets);
+
+            if (this.displayTest) {
+                wrapped += ',' +
+                    'displayTest: ' + this.displayTest.toString();
+            }
+
+            wrapped += '});';
+
+            return wrapped;
         }
     };
 
@@ -234,7 +264,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             // keep track to know when to flush the batch
             this.data.numUnprocessedTasks++;
-            //console.log(this.data.numUnprocessedTasks + ": Pushed " + taskConfig.id);
+            console.log(this.data.numUnprocessedTasks + ": Pushed " + taskConfig.id);
             process.nextTick(function () {
                 var pipeline = this,
                     renderSubscription,
@@ -421,7 +451,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         _taskProcessed: function (task) {
             var pipeline = this;
             this.data.numUnprocessedTasks--;
-            //console.log(this.data.numUnprocessedTasks + ": Processed " + task.id);
+            console.log(this.data.numUnprocessedTasks + ": Processed " + task.id);
             if (this.data.numUnprocessedTasks !== 0) {
                 return;
             }
@@ -444,12 +474,16 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             for (i = 0; i < this.data.flushQueue.length; i++) {
                 task = this.data.flushQueue[i];
-                flushData += task.data;
+                flushData += task.wrap();
                 Y.mojito.util.metaMerge(flushMeta, task.meta);
             }
+
             if (!flushData) {
                 return;
             }
+
+            flushData = '<script>' + flushData + '</script>';
+
             if (this.data.closed) {
                 this.ac.done(flushData + '</body></html>', flushMeta);
             } else {
