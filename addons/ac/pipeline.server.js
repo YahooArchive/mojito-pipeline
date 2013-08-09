@@ -187,6 +187,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         displayTest: function (pipeline) {
+            console.log('this:' + JSON.stringify(this, null, 4));
             if (this.parent) {
                 return this.parent.displayed;
             }
@@ -199,16 +200,22 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         wrap: function () {
             var wrapped = 'pipeline.push({' +
-                'id: "' + this.id + '-section",' +
                 'markup: "' + escape(this.toString()) + '"';
 
-            wrapped += ',' +
-                'displayTargets: ' + JSON.stringify(this.displayTargets);
-
-            if (this.displayTest) {
-                wrapped += ',' +
-                    'displayTest: ' + this.displayTest.toString();
-            }
+            Y.Object.each(this, function (property, propertyName) {
+                switch (propertyName) {
+                case 'id':
+                    wrapped += ',' + propertyName + ': "' + property + '-section"';
+                    break;
+                case 'displayTargets':
+                    wrapped += ',' + propertyName + ": " + JSON.stringify(property);
+                    break;
+                case 'displayTest':
+                    wrapped += ',' + propertyName + ": " + property.toString();
+                    break;
+                default:
+                }
+            }, this);
 
             wrapped += '});';
 
@@ -387,10 +394,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 targets: targets,
                 test: function () {
                     var result;
-                    // console.log('testing:' + rulz);
                     result = vm.runInContext(rulz, self._vmContext);
-                    // console.log(result);
-                    return true;
+                    return result;
                 }
             };
         },
