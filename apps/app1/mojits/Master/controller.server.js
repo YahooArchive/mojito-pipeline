@@ -32,7 +32,7 @@ YUI.add('MasterController', function (Y, NAME) {
                         }
                     };
                     setTimeout(function () {
-                        console.log("Pushed: " + task.id);
+                        ac.pipeline.push(task);
                         closePipeline();
                     }, 2000 * Math.random());
                 }());
