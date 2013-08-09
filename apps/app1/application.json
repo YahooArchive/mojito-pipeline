@@ -12,7 +12,6 @@
                     "deploy": true,
                     "child": {
                         "type": "Master",
-                        "render": "search-box.rendered",
                         "sections": {
                             "search-box": {
                                 "type": "Box",
@@ -23,11 +22,11 @@
                                 }
                             },
                             "search-results": {
-                                "type": "Box"
+                                "type": "Box",
+                                "flush": "ads.flushed"
                             },
                             "ads": {
                                 "type": "Box",
-                                "flush": "search-results.rendered",
                                 "sections": {
                                     "north-ad": {
                                         "type": "Box"
