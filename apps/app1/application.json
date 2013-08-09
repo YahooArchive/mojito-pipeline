@@ -16,7 +16,11 @@
                         "sections": {
                             "search-box": {
                                 "type": "Box",
-                                "default": true
+                                "default": true,
+                                "config": {
+                                    "title": "search-box",
+                                    "taskType": "default section"
+                                }
                             },
                             "search-results": {
                                 "type": "Box"
@@ -36,7 +40,11 @@
                             },
                             "footer": {
                                 "type": "Box",
-                                "default": true
+                                "default": true,
+                                "config": {
+                                    "title": "footer",
+                                    "taskType": "default section"
+                                }
                             }
                         }
                     }

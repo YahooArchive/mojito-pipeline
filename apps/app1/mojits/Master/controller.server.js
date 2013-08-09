@@ -9,29 +9,43 @@ YUI.add('MasterController', function (Y, NAME) {
             var i,
                 id,
                 children,
-                searchResultsDependencies = [];
+                pushedTasks = 0,
+                searchResultsDependencies = [],
+                closePipeline = function () {
+                    if (--pushedTasks === 0) {
+                        ac.pipeline.close();
+                    }
+                };
 
             // push search-results children
             for (i = 1; i <= 6; i++) {
-                id = 'search-result' + i;
-                searchResultsDependencies.push(id);
-                ac.pipeline.push({
-                    id: id,
-                    group: 'results',
-                    type: 'Box',
-                    config: {
-                        title: id,
-                        taskType: 'dependency'
-                    }
-                });
+                searchResultsDependencies.push('search-result' + i);
+                pushedTasks++;
+                (function () {
+                    var task = {
+                        id: 'search-result' + i,
+                        group: 'results',
+                        type: 'Box',
+                        config: {
+                            title: 'search-result' + i,
+                            taskType: 'dependency'
+                        }
+                    };
+                    setTimeout(function () {
+                        ac.pipeline.push(task);
+                        closePipeline();
+                    }, 2000 * Math.random());
+                }());
+
             }
 
             // push sections
-            Y.Object.each(ac.pipeline._sections, function (section) {
-                if (section.sectionName === 'root') {
+            Y.Object.each(ac.pipeline.data.sections, function (section) {
+                if (section.sectionName === 'root' || section.sectionName === 'search-box' || section.sectionName === 'footer') {
                     return;
                 }
-                ac.pipeline.push({
+                pushedTasks++;
+                var task = {
                     id: section.sectionName,
                     type: section.type,
                     dependencies: section.sectionName === 'search-results' ? searchResultsDependencies : [],
@@ -39,12 +53,15 @@ YUI.add('MasterController', function (Y, NAME) {
                         title: section.sectionName,
                         taskType: section['default'] ? 'default section' : 'section'
                     }
-                });
+                };
+                setTimeout(function () {
+                    ac.pipeline.push(task);
+                    closePipeline();
+                }, 4000 * Math.random());
             });
 
-            ac.pipeline.close();
-
             children = ac.params.body('children');
+
             if (ac.pipeline.client.jsEnabled) {
                 ac.done(children);
             } else {

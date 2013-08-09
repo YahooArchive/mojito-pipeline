@@ -17,7 +17,6 @@
 	<body>
 
 		{{{child}}}
-		<div id="world6"></div>
 		{{{bottom}}}
 
 		<script type="text/javascript">
@@ -57,7 +56,7 @@
 				// merge default displayTest with user provided test
 				if (sectionConfig.displayTest) {
 					section.displayTest = function () {
-						return Section.prototype.displayTest() && sectionConfig.displayTest();
+						return Section.prototype.displayTest.bind(section).call() && sectionConfig.displayTest();
 					};
 				}
 
@@ -99,7 +98,7 @@
 					pipeline = this,
 					sectionDOM;
 					this.events.fire(section.id, 'beforeDisplay', function () {
-						stub.ancestor().insertBefore(section.markup, stub);
+						stub.ancestor().insertBefore(unescape(section.markup), stub);
 						section.displayed = true;
 						pipeline.events.fire(section.id, 'afterDisplay');
 				});
@@ -128,7 +127,7 @@
 			var numPushed = 0;
 		</script>
 
-		<script type="text/javascript">
+		<!--<script type="text/javascript">
 			setTimeout(function() {
 				pipeline.push({
 					id: 'world1',
@@ -190,8 +189,6 @@
 					markup: '<div class="stub">I was pushed #' + ++numPushed + '<div id="world5"></div></div>'
 				});
 			}, 3000 * Math.random());
-		</script>
+		</script>-->
 
-	</body>
-</html>
-
+{{{end}}}
