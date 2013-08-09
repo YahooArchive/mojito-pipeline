@@ -264,7 +264,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             // keep track to know when to flush the batch
             this.data.numUnprocessedTasks++;
-            console.log(this.data.numUnprocessedTasks + ": Pushed " + taskConfig.id);
             process.nextTick(function () {
                 var pipeline = this,
                     renderSubscription,
@@ -451,7 +450,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         _taskProcessed: function (task) {
             var pipeline = this;
             this.data.numUnprocessedTasks--;
-            console.log(this.data.numUnprocessedTasks + ": Processed " + task.id);
             if (this.data.numUnprocessedTasks !== 0) {
                 return;
             }
@@ -489,6 +487,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             } else {
                 this.ac.flush(flushData, flushMeta);
             }
+            this.data.flushQueue = [];
         },
 
         _combineTests: function () {
