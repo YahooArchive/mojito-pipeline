@@ -136,8 +136,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
                 // by default the flush test has one target (the task's render event itself)
                 this.flushTargets[this.id] = ['afterRender'];
-                // this.flushTargets['pipeline'] = ['close'];
-                // TODO: add this if it's necessary
             }
 
             // if task is root
@@ -500,6 +498,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     id: config
                 };
 
+                // TODO only initialize the parts of the task that are necessary
+                // for example dont initialize the parsed grammar...
                 task = this.data.tasks[config.id] = this.data.tasks[config.id] || new Task(config, this);
                 return task;
             }
