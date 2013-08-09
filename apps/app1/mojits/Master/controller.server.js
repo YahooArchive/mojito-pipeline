@@ -13,6 +13,7 @@ YUI.add('MasterController', function (Y, NAME) {
                 searchResultsDependencies = [],
                 closePipeline = function () {
                     if (--pushedTasks === 0) {
+                        console.log('closing pipeline...');
                         ac.pipeline.close();
                     }
                 };
@@ -46,7 +47,7 @@ YUI.add('MasterController', function (Y, NAME) {
                 }
                 pushedTasks++;
                 var task = {
-                    id: section.id,
+                    id: section.sectionName,
                     type: section.type,
                     dependencies: section.sectionName === 'search-results' ? searchResultsDependencies : [],
                     config: {

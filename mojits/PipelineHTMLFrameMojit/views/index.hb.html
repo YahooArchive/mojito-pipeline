@@ -100,6 +100,7 @@
 					this.events.fire(section.id, 'beforeDisplay', function () {
 						stub.ancestor().insertBefore(unescape(section.markup), stub);
 						section.displayed = true;
+						console.log('fireing:' + section.id + '#afterDisplay');
 						pipeline.events.fire(section.id, 'afterDisplay');
 				});
 			};
@@ -126,69 +127,5 @@
 		<script type="text/javascript">
 			var numPushed = 0;
 		</script>
-
-		<!--<script type="text/javascript">
-			setTimeout(function() {
-				pipeline.push({
-					id: 'world1',
-					markup: '<div class="stub">I was pushed #' + ++numPushed + '</div>',
-					displayTargets: {
-						'world2': ['afterDisplay']
-					}
-				});
-			}, 3000 * Math.random());
-		</script>
-		<script type="text/javascript">
-			setTimeout(function() {
-				pipeline.push({
-						id: 'world2',
-					markup: '<div class="stub">I was pushed #' + ++numPushed + '<div id="world1"></div></div>',
-					displayTargets: {
-						'world3': ['afterDisplay']
-					}
-				});
-			}, 3000 * Math.random());
-		</script>
-		<script type="text/javascript">
-			setTimeout(function() {
-					pipeline.push({
-						id: 'world3',
-					markup: '<div class="stub">I was pushed #' + ++numPushed + '<div id="world2"></div></div>',
-					displayTargets: {
-						'world4': ['afterDisplay']
-					}
-				});
-			}, 3000 * Math.random());
-		</script>
-		<script type="text/javascript">
-			setTimeout(function() {
-					pipeline.push({
-						id: 'world4',
-					markup: '<div class="stub">I was pushed #' + ++numPushed + '<div id="world3"></div></div>',
-					displayTargets: {
-						'world5': ['afterDisplay']
-					}
-				});
-			}, 3000 * Math.random());
-		</script>
-		<script type="text/javascript">
-			setTimeout(function() {
-				pipeline.push({
-						id: 'world5',
-					markup: '<div class="stub">I was pushed #' + ++numPushed + '<div id="world4"></div></div>',
-					displayTargets: {
-						'world6': ['afterDisplay']
-					}
-				});
-			}, 3000 * Math.random());
-		</script>
-		<script type="text/javascript">
-			setTimeout(function() {
-				pipeline.push({
-						id: 'world6',
-					markup: '<div class="stub">I was pushed #' + ++numPushed + '<div id="world5"></div></div>'
-				});
-			}, 3000 * Math.random());
-		</script>-->
 
 {{{end}}}

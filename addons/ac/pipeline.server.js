@@ -136,6 +136,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
                 // by default the flush test has one target (the task's render event itself)
                 this.flushTargets[this.id] = ['afterRender'];
+                // this.flushTargets['pipeline'] = ['close'];
+                // TODO: add this if it's necessary
             }
 
             // if task is root
@@ -183,11 +185,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         flushTest: function (pipeline) {
-            return this.rendered;
+            return this.rendered || pipeline.data.closedCalled;
         },
 
         displayTest: function (pipeline) {
-            console.log('this:' + JSON.stringify(this, null, 4));
             if (this.parent) {
                 return this.parent.displayed;
             }
@@ -205,19 +206,22 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             Y.Object.each(this, function (property, propertyName) {
                 switch (propertyName) {
                 case 'id':
-                    wrapped += ',' + propertyName + ': "' + property + '-section"';
+                    wrapped += ',\n' + propertyName + ': "' + property + '-section"';
                     break;
                 case 'displayTargets':
-                    wrapped += ',' + propertyName + ": " + JSON.stringify(property);
+                    Y.Object.each(property, function (targetEvents, targetName) {
+                        property[targetName + '-section'] = targetEvents;
+                    });
+                    wrapped += ',\n' + propertyName + ": " + JSON.stringify(property);
                     break;
                 case 'displayTest':
-                    wrapped += ',' + propertyName + ": " + property.toString();
+                    wrapped += ',\n' + propertyName + ": " + property.toString();
                     break;
                 default:
                 }
             }, this);
 
-            wrapped += '});';
+            wrapped += '});\n';
 
             return wrapped;
         }
@@ -289,6 +293,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         close: function () {
+            var self = this;
+            this.data.events.fire('pipeline', 'close', function () {
+                self._flushQueuedTasks();
+            });
             this.data.closedCalled = true;
         },
 
@@ -393,8 +401,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             return {
                 targets: targets,
                 test: function () {
-                    var result;
-                    result = vm.runInContext(rulz, self._vmContext);
+                    var result = vm.runInContext(rulz, self._vmContext);
                     return result;
                 }
             };
@@ -479,6 +486,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         _addToFlushQueue: function (task) {
             this.data.flushQueue.push(task);
+            if (this.data.closedCalled) {
+                this._flushQueuedTasks();
+            }
         },
 
         _getTask: function (config) {
@@ -595,10 +605,11 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 task.flushed = true;
                 flushData += task.wrap();
                 Y.mojito.util.metaMerge(flushMeta, task.meta);
-                this.data.events.fire(task.id, 'flush', function () {
+                this.data.events.fire(task.id, 'beforeFlush', function () {
                     if (++processedTasks === pipeline.data.flushQueue.length) {
                         pipeline.__flushQueuedTasks(flushData, flushMeta);
                     }
+                    pipeline.data.events.fire(task.id, 'afterFlush');
                 });
             }
         },
