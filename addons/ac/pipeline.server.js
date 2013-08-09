@@ -44,6 +44,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         this._vmContext = vm.createContext({
             pipeline: this
         });
+
+        this.getTask = this._getTask;
     }
 
     function Task(task, pipeline) {
@@ -115,7 +117,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
                         // replace the test with combined test
                         self[action + 'Test'] = function () {
-                            return Task.protoype[action + 'Test'].bind(self).call() &&
+                            return Task.prototype[action + 'Test'].bind(self).call() &&
                                 actionRule.test();
                         };
 
@@ -135,6 +137,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 // flush test should always be false
                 this.flushTest = function () { return false; };
             }
+
 
         },
 
@@ -249,12 +252,13 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     Y.Object.each(sections, function (sectionConfig, sectionName) {
                         pipeline.data.sections[sectionName] = sectionConfig;
                         pipeline.data.sections[sectionName].sectionName = sectionName;
+                        pipeline.data.sections[sectionName].id = sectionName;
                         pipeline.data.sections[sectionName].parent = parentSection;
                         getSections(sectionConfig.sections, sectionConfig);
                     });
                 };
 
-            getSections(config.sections, null);
+            getSections(config.sections, undefined);
         },
 
         on: function (targetAction, action) {
@@ -360,15 +364,19 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         _parseRule: function (rulz) {
             var targets = {},
                 self = this;
-            rulz = rulz.replace(/([a-zA-Z_$][0-9a-zA-Z_$]*)\.([^\s]+)/gm, function (expression, objectId, property) {
+            rulz = rulz.replace(/([a-zA-Z_$][0-9a-zA-Z_$\-]*)\.([^\s]+)/gm, function (expression, objectId, property) {
                 targets[objectId] = targets[objectId] || [];
-                targets[objectId].push(this._propertyEventsMap[property]);
+                targets[objectId].push(self._propertyEventsMap[property]);
                 return 'pipeline.getTask("' + objectId + '").' + property;
             });
             return {
                 targets: targets,
                 test: function () {
-                    return vm.runInContext(rulz, self._vmContext);
+                    var result;
+                    // console.log('testing:' + rulz);
+                    result = vm.runInContext(rulz, self._vmContext);
+                    // console.log(result);
+                    return true;
                 }
             };
         },

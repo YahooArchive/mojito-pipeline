@@ -46,7 +46,7 @@ YUI.add('MasterController', function (Y, NAME) {
                 }
                 pushedTasks++;
                 var task = {
-                    id: section.sectionName,
+                    id: section.id,
                     type: section.type,
                     dependencies: section.sectionName === 'search-results' ? searchResultsDependencies : [],
                     config: {
