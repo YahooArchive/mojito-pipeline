@@ -1,8 +1,8 @@
 /*
  * Copyright (c) 2013 Yahoo! Inc. All rights reserved.
  */
-
-/*jslint nomen: true, plusplus: true, forin: true, evil: true */
+var vm = require('vm');
+/*jslint nomen: true, plusplus: true, forin: true, evil: true, regexp: true */
 /*globals escape */
 YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     'use strict';
@@ -36,6 +36,13 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             sections: {},
             flushQueue: []
         };
+        this._sections = {};
+
+        this._flushQueue = [];
+
+        this._vmContext = vm.createContext({
+            pipeline: this
+        });
     }
 
     function Task(task, pipeline) {
@@ -100,24 +107,28 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 // needs to know about pipeline's closed state
                 this.renderTargets.pipeline = ['close'];
             } else {
-                // if js is enabled combine tests with grammar
-                // TODO how to handle display
-                Y.Array.each(['render', 'flush'], function (action) {
+                // if js is enabled combine tests with actionRule
+                Y.Array.each(['render', 'flush', 'display'], function (action) {
                     if (self[action]) {
                         var grammar = pipeline._parseGrammar(self[action]);
                         if (!grammar) {
                             return;
                         }
 
+                        //var actionRule = pipeline._parseRule(self[action]);
+
                         // replace the test with combined test
                         self[action + 'Test'] = function () {
-                            return Task.prototype[action + 'Test'].bind(self).call(pipeline) &&
+                            return Task.prototype[action + 'Test'].bind(self).call() &&
                                 grammar.test(pipeline);
+                                //actionRule.test();
                         };
 
                         // add the grammar targets
                         self[action + 'Targets'] = Y.Pipeline.Events.mergeTargets(self[action + 'Targets'], grammar.targets);
 
+                        // add the actionRule targets
+                        //self[action + 'Targets'] = Y.Pipeline.Events.mergeTargets(self[action + 'Targets'], actionRule.targets);
                     }
                 });
 
@@ -360,11 +371,18 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             }.bind(this));
         },
 
-        _old_parseGrammar: function (grammar) {
+        _parseRule: function (rulz) {
+            var targets = {},
+                self = this;
+            rulz = rulz.replace(/([a-zA-Z_$][0-9a-zA-Z_$]*)\.([^\s]+)/gm, function (expression, objectId, property) {
+                targets[objectId] = targets[objectId] || [];
+                targets[objectId].push(this._propertyEventsMap[property]);
+                return 'pipeline.getTask("' + objectId + '").' + property;
+            });
             return {
-                targets: {},
+                targets: targets,
                 test: function () {
-                    return true;
+                    return vm.runInContext(rulz, self._vmContext);
                 }
             };
         },
@@ -589,6 +607,12 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     return !nextFn.call();
                 });
             };
+        },
+
+        _propertyEventsMap: {
+            'rendered': 'afterRender',
+            'flushed': 'afterFlush',
+            'displayed': 'afterDisplay'
         }
     };
 
