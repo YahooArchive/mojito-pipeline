@@ -2,7 +2,7 @@
  * Copyright (c) 2013 Yahoo! Inc. All rights reserved.
  */
 
-/*jslint nomen: true, plusplus: true, forin: true */
+/*jslint nomen: true, plusplus: true, forin: true, evil: true */
 /*globals escape */
 YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     'use strict';
@@ -89,7 +89,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             // if this task has a parent
             // it should include its parent's display action as a display target
             if (this.parent) {
-                this.displayTargets[this.parent.id] = ['display'];
+                this.displayTargets[this.parent.id] = ['afterDisplay'];
             }
 
             if (!pipeline.client.jsEnabled) {
@@ -108,7 +108,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                         if (!grammar) {
                             return;
                         }
-debugger;
+
                         // replace the test with combined test
                         self[action + 'Test'] = function () {
                             return Task.prototype[action + 'Test'].bind(self).call(pipeline) &&
@@ -117,12 +117,12 @@ debugger;
 
                         // add the grammar targets
                         self[action + 'Targets'] = Y.Pipeline.Events.mergeTargets(self[action + 'Targets'], grammar.targets);
+
                     }
                 });
 
                 // by default the flush test has one target (the task's render event itself)
                 this.flushTargets[this.id] = ['afterRender'];
-                this.flushTargets['pipeline'] = ['close'];
             }
 
             // if task is root
@@ -169,7 +169,7 @@ debugger;
         },
 
         flushTest: function (pipeline) {
-            return this.rendered || pipeline.closed;
+            return this.rendered;
         },
 
         displayTest: function (pipeline) {
@@ -205,7 +205,7 @@ debugger;
     Pipeline.EVENT_TYPES = ['beforeFlush', 'afterFlush'];
     Pipeline.STATE_MAP = {
         'rendered': 'afterRender',
-        'flushed': 'afterFlush',
+        'flushed': 'flush',
         'closed': 'close'
     };
 
@@ -371,6 +371,7 @@ debugger;
 
         _parseGrammar: function (grammar) {
             var pipelineStr = 'pipeline._getTask("")',
+                parsedGrammar = grammar,
                 sections = {},
                 targets = {},
                 targetAction,
@@ -381,8 +382,6 @@ debugger;
                 stateStart = null,
                 sectionStart = null;
 
-            var parsedGrammar = grammar;
-            // task.closed&
             for (i = 0; i < parsedGrammar.length; i++) {
                 c = parsedGrammar[i];
                 //console.log(parsedGrammar + "[" + i + "] = " + c);
@@ -413,37 +412,35 @@ debugger;
                     state = null;
                     section = null;
                     stateStart = null;
-                } else if (sectionStart !== null && section !== null || stateStart !== null && state !== null) {
+                } else if ((sectionStart !== null && section !== null) || (stateStart !== null && state !== null)) {
                     return null;
                 }
             }
 
             if (sectionStart !== null || stateStart !== null) {
                 return null;
-            } else {
-                // generate targets
-                for (section in sections) {
-                    targets[section] = targets[section] || [];
-
-                    for (state in sections[section]) {
-                        targetAction = Pipeline.STATE_MAP[state];
-
-                        if (!targetAction) {
-                            console.log('Target action does not exist for state "' + state + '"');
-                        } else if (targets[section].indexOf(targetAction) === -1){
-                            targets[section].push(targetAction);
-                        }
-                    }
-
-                }
             }
+
+            // generate targets
+            for (section in sections) {
+                targets[section] = targets[section] || [];
+
+                for (state in sections[section]) {
+                    targetAction = Pipeline.STATE_MAP[state];
+
+                    if (!targetAction) {
+                        console.log('Target action does not exist for state "' + state + '"');
+                    } else if (targets[section].indexOf(targetAction) === -1) {
+                        targets[section].push(targetAction);
+                    }
+                }
+
+            }
+
             return {
                 targets: targets,
                 test: function (pipeline) {
-                    console.log(parsedGrammar);
-                    var result = eval(parsedGrammar);
-                    console.log(result)
-                    return result;
+                    return eval(parsedGrammar);
                 }
             };
         },
@@ -547,7 +544,6 @@ debugger;
             if (this.data.closedCalled) {
                 this.data.closed = true;
                 this.data.events.fire('pipeline', 'close', function () {
-                    console.log('closed')
                     pipeline._flushQueuedTasks();
                 });
             } else {
@@ -556,22 +552,27 @@ debugger;
         },
 
         _flushQueuedTasks: function () {
-            var i,
+            var pipeline = this,
+                i,
                 flushData = "",
                 flushMeta = {},
-                task;
+                task,
+                processedTasks = 0;
 
             for (i = 0; i < this.data.flushQueue.length; i++) {
                 task = this.data.flushQueue[i];
                 task.flushed = true;
                 flushData += task.wrap();
                 Y.mojito.util.metaMerge(flushMeta, task.meta);
+                this.data.events.fire(task.id, 'flush', function () {
+                    if (++processedTasks === pipeline.data.flushQueue.length) {
+                        pipeline.__flushQueuedTasks(flushData, flushMeta);
+                    }
+                });
             }
+        },
 
-            if (!flushData) {
-                return;
-            }
-
+        __flushQueuedTasks: function (flushData, flushMeta) {
             flushData = '<script>' + flushData + '</script>';
 
             if (this.data.closed) {

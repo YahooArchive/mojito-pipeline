@@ -22,18 +22,17 @@
                                 }
                             },
                             "search-results": {
-                                "type": "Box",
-                                "flush": "ads.flushed"
+                                "type": "Box"
                             },
                             "ads": {
                                 "type": "Box",
+                                "flush": "search-results.flushed",
                                 "sections": {
                                     "north-ad": {
                                         "type": "Box"
                                     },
                                     "south-ad": {
-                                        "type": "Box",
-                                        "display": "north-ad.displayed"
+                                        "type": "Box"
                                     }
                                 }
                             },
