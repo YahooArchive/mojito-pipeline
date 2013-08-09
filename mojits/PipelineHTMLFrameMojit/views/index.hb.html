@@ -40,6 +40,7 @@
 					section = this.getSection(sectionConfig),
 					displaySubscription;
 
+				console.log('pushing: ' + sectionConfig.id);
 				section.flushed = true;
 				Y.mix(section, sectionConfig, true);
 
@@ -64,6 +65,7 @@
 				if (section.displayTest()) {
 					pipeline.display(section);
 				} else {
+					console.log('subscribing to:' + JSON.stringify(section.displayTargets, null, 4));
 					displaySubscription = this.events.subscribe(section.displayTargets, function (event, done) {
 						if (section.displayTest(section)) {
 							displaySubscription.unsubscribe();
@@ -100,9 +102,12 @@
 					this.events.fire(section.id, 'beforeDisplay', function () {
 						stub.ancestor().insertBefore(unescape(section.markup), stub);
 						section.displayed = true;
-						console.log('fireing:' + section.id + '#afterDisplay');
+						console.log('firing:' + section.id + '#afterDisplay');
 						pipeline.events.fire(section.id, 'afterDisplay');
-				});
+						Y.Object.each(section.embeddedCHildren, function (value, name) {
+							pipeline.events.fire(name, 'afterDisplay');
+						});
+					});
 			};
 
 			Section._combineTests = function () {

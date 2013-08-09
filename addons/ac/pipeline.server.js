@@ -68,6 +68,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             this.displayTargets = {};
             this.childrenTasks = {};
             this.childrenSections = {};
+            this.embeddedChildren = {};
 
             if (pipeline.data.sections[task.id]) {
                 this.isSection = true;
@@ -207,8 +208,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     wrapped += ',\n' + propertyName + ': "' + property + '-section"';
                     break;
                 case 'displayTargets':
-                    Y.Object.each(property, function (targetEvents, targetName) {
-                        property[targetName + '-section'] = targetEvents;
+                case 'embeddedChildren':
+                    Y.Object.each(property, function (sectionValue, sectionName) {
+                        property[sectionName + '-section'] = sectionValue;
                     });
                     wrapped += ',\n' + propertyName + ": " + JSON.stringify(property);
                     break;
@@ -292,9 +294,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         close: function () {
             var self = this;
-            this.data.events.fire('pipeline', 'close', function () {
-                self._flushQueuedTasks();
-            });
+            // this.data.events.fire('pipeline', 'close', function () {
+            //     self._flushQueuedTasks();
+            // });
             this.data.closedCalled = true;
         },
 
@@ -353,6 +355,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                         this.data.events.once(targets, function (event, done) {
                             if (task.rendered) {
                                 flushSubscription.unsubscribe();
+                                task.parent.embeddedChildren[task.id] = true;
                             }
                         });
                     }
@@ -484,9 +487,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         _addToFlushQueue: function (task) {
             this.data.flushQueue.push(task);
-            if (this.data.closedCalled) {
-                this._flushQueuedTasks();
-            }
+            // if (this.data.closedCalled) {
+            //     this._flushQueuedTasks();
+            // }
         },
 
         _getTask: function (config) {
@@ -561,6 +564,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     } else {
                         params.body.children[childTask.id] = childTask;
                     }
+
                 });
                 Y.mix(params.body.children, task.childrenTasks);
 
