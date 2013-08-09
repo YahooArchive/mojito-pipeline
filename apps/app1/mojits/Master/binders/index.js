@@ -12,7 +12,7 @@ YUI.add('MasterIndexBinder', function (Y, NAME) {
                     'render'
                 ]
             }, function (event, optArg1, optArg2) {
-                console.log(event.target + '.' + event.targetAction + ' was fired: ' + optArg1 + ' ' + optArg2);
+                // console.log(event.target + '.' + event.targetAction + ' was fired: ' + optArg1 + ' ' + optArg2);
                 if (event.target === 'b') {
                     subscription.unsubscribe();
                 }
@@ -22,7 +22,7 @@ YUI.add('MasterIndexBinder', function (Y, NAME) {
             events.fire('b', 'render', 1, 2); // 'b.render was fired'
             events.fire('a', 'flush'); // nothing is loged because the subscribed action unsubscribes after b's event
         }
-    }
+    };
 
 }, '0.0.1', {
     requires: [
