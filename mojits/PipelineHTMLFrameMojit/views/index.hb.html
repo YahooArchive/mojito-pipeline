@@ -104,7 +104,7 @@
 						section.displayed = true;
 						console.log('firing:' + section.id + '#afterDisplay');
 						pipeline.events.fire(section.id, 'afterDisplay');
-						Y.Object.each(section.embeddedCHildren, function (value, name) {
+						Y.Array.each(section.embeddedChildren, function (value, name) {
 							pipeline.events.fire(name, 'afterDisplay');
 						});
 					});

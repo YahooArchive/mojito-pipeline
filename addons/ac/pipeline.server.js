@@ -68,7 +68,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             this.displayTargets = {};
             this.childrenTasks = {};
             this.childrenSections = {};
-            this.embeddedChildren = {};
+            this.embeddedChildren = [];
 
             if (pipeline.data.sections[task.id]) {
                 this.isSection = true;
@@ -96,10 +96,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 }
             });
 
-            // if this task has a parent
+            // if this task is a section and has a parent
             // it should include its parent's display action as a display target
             if (this.parent) {
-                this.displayTargets[this.parent.id] = ['afterDisplay'];
+                this.displayTargets[this.parent.sectionName] = ['afterDisplay'];
             }
 
             if (!pipeline.client.jsEnabled) {
@@ -113,25 +113,25 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 // if js is enabled combine tests with actionRule
                 Y.Array.each(['render', 'flush', 'display'], function (action) {
                     if (self[action]) {
-                        // var grammar = pipeline._parseGrammar(self[action]);
-                        // if (!grammar) {
-                        //     return;
-                        // }
+                        var grammar = pipeline._parseGrammar(self[action]);
+                        if (!grammar) {
+                            return;
+                        }
 
-                        var actionRule = pipeline._parseRule(self[action]);
+                        //var actionRule = pipeline._parseRule(self[action]);
 
                         // replace the test with combined test
                         self[action + 'Test'] = function () {
                             return Task.prototype[action + 'Test'].bind(self).call() &&
-                                actionRule.test();
-                                // grammar.test(pipeline);
+                                //actionRule.test();
+                                grammar.test(pipeline);
                         };
 
                         // add the grammar targets
-                        // self[action + 'Targets'] = Y.Pipeline.Events.mergeTargets(self[action + 'Targets'], grammar.targets);
+                        self[action + 'Targets'] = Y.Pipeline.Events.mergeTargets(self[action + 'Targets'], grammar.targets);
 
                         // add the actionRule targets
-                        self[action + 'Targets'] = Y.Pipeline.Events.mergeTargets(self[action + 'Targets'], actionRule.targets);
+                        //self[action + 'Targets'] = Y.Pipeline.Events.mergeTargets(self[action + 'Targets'], actionRule.targets);
                     }
                 });
 
@@ -189,7 +189,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         displayTest: function (pipeline) {
             if (this.parent) {
-                return this.parent.displayed;
+                return pipeline._getTask(this.parent.sectionName).displayed;
             }
             return true;
         },
@@ -209,8 +209,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     break;
                 case 'displayTargets':
                 case 'embeddedChildren':
-                    Y.Object.each(property, function (sectionValue, sectionName) {
-                        property[sectionName + '-section'] = sectionValue;
+                    Y.Array.each(property, function (section, index) {
+                        property[index] = section.id + '-section';
                     });
                     wrapped += ',\n' + propertyName + ": " + JSON.stringify(property);
                     break;
@@ -230,7 +230,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     Pipeline.EVENT_TYPES = ['beforeFlush', 'afterFlush'];
     Pipeline.STATE_MAP = {
         'rendered': 'afterRender',
-        'flushed': 'flush',
+        'flushed': 'beforeFlush',
         'closed': 'close'
     };
 
@@ -268,16 +268,16 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         namespace: 'pipeline',
 
         configure: function (config) {
+            config.sectionName = 'root';
             var pipeline = this,
-                getSections = function (sections, parentSection) {
+                getSections = function (sections, parent) {
                     if (!sections) {
                         return;
                     }
                     Y.Object.each(sections, function (sectionConfig, sectionName) {
                         pipeline.data.sections[sectionName] = sectionConfig;
                         pipeline.data.sections[sectionName].sectionName = sectionName;
-                        pipeline.data.sections[sectionName].id = sectionName;
-                        pipeline.data.sections[sectionName].parent = parentSection;
+                        pipeline.data.sections[sectionName].parent = parent;
                         pipeline.data.sections[sectionName].regex = new RegExp(sectionName, 'g');
                         getSections(sectionConfig.sections, sectionConfig);
                     });
@@ -349,16 +349,19 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     // if this task has a parent
                     // listen to parent's render in order to remove flush subscription if
                     // this task has been rendered
-                    if (task.parent) {
+                    // TODO: this code has a problem, will investigate...
+                    /*if (task.parent) {
                         targets = {};
-                        targets[task.parent.id] = ['render'];
+                        targets[task.parent.sectionName] = ['beforeRender'];
                         this.data.events.once(targets, function (event, done) {
                             if (task.rendered) {
                                 flushSubscription.unsubscribe();
-                                task.parent.embeddedChildren[task.id] = true;
+                                task.embedded = true;
+                                pipeline._getTask(task.parent.sectionName).embeddedChildren.push(task);
                             }
+                            done();
                         });
-                    }
+                    }*/
 
                 }
 
@@ -377,7 +380,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                         // remove subscribed events such that this action doesn't get called again
                         renderSubscription.unsubscribe();
                         pipeline._render(task, function () {
-                            //pipeline._taskProcessed();
                             done();
                         });
                     } else {
@@ -599,6 +601,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         _flushQueuedTasks: function () {
             var pipeline = this,
                 i,
+                j,
+                id,
                 flushData = "",
                 flushMeta = {},
                 task,
@@ -607,8 +611,18 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             for (i = 0; i < this.data.flushQueue.length; i++) {
                 task = this.data.flushQueue[i];
                 task.flushed = true;
-                flushData += task.wrap();
-                Y.mojito.util.metaMerge(flushMeta, task.meta);
+
+                // add embedded children to flushQueue such that their flush events are called
+                for (j = 0; j < task.embeddedChildren.length; j++) {
+                    this.data.flushQueue.push(task.embeddedChildren[j]);
+                }
+
+                // do not flush embedded children
+                if (!task.embedded) {
+                    flushData += task.wrap();
+                    Y.mojito.util.metaMerge(flushMeta, task.meta);
+                }
+
                 this.data.events.fire(task.id, 'beforeFlush', function () {
                     if (++processedTasks === pipeline.data.flushQueue.length) {
                         pipeline.__flushQueuedTasks(flushData, flushMeta);

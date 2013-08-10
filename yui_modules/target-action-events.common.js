@@ -72,7 +72,7 @@ YUI.add('target-action-events', function (Y) {
 
         once: function (targets, subscribedAction) {
             var subscription = this.subscribe(targets, function () {
-                subscribedAction(arguments);
+                subscribedAction.apply(this, arguments);
                 subscription.unsubscribe();
             });
         }
