@@ -17,7 +17,7 @@ YUI.add('target-action-events', function (Y) {
         fire: function (target, targetAction, done) {
             var subscribedActions = this.events[target] && this.events[target][targetAction],
                 numSubscribedActions = subscribedActions && subscribedActions.length,
-                i,
+                i = 0,
                 eventsCompleted = 0,
                 event = {
                     target: target,
@@ -37,8 +37,13 @@ YUI.add('target-action-events', function (Y) {
             if (subscribedActions) {
                 // add optional arguments to the arguments passed to the action
                 Array.prototype.push.apply(actionArguments, Array.prototype.slice.call(arguments, 0).slice(3));
-                for (i = 0; i < subscribedActions.length; i++) {
-                    subscribedActions[i].apply(this, actionArguments);
+                while (i < subscribedActions.length) {
+                    if (subscribedActions[i].unsubscribed) {
+                        // remove unsubscribed action
+                        subscribedActions.splice(i, 1);
+                        continue;
+                    }
+                    subscribedActions[i++].apply(this, actionArguments);
                 }
             } else if (done) {
                 done(0);
@@ -56,7 +61,8 @@ YUI.add('target-action-events', function (Y) {
                 i,
                 target,
                 targetAction,
-                subscription = new Events.Subscription(this.events, targets, subscribedAction);
+                subscribedActions,
+                subscription = new Events.Subscription(targets, subscribedAction);
 
             for (target in targets) {
                 this.events[target] = this.events[target] || {};
@@ -101,32 +107,18 @@ YUI.add('target-action-events', function (Y) {
         return mergedTargets;
     };
 
-    Events.Subscription = function (events, targets, subscribedAction) {
-        this.events = events;
+    Events.Subscription = function (targets, subscribedAction) {
         this.targets = targets;
         this.subscribedAction = subscribedAction;
     };
 
     Events.Subscription.prototype = {
-        /* Unsubscribes from all target actions in the subscription by removing
-         * the subscribed action
+        /* Marks the susbscribed action as unsubscribed so that it can be removed
          */
         unsubscribe: function () {
-            var target,
-                i,
-                targetAction,
-                subscribedActions,
-                subscribedActionIndex;
-            for (target in this.targets) {
-                for (i = 0; i < this.targets[target].length; i++) {
-                    targetAction = this.targets[target][i];
-                    subscribedActions = this.events[target][targetAction];
-                    subscribedActionIndex = subscribedActions.indexOf(this.subscribedAction);
-                    if (subscribedActionIndex !== -1) {
-                        subscribedActions.splice(subscribedActionIndex, 1);
-                    }
-                }
-            }
+            this.subscribedAction.unsubscribed = true;
+            // Removing the subscribed action can cause issues if event actions are being called and
+            // the array size changes in the middle, so we instead mark as unsubscribed
         }
     };
 

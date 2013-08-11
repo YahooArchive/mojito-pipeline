@@ -205,12 +205,12 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             Y.Object.each(this, function (property, propertyName) {
                 switch (propertyName) {
                 case 'id':
-                    wrapped += ',\n' + propertyName + ': "' + property + '-section"';
+                    wrapped += ',\n' + propertyName + ': "' + property + '"';
                     break;
                 case 'displayTargets':
                 case 'embeddedChildren':
                     Y.Array.each(property, function (section, index) {
-                        property[index] = section.id + '-section';
+                        property[index] = section.id;
                     });
                     wrapped += ',\n' + propertyName + ": " + JSON.stringify(property);
                     break;
@@ -305,6 +305,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             // keep track to know when to flush the batch
             this.data.numUnprocessedTasks++;
             process.nextTick(function () {
+
                 var pipeline = this,
                     renderSubscription,
                     flushSubscription,
@@ -349,8 +350,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     // if this task has a parent
                     // listen to parent's render in order to remove flush subscription if
                     // this task has been rendered
-                    // TODO: this code has a problem, will investigate...
-                    /*if (task.parent) {
+                    if (task.parent) {
                         targets = {};
                         targets[task.parent.sectionName] = ['beforeRender'];
                         this.data.events.once(targets, function (event, done) {
@@ -358,10 +358,11 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                                 flushSubscription.unsubscribe();
                                 task.embedded = true;
                                 pipeline._getTask(task.parent.sectionName).embeddedChildren.push(task);
+
                             }
                             done();
                         });
-                    }*/
+                    }
 
                 }
 
