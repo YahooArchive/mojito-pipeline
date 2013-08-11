@@ -35,7 +35,7 @@ YUI.add('MasterController', function (Y, NAME) {
                     setTimeout(function () {
                         ac.pipeline.push(task);
                         closePipeline();
-                    }, 200 * Math.random());
+                    }, 1000 * Math.random());
                 }());
 
             }
@@ -58,7 +58,7 @@ YUI.add('MasterController', function (Y, NAME) {
                 setTimeout(function () {
                     ac.pipeline.push(task);
                     closePipeline();
-                }, 400 * Math.random());
+                }, 2000 * Math.random());
             });
 
             children = ac.params.body('children');
