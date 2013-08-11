@@ -323,7 +323,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 // push any default sections of this task
                 Y.Object.each(task.sections, function (config, sectionId) {
                     config.id = sectionId;
-                    if (config['default']) {console.log(config)
+                    if (config['default']) {
                         pipeline.push(config);
                     }
                 });
@@ -422,7 +422,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             for (i = 0; i < parsedGrammar.length; i++) {
                 c = parsedGrammar[i];
-                //console.log(parsedGrammar + "[" + i + "] = " + c);
                 if (c === ' ') {
                     continue;
                 }
@@ -477,8 +476,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 }
 
             }
-console.log(parsedGrammar)
-console.log(targets)
+
             return {
                 targets: targets,
                 test: function (pipeline) {
@@ -588,7 +586,6 @@ console.log(targets)
 
             if (this.data.closedCalled) {
                 this.data.closed = true;
-                debugger;
                 this.data.events.fire('pipeline', 'close', function () {
                     pipeline._flushQueuedTasks();
                 });
