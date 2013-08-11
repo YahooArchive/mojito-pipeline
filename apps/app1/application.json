@@ -38,6 +38,7 @@
                             },
                             "footer": {
                                 "type": "Box",
+                                "flush": "pipeline.closed",
                                 "default": true,
                                 "config": {
                                     "title": "footer",

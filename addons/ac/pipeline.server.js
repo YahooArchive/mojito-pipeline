@@ -184,7 +184,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         flushTest: function (pipeline) {
-            return this.rendered || pipeline.data.closedCalled;
+            return this.rendered;
         },
 
         displayTest: function (pipeline) {
@@ -293,10 +293,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         close: function () {
-            var self = this;
-            // this.data.events.fire('pipeline', 'close', function () {
-            //     self._flushQueuedTasks();
-            // });
             this.data.closedCalled = true;
         },
 
@@ -327,7 +323,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 // push any default sections of this task
                 Y.Object.each(task.sections, function (config, sectionId) {
                     config.id = sectionId;
-                    if (config['default']) {
+                    if (config['default']) {console.log(config)
                         pipeline.push(config);
                     }
                 });
@@ -437,12 +433,15 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
                     // end of section variable
                     // replace section with "pipeline.getTask('<sectionName>')"
-                    // abc.a
-                    // pipeline.getTask("abc").a 24
                     section = parsedGrammar.substring(sectionStart, i);
-                    parsedGrammar = parsedGrammar.substring(0, sectionStart) + 'pipeline._getTask("' + section + '")' + parsedGrammar.substring(i);
+                    if (section === 'pipeline') {
+                        parsedGrammar = parsedGrammar.substring(0, sectionStart) + 'pipeline.data' + parsedGrammar.substring(i);
+                        i += 5;
+                    } else {
+                        parsedGrammar = parsedGrammar.substring(0, sectionStart) + 'pipeline._getTask("' + section + '")' + parsedGrammar.substring(i);
+                        i += pipelineStr.length;
+                    }
 
-                    i += pipelineStr.length;
                     sectionStart = null;
                     stateStart = i + 1;
                 } else if (sectionStart === null && stateStart !== null && (!/\w/.test(c) || i === parsedGrammar.length - 1)) {
@@ -478,7 +477,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 }
 
             }
-
+console.log(parsedGrammar)
+console.log(targets)
             return {
                 targets: targets,
                 test: function (pipeline) {
@@ -490,9 +490,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         _addToFlushQueue: function (task) {
             this.data.flushQueue.push(task);
-            // if (this.data.closedCalled) {
-            //     this._flushQueuedTasks();
-            // }
         },
 
         _getTask: function (config) {
@@ -591,6 +588,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             if (this.data.closedCalled) {
                 this.data.closed = true;
+                debugger;
                 this.data.events.fire('pipeline', 'close', function () {
                     pipeline._flushQueuedTasks();
                 });
