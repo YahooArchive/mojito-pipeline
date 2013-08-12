@@ -69,6 +69,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             this.childrenTasks = {};
             this.childrenSections = {};
             this.embeddedChildren = [];
+            this.pipeline = pipeline;
 
             if (pipeline.data.sections[task.id]) {
                 this.isSection = true;
@@ -113,23 +114,21 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 // if js is enabled combine tests with actionRule
                 Y.Array.each(['render', 'flush', 'display'], function (action) {
                     if (self[action]) {
-                        // var grammar = pipeline._parseGrammar(self[action]);
-                        var grammar = pipeline._parseRule(self[action]);
-                        if (!grammar) {
+                        // var rule = pipeline._parseGrammar(self[action]);
+                        var rule = pipeline._parseRule(self[action]);
+                        if (!rule) {
                             return;
                         }
-
-                        //var actionRule = pipeline._parseRule(self[action]);
 
                         // replace the test with combined test
                         self[action + 'Test'] = function () {
                             return Task.prototype[action + 'Test'].bind(self).call() &&
-                                //actionRule.test();
-                                grammar.test(pipeline);
+                                rule.test();
+                                // rule.test(pipeline);
                         };
 
-                        // add the grammar targets
-                        self[action + 'Targets'] = Y.Pipeline.Events.mergeTargets(self[action + 'Targets'], grammar.targets);
+                        // add the rule targets
+                        self[action + 'Targets'] = Y.Pipeline.Events.mergeTargets(self[action + 'Targets'], rule.targets);
 
                         // add the actionRule targets
                         //self[action + 'Targets'] = Y.Pipeline.Events.mergeTargets(self[action + 'Targets'], actionRule.targets);
@@ -188,20 +187,14 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             return this.rendered;
         },
 
-        displayTest: function (pipeline) {
-            if (this.parent) {
-                return pipeline._getTask(this.parent.sectionName).displayed;
-            }
-            return true;
-        },
-
         toString: function () {
             return this.data === undefined && this.isSection ?  '<div id="' + this.id + '-section"></div>' : this.data;
         },
 
         wrap: function () {
             var wrapped = 'pipeline.push({' +
-                'markup: "' + escape(this.toString()) + '"';
+                'markup: "' + escape(this.toString()) + '"',
+                self = this;
 
             Y.Object.each(this, function (property, propertyName) {
                 switch (propertyName) {
@@ -216,7 +209,11 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     wrapped += ',\n' + propertyName + ": " + JSON.stringify(property);
                     break;
                 case 'displayTest':
-                    wrapped += ',\n' + propertyName + ": " + property.toString();
+                // special case for client side execution
+                    var ruleTestString = this.pipeline._parseRule(self.display).rule,
+                        displayTest = 'function () {\n' +
+                            'return eval(\'' + ruleTestString + '\');\n}';
+                    wrapped += ',\n' + propertyName + ": " + displayTest;
                     break;
                 default:
                 }
@@ -404,16 +401,16 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             });
             return {
                 targets: targets,
+                rule: rulz,
                 test: function () {
-                    var result = vm.runInContext(rulz, self._vmContext);
-                    return result;
+                    return vm.runInContext(rulz, self._vmContext);
                 }
             };
         },
 
-        _parseGrammar: function (grammar) {
+        _parseGrammar: function (rule) {
             var pipelineStr = 'pipeline._getTask("")',
-                parsedGrammar = grammar,
+                parsedGrammar = rule,
                 sections = {},
                 targets = {},
                 targetAction,
@@ -504,7 +501,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 };
 
                 // TODO only initialize the parts of the task that are necessary
-                // for example dont initialize the parsed grammar...
+                // for example dont initialize the parsed rule...
                 task = this.data.tasks[config.id] = this.data.tasks[config.id] || new Task(config, this);
                 return task;
             }
