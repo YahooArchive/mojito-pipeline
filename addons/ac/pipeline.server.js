@@ -113,7 +113,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 // if js is enabled combine tests with actionRule
                 Y.Array.each(['render', 'flush', 'display'], function (action) {
                     if (self[action]) {
-                        var grammar = pipeline._parseGrammar(self[action]);
+                        // var grammar = pipeline._parseGrammar(self[action]);
+                        var grammar = pipeline._parseRule(self[action]);
                         if (!grammar) {
                             return;
                         }
@@ -396,7 +397,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             rulz = rulz.replace(/([a-zA-Z_$][0-9a-zA-Z_$\-]*)\.([^\s]+)/gm, function (expression, objectId, property) {
                 targets[objectId] = targets[objectId] || [];
                 targets[objectId].push(self._propertyEventsMap[property]);
-                return 'pipeline.getTask("' + objectId + '").' + property;
+                if (objectId === 'pipeline') {
+                    return 'pipeline.data.' + property;
+                }
+                return 'pipeline._getTask("' + objectId + '").' + property;
             });
             return {
                 targets: targets,
@@ -648,6 +652,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         _propertyEventsMap: {
+            'closed': 'close',
             'rendered': 'afterRender',
             'flushed': 'afterFlush',
             'displayed': 'afterDisplay'
