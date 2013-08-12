@@ -26,50 +26,48 @@
 
 			var Pipeline = function Pipeline(dummyPipeline) {
 					this.events = new Y.Pipeline.Events();
-					this.sections = {};
+					this.tasks = {};
 					Y.Array.each(dummyPipeline, this.push.bind(this));
 					this.notDisplayed = 0;
 				},
-				Section = function Section(config, pipeline) {
+				Task = function Task(config, pipeline) {
 					this.pipeline = pipeline;
 					Y.mix(this, config, true);
 				};
 
-			Pipeline.prototype.push = function (sectionConfig) {
+			Pipeline.prototype.push = function (taskConfig) {
 				var pipeline = this,
-					section = this.getSection(sectionConfig),
+					task = this._getTask(taskConfig),
 					displaySubscription;
 
-				console.log('pushing: ' + sectionConfig.id);
-				section.flushed = true;
-				Y.mix(section, sectionConfig, true);
+				task.flushed = true;
+				Y.mix(task, taskConfig, true);
 
-				// subscribe to any events specified by the section
-				Y.Array.each(Section.EVENT_TYPES, function (targetAction) {
-					if (!section[targetAction]) {
+				// subscribe to any events specified by the task
+				Y.Array.each(['beforeDisplay', 'afterDisplay'], function (targetAction) {
+					if (!task[targetAction]) {
 						return;
 					}
 					var targets = {};
-					targets[section.id] = [targetAction];
-					this.events.subscribe(targets, section[targetAction]);
+					targets[task.id] = [targetAction];
+					this.events.subscribe(targets, task[targetAction]);
 				}, this);
 
 				// merge default displayTest with user provided test
-				if (sectionConfig.displayTest) {
-					section.displayTest = function () {
-						return Section.prototype.displayTest.bind(section).call() && sectionConfig.displayTest();
+				if (taskConfig.displayTest) {
+					task.displayTest = function () {
+						return Task.prototype.displayTest.bind(task).call() && taskConfig.displayTest();
 					};
 				}
 
 				// subscribe to events for the display action
-				if (section.displayTest()) {
-					pipeline.display(section);
+				if (task.displayTest()) {
+					pipeline.display(task);
 				} else {
-					console.log('subscribing to:' + JSON.stringify(section.displayTargets, null, 4));
-					displaySubscription = this.events.subscribe(section.displayTargets, function (event, done) {
-						if (section.displayTest(section)) {
+					displaySubscription = this.events.subscribe(task.displayTargets, function (event, done) {
+						if (task.displayTest(task)) {
 							displaySubscription.unsubscribe();
-							pipeline.display(section, done);
+							pipeline.display(task, done);
 						} else {
 							done();
 						}
@@ -77,49 +75,37 @@
 				}
 			};
 
-			Pipeline.prototype.getSection = function (config) {
-				var section;
+			Pipeline.prototype._getTask = function (config) {
+				var task;
 				if (typeof config === 'string' || typeof config === 'number') {
 					config = {
 						id: config
 					};
-					section = this.sections[config] = new Section(config, this);
-					return section;
+					return this.tasks[config.id] = (this.tasks[config.id] || new Task(config, this));
 				}
-				section = this.sections[config.id];
-				if (section) {
-					Y.mix(section, config, true);
+				task = this.tasks[config.id];
+				if (task) {
+					Y.mix(task, config, true);
 				} else {
-					section = this.sections[config.id] = new Section(config, this);
+					task = this.tasks[config.id] = new Task(config, this);
 				}
-				return section;
+				return task;
 			};
 
-			Pipeline.prototype.display = function (section) {
-				var stub = Y.one('#' + section.id + '-section'),
-					pipeline = this,
-					sectionDOM;
-					this.events.fire(section.id, 'beforeDisplay', function () {
-						stub.ancestor().insertBefore(unescape(section.markup), stub);
-						section.displayed = true;
-						console.log('firing:' + section.id + '#afterDisplay');
-						pipeline.events.fire(section.id, 'afterDisplay');
-						Y.Array.each(section.embeddedChildren, function (value, name) {
+			Pipeline.prototype.display = function (task) {
+				var stub = Y.one('#' + task.id + '-section'),
+					pipeline = this;
+					this.events.fire(task.id, 'beforeDisplay', function () {
+						stub.ancestor().insertBefore(unescape(task.markup), stub);
+						task.displayed = true;
+						pipeline.events.fire(task.id, 'afterDisplay');
+						Y.Array.each(task.embeddedChildren, function (value, name) {
 							pipeline.events.fire(name, 'afterDisplay');
 						});
 					});
 			};
 
-			Section._combineTests = function () {
-				return function () {
-					return !Y.Array.some(arguments, function (nextFn) {
-						return !nextFn.call();
-				});
-				};
-			};
-			Section.EVENT_TYPES = ['beforeDisplay', 'afterDisplay'];
-
-			Section.prototype.displayTest = function () {
+			Task.prototype.displayTest = function () {
 				return !!document.getElementById(this.id + '-section');
 			};
 
