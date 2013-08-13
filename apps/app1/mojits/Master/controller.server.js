@@ -74,6 +74,7 @@ YUI.add('MasterController', function (Y, NAME) {
     };
 }, '0.0.1', {
     requires: [
+        'target-action-events',
         'mojito-pipeline-addon',
         'mojito-assets-addon',
         'mojito-params-addon'
