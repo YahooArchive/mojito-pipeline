@@ -13,7 +13,6 @@ YUI.add('MasterController', function (Y, NAME) {
                 searchResultsDependencies = [],
                 closePipeline = function () {
                     if (--pushedTasks === 0) {
-                        console.log('closing pipeline...');
                         ac.pipeline.close();
                     }
                 };
