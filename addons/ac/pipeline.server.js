@@ -393,7 +393,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         _getRule: function (task, action) {
-            // debugger;
             if (!this._parsedRules[task.id]) {
                 this._parsedRules[task.id] = {};
             }
@@ -546,7 +545,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 i,
                 j,
                 id,
-                flushData = "",
+                flushStr = "",
                 flushMeta = {},
                 task,
                 processedTasks = 0;
@@ -562,28 +561,34 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
                 // do not flush embedded children
                 if (!task.embedded) {
-                    flushData += task.wrap();
+                    flushStr += task.wrap();
                     Y.mojito.util.metaMerge(flushMeta, task.meta);
                 }
 
                 this.data.events.fire(task.id, 'beforeFlush', function () {
                     if (++processedTasks === pipeline.data.flushQueue.length) {
-                        pipeline.__flushQueuedTasks(flushData, flushMeta);
+                        pipeline.__flushQueuedTasks(flushStr, flushMeta);
                     }
                     pipeline.data.events.fire(task.id, 'afterFlush');
                 });
             }
         },
 
-        __flushQueuedTasks: function (flushData, flushMeta) {
-            flushData = '<script>' + flushData + '</script>';
+        __flushQueuedTasks: function (flushStr, flushMeta) {
+            var pipeline = this,
+                flushData = {
+                    data: '<script>' + flushStr + '</script>',
+                    meta: flushMeta
+                };
 
-            if (this.data.closed) {
-                this.ac.done(flushData + '</body></html>', flushMeta);
-            } else {
-                this.ac.flush(flushData, flushMeta);
-            }
-            this.data.flushQueue = [];
+            this.data.events.fire('pipeline', 'flush', function () {
+                if (pipeline.data.closed) {
+                    pipeline.ac.done(flushData.data + '</body></html>', flushData.meta);
+                } else {
+                    pipeline.ac.flush(flushData.data, flushData.meta);
+                }
+                pipeline.data.flushQueue = [];
+            }, flushData);
         },
 
         _combineTests: function () {
