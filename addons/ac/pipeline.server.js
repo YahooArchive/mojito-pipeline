@@ -15,6 +15,16 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
      * @param {ActionContext} ac the action context for the current request
      */
 
+    var businessScripts = {},
+        _PROPERTYEVENTSMAP = {
+            'closed': 'close',
+            'rendered': 'afterRender',
+            'flushed': 'afterFlush',
+            'displayed': 'afterDisplay'
+        },
+
+        _NAME_DOT_PROPERTY_REGEX = /([a-zA-Z_$][0-9a-zA-Z_$\-]*)\.([^\s]+)/gm;
+
     function Pipeline(command, adapter, ac) {
         if (!adapter.req.pipeline) {
             adapter.req.pipeline = this;
@@ -36,20 +46,20 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         };
         this._sections = {};
 
+        this._parsedRules = {};
+
         this._flushQueue = [];
 
         this._vmContext = vm.createContext({
             pipeline: this
         });
-
-        this.getTask = this._getTask;
     }
 
     function Task(task, pipeline) {
         this.initialize(task, pipeline);
     }
 
-    Task.EVENT_TYPES = ['beforeRender', 'afterRender'];
+    Task.EVENT_TYPES = ['beforeRender', 'afterRender', 'beforeFlush', 'afterFlush'];
 
     Task._combineTests = function () {
         return function () {
@@ -67,6 +77,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             this.childrenTasks = {};
             this.childrenSections = {};
             this.embeddedChildren = [];
+            this.pipeline = pipeline;
 
             if (pipeline.data.sections[task.id]) {
                 this.isSection = true;
@@ -111,25 +122,20 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 // if js is enabled combine tests with actionRule
                 Y.Array.each(['render', 'flush', 'display'], function (action) {
                     if (self[action]) {
-                        var grammar = pipeline._parseGrammar(self[action]);
-                        if (!grammar) {
+                        var rule = pipeline._getRule(self, action);
+                        if (!rule) {
                             return;
                         }
-
-                        //var actionRule = pipeline._parseRule(self[action]);
 
                         // replace the test with combined test
                         self[action + 'Test'] = function () {
                             return Task.prototype[action + 'Test'].bind(self).call() &&
-                                //actionRule.test();
-                                grammar.test(pipeline);
+                                rule.test();
                         };
 
-                        // add the grammar targets
-                        self[action + 'Targets'] = Y.Pipeline.Events.mergeTargets(self[action + 'Targets'], grammar.targets);
+                        // add the rule targets
+                        self[action + 'Targets'] = Y.Pipeline.Events.mergeTargets(self[action + 'Targets'], rule.targets);
 
-                        // add the actionRule targets
-                        //self[action + 'Targets'] = Y.Pipeline.Events.mergeTargets(self[action + 'Targets'], actionRule.targets);
                     }
                 });
 
@@ -185,13 +191,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             return this.rendered;
         },
 
-        displayTest: function (pipeline) {
-            if (this.parent) {
-                return pipeline._getTask(this.parent.sectionName).displayed;
-            }
-            return true;
-        },
-
         toString: function () {
             return this.data === undefined && this.isSection ?  '<div id="' + this.id + '-section"></div>' : this.data;
         },
@@ -213,7 +212,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     wrapped += ',\n' + propertyName + ": " + JSON.stringify(property);
                     break;
                 case 'displayTest':
-                    wrapped += ',\n' + propertyName + ": " + property.toString();
+                    var ruleTestString = this.pipeline._getRule(this, 'display').rule,
+                        displayTest = 'function (pipeline) {' +
+                            'return eval(\'' + ruleTestString + '\');}';
+                    wrapped += ',\n' + propertyName + ": " + displayTest;
                     break;
                 default:
                 }
@@ -331,10 +333,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     }
                 });
 
-                // TODO: parse the render rules and combine the tests with sectionsRenderTest
-                //task.renderTest = Task._combineTests(task.renderTest);
-                //task.flushTest = Task._combineTests(task.flushTest);
-
                 // subscribe to flush events
                 if (task.isSection) {
                     flushSubscription = this.data.events.subscribe(task.flushTargets, function (event, done) {
@@ -374,7 +372,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     return;
                 }
 
-                // if task's render condition fail, subscribe to render events
+                // if task's render condition fails, subscribe to render events
                 renderSubscription = this.data.events.subscribe(task.renderTargets, function (event, done) {
                     if (task.renderTest(pipeline)) {
                         // remove subscribed events such that this action doesn't get called again
@@ -393,101 +391,48 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             }.bind(this));
         },
 
-        _parseRule: function (rulz) {
+        _getRule: function (task, action) {
+            // debugger;
+            if (!this._parsedRules[task.id]) {
+                this._parsedRules[task.id] = {};
+            }
+            if (!this._parsedRules[task.id][action]) {
+                this._parsedRules[task.id][action] = this._parseRule(task, action);
+            }
+            return this._parsedRules[task.id][action];
+        },
+
+        _parseRule: function (task, action) {
             var targets = {},
+                rulz = task[action],
+                script,
                 self = this;
-            rulz = rulz.replace(/([a-zA-Z_$][0-9a-zA-Z_$\-]*)\.([^\s]+)/gm, function (expression, objectId, property) {
+
+            rulz = rulz.replace(_NAME_DOT_PROPERTY_REGEX, function (expression, objectId, property) {
                 targets[objectId] = targets[objectId] || [];
-                targets[objectId].push(self._propertyEventsMap[property]);
-                return 'pipeline.getTask("' + objectId + '").' + property;
+                targets[objectId].push(_PROPERTYEVENTSMAP[property]);
+                if (objectId === 'pipeline') {
+                    return 'pipeline.data.' + property;
+                }
+                return 'pipeline._getTask("' + objectId + '").' + property;
             });
+            // cache in the prototype if necessary
+            if (!businessScripts[task.id]) {
+                businessScripts[task.id] = {};
+            }
+            if (!businessScripts[task.id][action]) {
+                businessScripts[task.id][action] = vm.createScript(rulz);
+            }
+
+            script = vm.createScript(rulz);
             return {
                 targets: targets,
+                rule: rulz,
                 test: function () {
-                    var result = vm.runInContext(rulz, self._vmContext);
-                    return result;
+                    return script.runInContext(self._vmContext);
                 }
             };
         },
-
-        _parseGrammar: function (grammar) {
-            var pipelineStr = 'pipeline._getTask("")',
-                parsedGrammar = grammar,
-                sections = {},
-                targets = {},
-                targetAction,
-                i,
-                c,
-                section = null,
-                state = null,
-                stateStart = null,
-                sectionStart = null;
-
-            for (i = 0; i < parsedGrammar.length; i++) {
-                c = parsedGrammar[i];
-                if (c === ' ') {
-                    continue;
-                }
-                // find start of a section variable
-                if (section === null && sectionStart === null && /\w/.test(c)) {
-                    sectionStart = i;
-                } else if (sectionStart !== null && c === '.') {
-
-                    // end of section variable
-                    // replace section with "pipeline.getTask('<sectionName>')"
-                    section = parsedGrammar.substring(sectionStart, i);
-                    if (section === 'pipeline') {
-                        parsedGrammar = parsedGrammar.substring(0, sectionStart) + 'pipeline.data' + parsedGrammar.substring(i);
-                        i += 5;
-                    } else {
-                        parsedGrammar = parsedGrammar.substring(0, sectionStart) + 'pipeline._getTask("' + section + '")' + parsedGrammar.substring(i);
-                        i += pipelineStr.length;
-                    }
-
-                    sectionStart = null;
-                    stateStart = i + 1;
-                } else if (sectionStart === null && stateStart !== null && (!/\w/.test(c) || i === parsedGrammar.length - 1)) {
-                    // end of state
-                    state = parsedGrammar.substring(stateStart, i === parsedGrammar.length - 1 ? i + 1 : i);
-                    state = state.trim();
-                    sections[section] = sections[section] || {};
-                    sections[section][state] = true;
-                    state = null;
-                    section = null;
-                    stateStart = null;
-                } else if ((sectionStart !== null && section !== null) || (stateStart !== null && state !== null)) {
-                    return null;
-                }
-            }
-
-            if (sectionStart !== null || stateStart !== null) {
-                return null;
-            }
-
-            // generate targets
-            for (section in sections) {
-                targets[section] = targets[section] || [];
-
-                for (state in sections[section]) {
-                    targetAction = Pipeline.STATE_MAP[state];
-
-                    if (!targetAction) {
-                        console.log('Target action does not exist for state "' + state + '"');
-                    } else if (targets[section].indexOf(targetAction) === -1) {
-                        targets[section].push(targetAction);
-                    }
-                }
-
-            }
-
-            return {
-                targets: targets,
-                test: function (pipeline) {
-                    return eval(parsedGrammar);
-                }
-            };
-        },
-
 
         _addToFlushQueue: function (task) {
             this.data.flushQueue.push(task);
@@ -503,15 +448,13 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 };
 
                 // TODO only initialize the parts of the task that are necessary
-                // for example dont initialize the parsed grammar...
+                // for example dont initialize the parsed rule...
                 task = this.data.tasks[config.id] = this.data.tasks[config.id] || new Task(config, this);
                 return task;
             }
 
-            // if getting task with a configuration
-            // get task if it exists
-            // if it exits then merge the config
-            // else just create the task
+            // if getting task with a configuration get task if it exists
+            // if it exits then merge the config else just create the task
             task = this.data.tasks[config.id];
             if (task) {
                 //Y.mix(task, config, true);
@@ -648,12 +591,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     return !nextFn.call();
                 });
             };
-        },
-
-        _propertyEventsMap: {
-            'rendered': 'afterRender',
-            'flushed': 'afterFlush',
-            'displayed': 'afterDisplay'
         }
     };
 
