@@ -9,6 +9,10 @@
         "type": "git",
         "url": "git://github.com/jarnoux/mojito-pipeline.git"
     },
+    "dependencies": {
+        "async": "0.2.x",
+        "uglify-js": "1.3.x"
+    },
     "keywords": [
         "pipeline",
         "processor",

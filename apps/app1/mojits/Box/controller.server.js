@@ -8,6 +8,9 @@ YUI.add('BoxController', function (Y, NAME) {
                 taskType: ac.config.get('taskType')
             };
 
+            ac.data.set('sectionName', ac.config.get('title'));
+            ac.data.set('sectionType', ac.config.get('taskType'));
+
             Y.mix(view, ac.params.body('children'));
             ac.done(view);
         }
@@ -15,6 +18,7 @@ YUI.add('BoxController', function (Y, NAME) {
 
 }, '0.0.1', {
     requires: [
+        'mojito-data-addon',
         'mojito-config-addon',
         'mojito-params-addon'
     ]

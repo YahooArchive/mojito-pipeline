@@ -46,7 +46,8 @@ YUI.add('PipelineHTMLFrameMojit', function (Y, NAME) {
                 }, {
                     title: ac.config.get('title') || 'Powered by Mojito Pipeline',
                     mojito_version: Y.mojito.version,
-                    child: childHTML
+                    child: childHTML,
+                    pipeline_client: ac.pipeline.client.script
                 });
 
             meta = Y.mojito.util.metaMerge(meta, {
