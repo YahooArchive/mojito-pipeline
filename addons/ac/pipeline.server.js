@@ -15,6 +15,16 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
      * @param {ActionContext} ac the action context for the current request
      */
 
+    var businessScripts = {},
+        _PROPERTYEVENTSMAP = {
+            'closed': 'close',
+            'rendered': 'afterRender',
+            'flushed': 'afterFlush',
+            'displayed': 'afterDisplay'
+        },
+
+        _NAME_DOT_PROPERTY_REGEX = /([a-zA-Z_$][0-9a-zA-Z_$\-]*)\.([^\s]+)/gm;
+
     function Pipeline(command, adapter, ac) {
         if (!adapter.req.pipeline) {
             adapter.req.pipeline = this;
@@ -377,24 +387,33 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 this._parsedRules[task.id] = {};
             }
             if (!this._parsedRules[task.id][action]) {
-                this._parsedRules[task.id][action] = this._parseRule(task[action]);
+                this._parsedRules[task.id][action] = this._parseRule(task, action);
             }
             return this._parsedRules[task.id][action];
         },
 
-        _parseRule: function (rulz) {
+        _parseRule: function (task, action) {
             var targets = {},
+                rulz = task[action],
                 script,
                 self = this;
 
-            rulz = rulz.replace(this._NAME_DOT_PROPERTY_REGEX, function (expression, objectId, property) {
+            rulz = rulz.replace(_NAME_DOT_PROPERTY_REGEX, function (expression, objectId, property) {
                 targets[objectId] = targets[objectId] || [];
-                targets[objectId].push(self._PROPERTYEVENTSMAP[property]);
+                targets[objectId].push(_PROPERTYEVENTSMAP[property]);
                 if (objectId === 'pipeline') {
                     return 'pipeline.data.' + property;
                 }
                 return 'pipeline._getTask("' + objectId + '").' + property;
             });
+            // cache in the prototype if necessary
+            if (!businessScripts[task.id]) {
+                businessScripts[task.id] = {};
+            }
+            if (!businessScripts[task.id][action]) {
+                businessScripts[task.id][action] = vm.createScript(rulz);
+            }
+
             script = vm.createScript(rulz);
             return {
                 targets: targets,
@@ -562,16 +581,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     return !nextFn.call();
                 });
             };
-        },
-
-        _PROPERTYEVENTSMAP: {
-            'closed': 'close',
-            'rendered': 'afterRender',
-            'flushed': 'afterFlush',
-            'displayed': 'afterDisplay'
-        },
-
-        _NAME_DOT_PROPERTY_REGEX: /([a-zA-Z_$][0-9a-zA-Z_$\-]*)\.([^\s]+)/gm
+        }
     };
 
     Y.namespace('mojito.addons.ac').pipeline = Pipeline;
