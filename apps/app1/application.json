@@ -39,6 +39,7 @@
                             "footer": {
                                 "type": "Box",
                                 "flush": "pipeline.closed",
+                                "display": "ads.displayed",
                                 "default": true,
                                 "config": {
                                     "title": "footer",

@@ -21,18 +21,20 @@
 
 		<script type="text/javascript">
 		var pipeline = [];
+		// a simple function that mixes and overwrites the receiver with the supplier
+		function mix(receiver, supplier) {
+			for (var p in supplier) receiver[p] = supplier[p];
+		};
 
-		YUI().use('target-action-events', 'node', function (Y) {
+		YUI().use('target-action-events', function (Y) {
 
-			var Pipeline = function Pipeline(dummyPipeline) {
+			var Pipeline = function (dummyPipeline) {
 					this.events = new Y.Pipeline.Events();
 					this.tasks = {};
-					Y.Array.each(dummyPipeline, this.push.bind(this));
-					this.notDisplayed = 0;
+					dummyPipeline.forEach(this.push.bind(this));
 				},
-				Task = function Task(config, pipeline) {
-					this.pipeline = pipeline;
-					Y.mix(this, config, true);
+				Task = function (config) {
+					mix(this, config);
 				};
 
 			Pipeline.prototype.push = function (taskConfig) {
@@ -41,13 +43,12 @@
 					displaySubscription;
 
 				task.flushed = true;
-				Y.mix(task, taskConfig, true);
+				mix(task, taskConfig);
 
 				// subscribe to any events specified by the task
-				Y.Array.each(['beforeDisplay', 'afterDisplay'], function (targetAction) {
-					if (!task[targetAction]) {
-						return;
-					}
+				['beforeDisplay', 'afterDisplay'].forEach(function (targetAction) {
+					if (!task[targetAction]) return;
+
 					var targets = {};
 					targets[task.id] = [targetAction];
 					this.events.subscribe(targets, task[targetAction]);
@@ -55,8 +56,8 @@
 
 				// merge default displayTest with user provided test
 				if (taskConfig.displayTest) {
-					task.displayTest = function () {
-						return Task.prototype.displayTest.bind(task).call() && taskConfig.displayTest();
+					task.displayTest = taskConfig.displayTest && function () {
+						return Task.prototype.displayTest.bind(task).call() && taskConfig.displayTest(pipeline);
 					};
 				}
 
@@ -76,33 +77,37 @@
 			};
 
 			Pipeline.prototype._getTask = function (config) {
-				var task;
 				if (typeof config === 'string' || typeof config === 'number') {
 					config = {
 						id: config
 					};
-					return this.tasks[config.id] = (this.tasks[config.id] || new Task(config, this));
+					return this.tasks[config.id] = (this.tasks[config.id] || new Task(config));
 				}
-				task = this.tasks[config.id];
+				var task = this.tasks[config.id];
 				if (task) {
-					Y.mix(task, config, true);
+					mix(task, config);
 				} else {
-					task = this.tasks[config.id] = new Task(config, this);
+					task = this.tasks[config.id] = new Task(config);
 				}
 				return task;
 			};
 
 			Pipeline.prototype.display = function (task) {
-				var stub = Y.one('#' + task.id + '-section'),
+				var stub = document.getElementById(task.id + '-section'),
 					pipeline = this;
-					this.events.fire(task.id, 'beforeDisplay', function () {
-						stub.ancestor().insertBefore(unescape(task.markup), stub);
-						task.displayed = true;
-						pipeline.events.fire(task.id, 'afterDisplay');
-						Y.Array.each(task.embeddedChildren, function (value, name) {
-							pipeline.events.fire(name, 'afterDisplay');
-						});
+				this.events.fire(task.id, 'beforeDisplay', function () {
+					var makerNode = document.createElement();
+					makerNode.innerHTML = unescape(task.markup);
+
+					for (var i = 0; i < makerNode.children.length; i++) stub.parentNode.insertBefore(makerNode.children[i], stub);
+
+					task.displayed = true;
+
+					pipeline.events.fire(task.id, 'afterDisplay');
+					task.embeddedChildren.forEach(function (value) {
+						pipeline.events.fire(value, 'afterDisplay');
 					});
+				});
 			};
 
 			Task.prototype.displayTest = function () {

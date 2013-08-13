@@ -211,7 +211,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 case 'displayTest':
                 // special case for client side execution
                     var ruleTestString = this.pipeline._parseRule(self.display).rule,
-                        displayTest = 'function () {\n' +
+                        displayTest = 'function (pipeline) {if (!pipeline._getTask) debugger;\n' +
                             'return eval(\'' + ruleTestString + '\');\n}';
                     wrapped += ',\n' + propertyName + ": " + displayTest;
                     break;
