@@ -26,8 +26,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         this.adapter = adapter;
         this.ac = ac;
 
-        this.client = new Pipeline.Client();
-
         this.data = {
             closed: false,
             events: new Y.Pipeline.Events(),
@@ -234,7 +232,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         'closed': 'close'
     };
 
-    Pipeline.Client = function () {
+    Pipeline.Client = function (pipelineStore) {
+        this.script = pipelineStore.client;
         this.jsEnabled = true;
     };
 
@@ -266,6 +265,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
     Pipeline.prototype = {
         namespace: 'pipeline',
+
+        setStore: function (rs) {
+            this.client = new Pipeline.Client(rs.pipeline);
+        },
 
         configure: function (config) {
             config.sectionName = 'root';
