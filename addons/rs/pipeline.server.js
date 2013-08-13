@@ -50,7 +50,8 @@ YUI.add('addon-rs-pipeline', function (Y, NAME) {
                 },
                 function (err) {
                     // TODO: handle when unable to read one of the modules
-                    self.client = self.minify(pipelineYUI.content + eventsModule.content + pipelineClient.content + "if (YUI.Pipeline) {delete YUI}");
+                    self.unminifiedClient = pipelineYUI.content + eventsModule.content + pipelineClient.content + "\nif (YUI.Pipeline) {\n\tdelete YUI;\n}";
+                    self.client = self.minify(self.unminifiedClient);
                 });
         },
 

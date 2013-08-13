@@ -1,28 +1,35 @@
+/*jslint forin: true */
 var pipeline = [];
 
 // a simple function that mixes and overwrites the receiver with the supplier
 function mix(receiver, supplier) {
-    for (var p in supplier) {
+    'use strict';
+    var p;
+    for (p in supplier) {
         receiver[p] = supplier[p];
     }
-};
+}
 
-if (!YUI) {
+if (!window.YUI) {
     YUI = function () {
-        this.use = function () {
-            var Y = {
-                Pipeline: YUI.Pipeline
-            };
-            arguments[arguments.length - 1](Y);
+        'use strict';
+        return {
+            use: function () {
+                var Y = {
+                    Pipeline: YUI.Pipeline
+                };
+                arguments[arguments.length - 1](Y);
+            }
         };
     };
     YUI.Pipeline = {};
-    YUI.add = function () {
+    YUI.add = function (moduleName, module) {
+        'use strict';
         var Y = {
             namespace: function () {
                 return YUI.Pipeline;
             }
         };
-        arguments[arguments.length - 1](Y);
+        module(Y);
     };
 }

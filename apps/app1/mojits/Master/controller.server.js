@@ -13,16 +13,10 @@ YUI.add('MasterController', function (Y, NAME) {
                 searchResultsDependencies = [],
                 closePipeline = function () {
                     if (--pushedTasks === 0) {
-                        console.log('closing pipeline...');
                         ac.pipeline.close();
                     }
-                };
-
-            // push search-results children
-            for (i = 1; i <= 6; i++) {
-                searchResultsDependencies.push('search-result' + i);
-                pushedTasks++;
-                (function () {
+                },
+                randomPush = function () {
                     var task = {
                         id: 'search-result' + i,
                         group: 'results',
@@ -36,7 +30,13 @@ YUI.add('MasterController', function (Y, NAME) {
                         ac.pipeline.push(task);
                         closePipeline();
                     }, 1000 * Math.random());
-                }());
+                };
+
+            // push search-results children
+            for (i = 1; i <= 6; i++) {
+                searchResultsDependencies.push('search-result' + i);
+                pushedTasks++;
+                randomPush();
 
             }
 

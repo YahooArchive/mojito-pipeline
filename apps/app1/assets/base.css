@@ -9,12 +9,6 @@ h1 {
     border-width: 3px;
 }
 
-.box {
-    border: 2px solid black;
-    margin: 10px;
-    padding: 3px 5px;
-}
-
 .default.section {
     color: rgb(85, 163, 85);
 }

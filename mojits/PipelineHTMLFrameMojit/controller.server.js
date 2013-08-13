@@ -7,7 +7,13 @@ YUI.add('PipelineHTMLFrameMojit', function (Y, NAME) {
         index: function (ac) {
             var frameClosed = false,
                 self = this,
-                childConfig = ac.config.get('child');
+                childConfig = ac.config.get('child'),
+                flushedAssets = {
+                    css: [],
+                    js: [],
+                    blob: []
+                },
+                binders = {};
 
             Y.mix(childConfig, {
                 id: 'root',
@@ -22,6 +28,42 @@ YUI.add('PipelineHTMLFrameMojit', function (Y, NAME) {
                 }
             });
             ac.pipeline.push(childConfig);
+
+            ac.pipeline.on('flush', function (event, done, flushData) {
+                Y.mix(binders, flushData.meta.binders);
+                if (ac.pipeline.data.closed && ac.config.get('deploy') === true) {
+                    var mojitoClientAssets = {};
+                    ac.assets.assets = mojitoClientAssets;
+                    ac.deploy.constructMojitoClientRuntime(ac.assets, binders);
+                    flushData.meta.assets.bottom = flushData.meta.assets.bottom || {};
+                    flushData.meta.assets.bottom.js = flushData.meta.assets.bottom.js || [];
+                    flushData.meta.assets.bottom.blob = flushData.meta.assets.bottom.blob || [];
+                    Array.prototype.push.apply(flushData.meta.assets.bottom.js, mojitoClientAssets.top.js);
+                    Array.prototype.push.apply(flushData.meta.assets.bottom.blob, mojitoClientAssets.bottom.blob);
+                }
+                // surround flush data with top and bottom
+                Y.Object.each(flushData.meta.assets, function (locationAssets, location) {
+                    Y.Object.each(locationAssets, function (typeAssets, type) {
+                        Y.Array.each(typeAssets, function (asset) {
+                            // skip assets of unknown type and those that have been flushed in the past
+                            if (!flushedAssets[type] || flushedAssets[type].indexOf(asset) !== -1) {
+                                return;
+                            }
+                            flushedAssets[type].push(asset);
+                            var wrappedAsset = type === 'js' ? '<script type="text/javascript" src="' + asset + '"></script>' :
+                                        type === 'css' ? '<link type="text/css" rel="stylesheet" href="' + asset + '"></link>' :
+                                                asset;
+                            if (location === 'top') {
+                                flushData.data = wrappedAsset + flushData.data;
+                            } else {
+                                flushData.data += wrappedAsset;
+                            }
+                        });
+                    });
+                });
+
+                done();
+            });
         },
 
         flushFrame: function (ac, childHTML, meta, done) {
@@ -29,7 +71,7 @@ YUI.add('PipelineHTMLFrameMojit', function (Y, NAME) {
             // the frame's assets before doing anything else.
             ac.assets.addAssets(meta.assets);
 
-            if (ac.config.get('deploy') === true) {
+            if (ac.pipeline.closed && ac.config.get('deploy') === true) {
                 ac.deploy.constructMojitoClientRuntime(ac.assets,
                     meta.binders);
             }
@@ -42,12 +84,12 @@ YUI.add('PipelineHTMLFrameMojit', function (Y, NAME) {
 
             var renderer,
                 data = Y.merge(ac.pipeline.htmlData, ac.assets.renderLocations(), {
-                    end: !ac.pipeline.client.jsEnabled || ac.pipeline.closed ? '</body></html>' : ''
+                    end: !ac.pipeline.client.jsEnabled || ac.pipeline.data.closed ? '</body></html>' : ''
                 }, {
                     title: ac.config.get('title') || 'Powered by Mojito Pipeline',
                     mojito_version: Y.mojito.version,
                     child: childHTML,
-                    pipeline_client: ac.pipeline.client.script
+                    pipeline_client: '<script>' + ac.pipeline.client.unminifiedScript + '</script>'
                 });
 
             meta = Y.mojito.util.metaMerge(meta, {
