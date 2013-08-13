@@ -236,6 +236,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
     Pipeline.Client = function (pipelineStore) {
         this.script = pipelineStore.client;
+        this.unminifiedScript = pipelineStore.unminifiedClient;
         this.jsEnabled = true;
     };
 
