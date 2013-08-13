@@ -21,9 +21,12 @@
 
 		<script type="text/javascript">
 		var pipeline = [];
+
 		// a simple function that mixes and overwrites the receiver with the supplier
 		function mix(receiver, supplier) {
-			for (var p in supplier) receiver[p] = supplier[p];
+			for (var p in supplier) {
+				receiver[p] = supplier[p];
+			}
 		};
 
 		YUI().use('target-action-events', function (Y) {
@@ -56,8 +59,8 @@
 
 				// merge default displayTest with user provided test
 				if (taskConfig.displayTest) {
-					task.displayTest = taskConfig.displayTest && function () {
-						return Task.prototype.displayTest.bind(task).call() && taskConfig.displayTest(pipeline);
+					task.displayTest = function () {
+						return Task.prototype.displayTest.call(task) && taskConfig.displayTest(pipeline);
 					};
 				}
 
@@ -78,10 +81,7 @@
 
 			Pipeline.prototype._getTask = function (config) {
 				if (typeof config === 'string' || typeof config === 'number') {
-					config = {
-						id: config
-					};
-					return this.tasks[config.id] = (this.tasks[config.id] || new Task(config));
+					return this.tasks[config] = (this.tasks[config] || new Task({ id: config }));
 				}
 				var task = this.tasks[config.id];
 				if (task) {
@@ -118,10 +118,6 @@
 
 		});
 
-		</script>
-
-		<script type="text/javascript">
-			var numPushed = 0;
 		</script>
 
 {{{end}}}
