@@ -1,1 +1,1 @@
-console.log('script.js executed.')
+console.log('script.js executed.');

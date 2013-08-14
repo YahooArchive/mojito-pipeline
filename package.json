@@ -11,7 +11,8 @@
     },
     "dependencies": {
         "async": "0.2.x",
-        "uglify-js": "1.3.x"
+        "uglify-js": "1.3.x",
+        "mojito-shaker": "4.0.x"
     },
     "keywords": [
         "pipeline",

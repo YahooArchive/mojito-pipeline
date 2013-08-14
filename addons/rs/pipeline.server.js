@@ -28,11 +28,11 @@ YUI.add('addon-rs-pipeline', function (Y, NAME) {
                 pipelineClient;
 
             Y.Array.some(resources, function (resource) {
-                if (resource.id === 'asset-js-pipeline-yui') {
+                if (resource.id === 'asset-js-void/pipeline-yui') {
                     pipelineYUI = resource;
                 } else if (resource.id === 'yui-module--target-action-events') {
                     eventsModule = resource;
-                } else if (resource.id === 'asset-js-pipeline-client') {
+                } else if (resource.id === 'asset-js-void/pipeline-client') {
                     pipelineClient = resource;
                 }
 

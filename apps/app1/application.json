@@ -7,9 +7,10 @@
         },
         "specs": {
             "rootframe": {
-                "type": "PipelineHTMLFrameMojit",
+                "type": "ShakerHTMLFrameMojit",
                 "config": {
                     "deploy": true,
+                    "pipeline": true,
                     "child": {
                         "type": "Master",
                         "sections": {

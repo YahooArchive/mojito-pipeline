@@ -18,6 +18,7 @@ YUI.add('PipelineHTMLFrameMojit', function (Y, NAME) {
             Y.mix(childConfig, {
                 id: 'root',
                 afterRender: function (event, done, childHTML, meta) {
+                    Y.mix(binders, meta.binders);
                     self.flushFrame(ac, childHTML, meta, done);
                 }
             });
@@ -30,9 +31,11 @@ YUI.add('PipelineHTMLFrameMojit', function (Y, NAME) {
             ac.pipeline.push(childConfig);
 
             ac.pipeline.on('flush', function (event, done, flushData) {
+                var top = '',
+                    mojitoClientAssets;
                 Y.mix(binders, flushData.meta.binders);
                 if (ac.pipeline.data.closed && ac.config.get('deploy') === true) {
-                    var mojitoClientAssets = {};
+                    mojitoClientAssets = {};
                     ac.assets.assets = mojitoClientAssets;
                     ac.deploy.constructMojitoClientRuntime(ac.assets, binders);
                     flushData.meta.assets.bottom = flushData.meta.assets.bottom || {};
@@ -50,11 +53,11 @@ YUI.add('PipelineHTMLFrameMojit', function (Y, NAME) {
                                 return;
                             }
                             flushedAssets[type].push(asset);
+
                             var wrappedAsset = type === 'js' ? '<script type="text/javascript" src="' + asset + '"></script>' :
-                                type === 'css' ? '<link type="text/css" rel="stylesheet" href="' + asset + '"></link>' :
-                                asset;
+                                    type === 'css' ? '<link type="text/css" rel="stylesheet" href="' + asset + '"></link>' : asset;
                             if (location === 'top') {
-                                flushData.data = wrappedAsset + flushData.data;
+                                top = wrappedAsset + flushData.data;
                             } else {
                                 flushData.data += wrappedAsset;
                             }
@@ -62,6 +65,7 @@ YUI.add('PipelineHTMLFrameMojit', function (Y, NAME) {
                     });
                 });
 
+                flushData.data = top + flushData.data;
                 done();
             });
         },
