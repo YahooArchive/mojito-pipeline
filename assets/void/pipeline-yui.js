@@ -10,7 +10,7 @@ function mix(receiver, supplier) {
     }
 }
 
-if (!window.YUI) {
+if (typeof YUI === 'undefined') {
     YUI = function () {
         'use strict';
         return {

@@ -51,6 +51,29 @@
                     }
                 }
             }
+        },
+
+        "shaker": {
+            "routeRollups": {
+                "module": "mojitrollup",
+                "rollups": {
+                    "root": [
+                        "Master",
+                        "Box"
+                    ]
+                }
+            },
+
+            "locations": {
+                "local": true
+            },
+
+            "settings": {
+                "serveLocation": "local",
+                "serveJs": {
+                    "position": "bottom"
+                }
+            }
         }
     }
 ]
