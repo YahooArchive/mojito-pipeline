@@ -8,8 +8,8 @@ YUI.add('BoxController', function (Y, NAME) {
                 taskType: ac.config.get('taskType')
             };
 
-            ac.assets.addCss('./box.css');
-            ac.assets.addJs('./script.js');
+            //ac.assets.addCss('./box.css');
+            //ac.assets.addJs('./script.js');
             ac.data.set('sectionName', ac.config.get('title'));
             ac.data.set('sectionType', ac.config.get('taskType'));
 

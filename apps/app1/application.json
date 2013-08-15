@@ -54,21 +54,30 @@
         },
 
         "shaker": {
+            "tasks": {
+                "js": {
+                    "jsminify": true
+                },
+                "css": {
+                    "cssminify": true
+                }
+            },
+            "resources": {
+                "assets": "inline"
+            },
             "routeRollups": {
                 "module": "mojitrollup",
                 "rollups": {
                     "root": [
-                        "Master",
-                        "Box"
+                        "Master"
                     ]
                 }
             },
-
             "locations": {
                 "local": true
             },
-
             "settings": {
+                "inline": true,
                 "serveLocation": "local",
                 "serveJs": {
                     "position": "bottom"
