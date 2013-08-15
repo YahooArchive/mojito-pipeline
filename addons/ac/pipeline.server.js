@@ -569,6 +569,12 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     pipeline.data.events.fire(task.id, 'afterFlush');
                 };
 
+            // if the pipeline is closed but there is no data
+            // pipeline still has to flush the closing tags
+            if (this.data.closed && this.data.flushQueue.length == 0) {
+                pipeline.__flushQueuedTasks(flushStr, flushMeta);
+            }
+
             for (i = 0; i < this.data.flushQueue.length; i++) {
                 task = this.data.flushQueue[i];
                 task.flushed = true;
@@ -591,7 +597,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         __flushQueuedTasks: function (flushStr, flushMeta) {
             var pipeline = this,
                 flushData = {
-                    data: '<script>' + flushStr + '</script>',
+                    data: flushStr ? '<script>' + flushStr + '</script>' : '',
                     meta: flushMeta
                 };
 
