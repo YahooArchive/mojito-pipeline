@@ -28,6 +28,7 @@
                             "ads": {
                                 "type": "Box",
                                 "flush": "search-results.flushed",
+                                "error": "north-ad.error",
                                 "sections": {
                                     "north-ad": {
                                         "type": "Box"
@@ -40,7 +41,6 @@
                             "footer": {
                                 "type": "Box",
                                 "flush": "pipeline.closed",
-                                "display": "ads.displayed",
                                 "default": true,
                                 "config": {
                                     "title": "footer",
