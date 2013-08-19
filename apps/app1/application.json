@@ -27,8 +27,8 @@
                             },
                             "ads": {
                                 "type": "Box",
-                                "flush": "search-results.flushed",
-                                "error": "north-ad.error",
+                                "error": "north-ad.errored",
+                                "flush": "search-results.flushed && (north-ad.rendered || north-ad.errored)",
                                 "sections": {
                                     "north-ad": {
                                         "type": "Box"

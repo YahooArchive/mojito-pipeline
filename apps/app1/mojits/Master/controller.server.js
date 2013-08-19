@@ -29,7 +29,7 @@ YUI.add('MasterController', function (Y, NAME) {
                     setTimeout(function () {
                         ac.pipeline.push(task);
                         closePipeline();
-                    }, 1000 * Math.random());
+                    }, 2000 * Math.random());
                 };
 
             // push search-results children
