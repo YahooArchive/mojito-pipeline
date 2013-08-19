@@ -84,7 +84,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             // for each dependency, set it as a default renderTarget
             Y.Array.each(task.dependencies, function (dependency) {
                 self.childrenTasks[dependency] = pipeline._getTask(dependency);
-                self.renderTargets[dependency] = ['afterRender'];
+                self.renderTargets[dependency] = ['afterRender', 'onError'];
             });
 
             Y.Object.each(this.sections, function (childSection, childSectionId) {
@@ -96,8 +96,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 }
             });
 
-            // if this task is a section and has a parent
-            // it should include its parent's display action as a display target
+            // if this task has a parent include its parent as a display target
             if (this.parent) {
                 this.displayTargets[this.parent.sectionName] = ['afterDisplay'];
             }
@@ -130,7 +129,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
                         // add the rule targets
                         self[action + 'Targets'] = Y.Pipeline.Events.mergeTargets(self[action + 'Targets'], rule.targets);
-
                     }
                 });
 
@@ -186,7 +184,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         errorTest: function () {
-            return !!this.error; // error rule exists, default to true, else default to false
+            return !!this.error; // if error rule exists, default to true, else default to false
         },
 
         toString: function () {
@@ -210,10 +208,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     wrapped += ',\n' + propertyName + ": " + JSON.stringify(property);
                     break;
                 case 'displayTest':
-                    var ruleTestString = this.pipeline._getRule(this, 'display').rule,
-                        displayTest = 'function (pipeline) {' +
-                            'return eval(\'' + ruleTestString + '\');}';
-                    wrapped += ',\n' + propertyName + ": " + displayTest;
+                    wrapped += ',\n' + propertyName + ': function (pipeline) {' +
+                            'return eval(\'' +
+                                this.pipeline._getRule(this, 'display').rule + '\');}';
                     break;
                 default:
                 }
@@ -296,7 +293,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         push: function (taskConfig) {
 
-            // keep track to know when to flush the batch
+            // ensure push is always asynchronous
             process.nextTick(function () {
 
                 var pipeline = this,
@@ -306,6 +303,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     targets,
                     task = pipeline._getTask(taskConfig);
 
+                // keep track to know when to flush the batch
                 this.data.numUnprocessedTasks++;
                 task.pushed = true;
 
@@ -426,12 +424,11 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 businessScripts[rulz] = vm.createScript(rulz);
             }
 
-            script = vm.createScript(rulz);
             return {
                 targets: targets,
                 rule: rulz,
                 test: function () {
-                    return script.runInContext(self._vmContext);
+                    return businessScripts[rulz].runInContext(self._vmContext);
                 }
             };
         },
@@ -573,7 +570,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             // if the pipeline is closed but there is no data
             // pipeline still has to flush the closing tags
-            if (this.data.closed && this.data.flushQueue.length == 0) {
+            if (this.data.closed && this.data.flushQueue.length === 0) {
                 pipeline.__flushQueuedTasks(flushStr, flushMeta);
             }
 
