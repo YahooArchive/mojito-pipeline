@@ -187,13 +187,20 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             return !!this.error; // if error rule exists, default to true, else default to false
         },
 
-        toString: function () {
-            return this.data === undefined && this.isSection ?  '<div id="' + this.id + '-section"></div>' : this.data;
+        isEmbeddable: function () {
+            return !this.render && !this.flush && !this.display && !this.flushed;
+        },
+
+        getMarkup: function (embeddable) {
+            if (!embeddable || !this.rendered) {
+                return '<div id="' + this.id + '-section"></div>';
+            }
+            return this.data;
         },
 
         wrap: function () {
             var wrapped = 'pipeline.push({' +
-                'markup: "' + escape(this.toString()) + '"';
+                'markup: "' + escape(this.data) + '"';
 
             Y.Object.each(this, function (property, propertyName) {
                 switch (propertyName) {
@@ -296,19 +303,15 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         push: function (taskConfig) {
 
-            // ensure push is always asynchronous
-            // process.nextTick(function () {
-
             var pipeline = this,
                 renderSubscription,
                 errorSubscription,
-                flushSubscription,
                 targets,
                 task = pipeline._getTask(taskConfig);
 
             // keep track to know when to flush the batch
             this.data.numUnprocessedTasks++;
-            console.log('[pipeline.server.js:308] pushed:' + task.id + ' remains: ' + this.data.numUnprocessedTasks);
+            // console.log('[pipeline.server.js:308] pushed [' + this.data.numUnprocessedTasks + ']:' + task.id);
             task.pushed = true;
 
             // subscribe to any events specified by the task
@@ -331,29 +334,15 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             // subscribe to flush events
             if (task.isSection) {
-                flushSubscription = this.data.events.subscribe(task.flushTargets, function (event, done) {
+                task.flushSubscription = this.data.events.subscribe(task.flushTargets, function (event, done) {
                     if (task.flushTest(pipeline)) {
                         // remove subscribed events such that this action doesn't get called again
-                        flushSubscription.unsubscribe();
-                        console.log('[pipeline.server.js:338] adding to flush QUEUE: ' + task.id);
+                        task.flushSubscription.unsubscribe();
                         pipeline._addToFlushQueue(task);
                     }
                     done();
                 });
 
-                // if this task has a parent
-                // listen to parent's render in order to remove flush subscription if
-                // this task has been rendered
-                if (task.parent && task.flushTest(pipeline)) {
-                    targets = {};
-                    targets[task.parent.sectionName] = ['beforeRender'];
-                    this.data.events.once(targets, function (event, done) {
-                        flushSubscription.unsubscribe();
-                        task.embedded = true;
-                        pipeline._getTask(task.parent.sectionName).embeddedChildren.push(task);
-                        done();
-                    });
-                }
             }
 
             // test task error condition - if true immediately error-out
@@ -393,9 +382,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             });
 
             pipeline._taskProcessed(task);
-
-            return;
-            // }.bind(this));
         },
 
         _getRule: function (task, action) {
@@ -472,6 +458,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             task.errored = true;
             task.data = '<span>ERROR</span>';
             task.rendered = true;
+            // console.log('[pipeline.server.js:462] errored:' + task.id);
             this.data.events.fire(task.id, 'onError', done);
         },
 
@@ -490,18 +477,11 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                         task.data = data;
                         task.meta = meta;
 
-                        // fire after render event
+                        // console.log('[pipeline.server.js:481] rendered:' + task.id);
                         pipeline.data.events.fire(task.id, 'afterRender', function () {
                             done(data, meta);
                         }, data, meta);
                     });
-
-                // create params
-                params = {
-                    body: {
-                        children: {}
-                    }
-                };
 
                 // copy any params specified by task config
                 // add a children object to the body attribute of params
@@ -515,14 +495,25 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 Y.mix(children, task.childrenTasks);
                 Y.mix(children, task.childrenSections);
                 Y.Object.each(children, function (childTask) {
+                    var embeddable = childTask.isEmbeddable(),
+                        markup = childTask.getMarkup(embeddable);
+
                     if (childTask.group) {
                         params.body.children[childTask.group] = params.body.children[childTask.group] || [];
-                        params.body.children[childTask.group].push(childTask);
+                        params.body.children[childTask.group].push(markup);
                     } else {
-                        params.body.children[childTask.id] = childTask;
+                        params.body.children[childTask.id] = markup;
                     }
+                    childTask.embedded = embeddable && childTask.rendered;
 
+                    if (childTask.embedded) {
+                        if (childTask.flushSubscription) {
+                            childTask.flushSubscription.unsubscribe();
+                        }
+                        task.embeddedChildren.push(childTask);
+                    }
                 });
+
                 Y.mix(params.body.children, task.childrenTasks);
 
                 command = {
@@ -539,13 +530,12 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         _taskProcessed: function (task) {
             var pipeline = this;
             this.data.numUnprocessedTasks--;
-            console.log('[pipeline.server.js:538] processed:' + (task && task.id) + ' remains: ' + this.data.numUnprocessedTasks);
             if (this.data.numUnprocessedTasks > 0) {
                 return;
             }
 
-            console.log('[pipeline.server.js:546] pipeline closed? :' + this.data.closed);
             if (this.data.closed) {
+                // console.log('[pipeline.server.js:545] onClose:' + 'pipeline');
                 this.data.events.fire('pipeline', 'onClose', function () {
                     if (pipeline.data.flushQueue.length === 0) {
                         return pipeline.__flushQueuedTasks('', {});
@@ -570,6 +560,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     if (++processedTasks === pipeline.data.flushQueue.length) {
                         pipeline.__flushQueuedTasks(flushStr, flushMeta);
                     }
+                    task.flushed = true;
+                    // console.log('[pipeline.server.js:569] afterFlush:' + task.id);
                     pipeline.data.events.fire(task.id, 'afterFlush');
                 };
 
@@ -581,7 +573,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             for (i = 0; i < this.data.flushQueue.length; i++) {
                 task = this.data.flushQueue[i];
-                task.flushed = true;
 
                 // add embedded children to flushQueue such that their flush events are called
                 for (j = 0; j < task.embeddedChildren.length; j++) {
@@ -605,7 +596,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     meta: flushMeta
                 };
 
-            console.log('[pipeline.server.js:603] flushing, done?: ' + pipeline.data.closed);
+            // console.log('[pipeline.server.js:604] afterFlush:' + 'pipeline');
             this.data.events.fire('pipeline', 'afterFlush', function () {
                 if (pipeline.data.closed) {
                     pipeline.ac.done(flushData.data + '</body></html>', flushData.meta);

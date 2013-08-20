@@ -12,7 +12,6 @@ YUI.add('MasterController', function (Y, NAME) {
                 pushedTasks = 0,
                 searchResultsDependencies = [],
                 closePipeline = function () {
-                    console.log('[controller.server.js:15] closing pipeline? :' + (pushedTasks - 1));
                     if (--pushedTasks === 0) {
                         ac.pipeline.close();
                     }

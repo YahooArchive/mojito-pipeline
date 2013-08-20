@@ -28,7 +28,7 @@
                             "ads": {
                                 "type": "Box",
                                 "error": "north-ad.errored",
-                                "flush": "search-results.flushed && (north-ad.rendered || north-ad.errored)",
+                                "render": "search-results.flushed && north-ad.rendered && south-ad.rendered",
                                 "sections": {
                                     "north-ad": {
                                         "type": "Box"
