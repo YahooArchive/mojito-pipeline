@@ -25,7 +25,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         NAME_DOT_PROPERTY_REGEX = /([a-zA-Z_$][0-9a-zA-Z_$\-]*)\.([^\s]+)/gm,
-        EVENT_TYPES = ['beforeRender', 'afterRender', 'beforeFlush', 'afterFlush', 'onError'],
+        EVENT_TYPES = ['beforeRender', 'afterRender', 'beforeFlush', 'afterFlush', 'onError', 'onClose'],
         ACTIONS = ['render', 'flush', 'display', 'error'];
 
     function Pipeline(command, adapter, ac) {
@@ -47,15 +47,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             sections: {},
             flushQueue: []
         };
-        this._sections = {};
-
         this._parsedRules = {};
-
         this._flushQueue = [];
-
-        this._vmContext = vm.createContext({
-            pipeline: this
-        });
+        this._vmContext = vm.createContext({ pipeline: this });
     }
 
     function Task(task, pipeline) {
@@ -66,13 +60,15 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         initialize: function (task, pipeline) {
             var self = this;
 
+            // the tasks this task observes along its lifecycle stages
             this.renderTargets = {};
             this.errorTargets = {};
             this.flushTargets = {};
             this.displayTargets = {};
-            this.childrenTasks = {};
-            this.childrenSections = {};
-            this.embeddedChildren = [];
+
+            this.childrenTasks = {}; // children that should block the task rendering
+            this.childrenSections = {}; // children that can be replaced by an empty <div> stub
+            this.embeddedChildren = []; // children that had their markup ready and did not need an empty <div> stub
             this.pipeline = pipeline;
 
             if (pipeline.data.sections[task.id]) {
@@ -81,28 +77,26 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             }
             Y.mix(this, task, true);
 
-            // for each dependency, set it as a default renderTarget
+            // render after all dependencies (blocking)
             Y.Array.each(task.dependencies, function (dependency) {
                 self.childrenTasks[dependency] = pipeline._getTask(dependency);
                 self.renderTargets[dependency] = ['afterRender', 'onError'];
             });
 
+            // render after all sections iff js is not enabled on the client
             Y.Object.each(this.sections, function (childSection, childSectionId) {
-                // get child section task
                 self.childrenSections[childSectionId] = pipeline._getTask(childSectionId);
-                // add child section to render targets only if js is disabled
                 if (!pipeline.client.jsEnabled) {
-                    self.renderTargets[childSectionId] = ['afterRender'];
+                    self.renderTargets[childSectionId] = ['afterRender', 'onError'];
                 }
             });
 
-            // if this task has a parent include its parent as a display target
+            // by default display after the parent task does
             if (this.parent) {
                 this.displayTargets[this.parent.sectionName] = ['afterDisplay'];
             }
 
             if (!pipeline.client.jsEnabled) {
-                // change to the noJS tests
                 this.renderTest = this.noJSRenderTest;
                 this.flushTest = this.noJSFlushTest;
                 // add client to render targets since the noJSRenderTest
@@ -110,16 +104,13 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 this.renderTargets.pipeline = ['onClose'];
             } else {
 
-                // by default the flush test has one target (the task's render event itself)
+                // by default flush when this task renders or errors out
                 this.flushTargets[this.id] = ['afterRender', 'onError'];
 
-                // combine tests with actionRule
+                // combine default tests with user rules
                 Y.Array.each(ACTIONS, function (action) {
                     if (self[action]) {
                         var rule = pipeline._getRule(self, action);
-                        if (!rule) {
-                            return;
-                        }
 
                         // replace the test with combined test
                         self[action + 'Test'] = function () {
@@ -174,30 +165,31 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 return !task.rendered;
             });
         },
-
+        // default: "never flush anything", let the root handle it
         noJSFlushTest: function (pipeline) {
             return false;
         },
-
+        // default: "flush if this task is rendered"
         flushTest: function (pipeline) {
             return this.rendered;
         },
-
+        // default: "if error rule exists, default to true, else default to false"
         errorTest: function () {
-            return !!this.error; // if error rule exists, default to true, else default to false
+            return !!this.error;
         },
 
+        // can I embed my markup directly into my parent?
         isEmbeddable: function () {
             return !this.render && !this.flush && !this.display && !this.flushed;
         },
-
+        // get full markup if it exists and if I am embeddable, else stub
         getMarkup: function (embeddable) {
             if (!embeddable || !this.rendered) {
                 return '<div id="' + this.id + '-section"></div>';
             }
             return this.data;
         },
-
+        // wrap markup into a pipeline.push() with other useful info to place the markup in the skeleton
         wrap: function () {
             var wrapped = 'pipeline.push({' +
                 'markup: "' + escape(this.data) + '"';
@@ -234,7 +226,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         this.unminifiedScript = pipelineStore.unminifiedClient;
         this.jsEnabled = true;
     };
-
+    // rendering adapter for mojito
     Pipeline.Adapter = function (task, pipelineAdapter, callback) {
         this.callback = callback;
         this.task = task;
@@ -273,14 +265,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             config.sectionName = 'root';
             var pipeline = this,
                 getSections = function (sections, parent) {
-                    if (!sections) {
-                        return;
-                    }
                     Y.Object.each(sections, function (sectionConfig, sectionName) {
                         pipeline.data.sections[sectionName] = sectionConfig;
                         pipeline.data.sections[sectionName].sectionName = sectionName;
                         pipeline.data.sections[sectionName].parent = parent;
-                        pipeline.data.sections[sectionName].regex = new RegExp(sectionName, 'g');
                         getSections(sectionConfig.sections, sectionConfig);
                     });
                 };
@@ -324,7 +312,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 pipeline.data.events.subscribe(targets, task[targetAction]);
             });
 
-            // push any default sections of this task
+            // also push any default sections of this task
             Y.Object.each(task.sections, function (config, sectionId) {
                 config.id = sectionId;
                 if (config['default']) {
@@ -352,7 +340,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 });
                 return;
             }
-            // subscribe to error events
+            // else subscribe to error events
             errorSubscription = this.data.events.subscribe(task.errorTargets, function (events, done) {
                 if (task.errorTest()) {
                     errorSubscription.unsubscribe();
@@ -368,7 +356,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 });
                 return;
             }
-            // if task's render condition fails, subscribe to render events
+            // else subscribe to render events
             renderSubscription = this.data.events.subscribe(task.renderTargets, function (event, done) {
                 if (task.renderTest(pipeline)) {
                     // remove subscribed events such that this action doesn't get called again
@@ -384,6 +372,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             pipeline._taskProcessed(task);
         },
 
+        // get the cached rule or parse it if it doesnt exist
         _getRule: function (task, action) {
             var rule = task[action];
             if (!this._parsedRules[rule]) {
@@ -399,6 +388,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 self = this;
 
             rulz = rulz.replace(NAME_DOT_PROPERTY_REGEX, function (expression, objectId, property) {
+                // add a target if one found in this bit of the rule
                 if (PROPERTYEVENTSMAP[property]) {
                     targets[objectId] = targets[objectId] || [];
                     targets[objectId].push(PROPERTYEVENTSMAP[property]);
@@ -407,12 +397,11 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 case 'pipeline':
                     return 'pipeline.data.' + property;
                 default:
+                    return 'pipeline._getTask("' + objectId + '").' + property;
                 }
-                return 'pipeline._getTask("' + objectId + '").' + property;
             });
-            if (!businessScripts[rulz]) {
-                businessScripts[rulz] = vm.createScript(rulz);
-            }
+            // cache compiled scripts globally
+            businessScripts[rulz] = businessScripts[rulz] || vm.createScript(rulz);
 
             return {
                 targets: targets,
@@ -429,24 +418,19 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         _getTask: function (config) {
             var task;
-            // if getting task by id get task if it exists,
-            // if it doesn't exist create a dummy task
+            // get by task id
             if (typeof config === 'string' || typeof config === 'number') {
                 config = {
                     id: config
                 };
-
-                // TODO only initialize the parts of the task that are necessary
-                // for example dont initialize the parsed rule...
+                // creat task if one with this id doesn't exist
                 task = this.data.tasks[config.id] = this.data.tasks[config.id] || new Task(config, this);
                 return task;
             }
 
-            // if getting task with a configuration get task if it exists
-            // if it exits then merge the config else just create the task
+            // get by config object - if it doesn't exist just create it
             task = this.data.tasks[config.id];
             if (task) {
-                //Y.mix(task, config, true);
                 task.initialize(config, this);
             } else {
                 task = this.data.tasks[config.id] = this.data.tasks[config.id] || new Task(config, this);
@@ -456,8 +440,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         _error: function (task, done) {
             task.errored = true;
-            task.data = '<span>ERROR</span>';
             task.rendered = true;
+            task.data = '<span>ERROR</span>';
             // console.log('[pipeline.server.js:462] errored:' + task.id);
             this.data.events.fire(task.id, 'onError', done);
         },
@@ -489,7 +473,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 params.body = params.body || {};
                 params.body.children = params.body.children || {};
 
-
                 // get all children tasks and sections
                 // and add to the params' body
                 Y.mix(children, task.childrenTasks);
@@ -504,17 +487,15 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     } else {
                         params.body.children[childTask.id] = markup;
                     }
-                    childTask.embedded = embeddable && childTask.rendered;
 
+                    childTask.embedded = embeddable && childTask.rendered;
                     if (childTask.embedded) {
                         if (childTask.flushSubscription) {
-                            childTask.flushSubscription.unsubscribe();
+                            childTask.flushSubscription.unsubscribe(); // parent will flush this child
                         }
                         task.embeddedChildren.push(childTask);
                     }
                 });
-
-                Y.mix(params.body.children, task.childrenTasks);
 
                 command = {
                     instance: task,
@@ -527,6 +508,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             }, task);
         },
 
+        // keep track of the number of processed tasks in this batch and flush it if we're done
         _taskProcessed: function (task) {
             var pipeline = this;
             this.data.numUnprocessedTasks--;
@@ -547,6 +529,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             }
         },
 
+        // wrap each task, fire its flush event and flush everything when all are done
         _flushQueuedTasks: function () {
             var pipeline = this,
                 i,
@@ -565,8 +548,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     pipeline.data.events.fire(task.id, 'afterFlush');
                 };
 
-            // if the pipeline is closed but there is no data
-            // pipeline still has to flush the closing tags
+            // if the pipeline is closed but there is no data pipeline still has to flush the closing tags
             if (this.data.closed && this.data.flushQueue.length === 0) {
                 pipeline.__flushQueuedTasks(flushStr, flushMeta);
             }
@@ -589,6 +571,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             }
         },
 
+        // flush the wrapped tasks within a <script> tag, fire pipeline flush
         __flushQueuedTasks: function (flushStr, flushMeta) {
             var pipeline = this,
                 flushData = {
@@ -605,14 +588,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 }
                 pipeline.data.flushQueue = [];
             }, flushData);
-        },
-
-        _combineTests: function () {
-            return function () {
-                return !Y.Array.some(arguments, function (nextFn) {
-                    return !nextFn.call();
-                });
-            };
         }
     };
 
