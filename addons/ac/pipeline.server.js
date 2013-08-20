@@ -288,110 +288,114 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         close: function () {
-            this.data.closedCalled = true;
+            this.data.closed = true;
+            if (!this.data.numUnprocessedTasks) {
+                this._taskProcessed();
+            }
         },
 
         push: function (taskConfig) {
 
             // ensure push is always asynchronous
-            process.nextTick(function () {
+            // process.nextTick(function () {
 
-                var pipeline = this,
-                    renderSubscription,
-                    errorSubscription,
-                    flushSubscription,
-                    targets,
-                    task = pipeline._getTask(taskConfig);
+            var pipeline = this,
+                renderSubscription,
+                errorSubscription,
+                flushSubscription,
+                targets,
+                task = pipeline._getTask(taskConfig);
 
-                // keep track to know when to flush the batch
-                this.data.numUnprocessedTasks++;
-                task.pushed = true;
+            // keep track to know when to flush the batch
+            this.data.numUnprocessedTasks++;
+            console.log('[pipeline.server.js:308] pushed:' + task.id + ' remains: ' + this.data.numUnprocessedTasks);
+            task.pushed = true;
 
-                // subscribe to any events specified by the task
-                Y.Array.each(EVENT_TYPES, function (targetAction) {
-                    if (!task[targetAction]) {
-                        return;
-                    }
-                    var targets = {};
-                    targets[task.id] = [targetAction];
-                    pipeline.data.events.subscribe(targets, task[targetAction]);
-                });
-
-                // push any default sections of this task
-                Y.Object.each(task.sections, function (config, sectionId) {
-                    config.id = sectionId;
-                    if (config['default']) {
-                        pipeline.push(config);
-                    }
-                });
-
-                // subscribe to flush events
-                if (task.isSection) {
-                    flushSubscription = this.data.events.subscribe(task.flushTargets, function (event, done) {
-                        if (task.flushTest(pipeline)) {
-                            // remove subscribed events such that this action doesn't get called again
-                            flushSubscription.unsubscribe();
-                            pipeline._addToFlushQueue(task);
-                        }
-                        done();
-                    });
-
-                    // if this task has a parent
-                    // listen to parent's render in order to remove flush subscription if
-                    // this task has been rendered
-                    if (task.parent) {
-                        targets = {};
-                        targets[task.parent.sectionName] = ['beforeRender'];
-                        this.data.events.once(targets, function (event, done) {
-                            if (task.rendered) {
-                                flushSubscription.unsubscribe();
-                                task.embedded = true;
-                                pipeline._getTask(task.parent.sectionName).embeddedChildren.push(task);
-
-                            }
-                            done();
-                        });
-                    }
-                }
-
-                // test task error condition - if true immediately error-out
-                if (task.errorTest()) {
-                    pipeline._error(task, pipeline._taskProcessed.bind(pipeline, task));
+            // subscribe to any events specified by the task
+            Y.Array.each(EVENT_TYPES, function (targetAction) {
+                if (!task[targetAction]) {
                     return;
                 }
-                // subscribe to error events
-                errorSubscription = this.data.events.subscribe(task.errorTargets, function (events, done) {
-                    if (task.errorTest()) {
-                        errorSubscription.unsubscribe();
-                        pipeline._error(task);
+                var targets = {};
+                targets[task.id] = [targetAction];
+                pipeline.data.events.subscribe(targets, task[targetAction]);
+            });
+
+            // push any default sections of this task
+            Y.Object.each(task.sections, function (config, sectionId) {
+                config.id = sectionId;
+                if (config['default']) {
+                    pipeline.push(config);
+                }
+            });
+
+            // subscribe to flush events
+            if (task.isSection) {
+                flushSubscription = this.data.events.subscribe(task.flushTargets, function (event, done) {
+                    if (task.flushTest(pipeline)) {
+                        // remove subscribed events such that this action doesn't get called again
+                        flushSubscription.unsubscribe();
+                        console.log('[pipeline.server.js:338] adding to flush QUEUE: ' + task.id);
+                        pipeline._addToFlushQueue(task);
                     }
                     done();
                 });
 
-                // test task's render condition - if true, immediately render the task
-                if (task.renderTest(pipeline)) {
-                    pipeline._render(task, function (data, meta) {
-                        pipeline._taskProcessed(task);
-                    });
-                    return;
-                }
-                // if task's render condition fails, subscribe to render events
-                renderSubscription = this.data.events.subscribe(task.renderTargets, function (event, done) {
-                    if (task.renderTest(pipeline)) {
-                        // remove subscribed events such that this action doesn't get called again
-                        renderSubscription.unsubscribe();
-                        pipeline._render(task, function () {
-                            done();
-                        });
-                    } else {
+                // if this task has a parent
+                // listen to parent's render in order to remove flush subscription if
+                // this task has been rendered
+                if (task.parent && task.flushTest(pipeline)) {
+                    targets = {};
+                    targets[task.parent.sectionName] = ['beforeRender'];
+                    this.data.events.once(targets, function (event, done) {
+                        flushSubscription.unsubscribe();
+                        task.embedded = true;
+                        pipeline._getTask(task.parent.sectionName).embeddedChildren.push(task);
                         done();
-                    }
+                    });
+                }
+            }
+
+            // test task error condition - if true immediately error-out
+            if (task.errorTest()) {
+                pipeline._error(task, function () {
+                    pipeline._taskProcessed(task);
                 });
-
-                pipeline._taskProcessed(task);
-
                 return;
-            }.bind(this));
+            }
+            // subscribe to error events
+            errorSubscription = this.data.events.subscribe(task.errorTargets, function (events, done) {
+                if (task.errorTest()) {
+                    errorSubscription.unsubscribe();
+                    pipeline._error(task);
+                }
+                done();
+            });
+
+            // test task's render condition - if true, immediately render the task
+            if (task.renderTest(pipeline)) {
+                pipeline._render(task, function (data, meta) {
+                    pipeline._taskProcessed(task);
+                });
+                return;
+            }
+            // if task's render condition fails, subscribe to render events
+            renderSubscription = this.data.events.subscribe(task.renderTargets, function (event, done) {
+                if (task.renderTest(pipeline)) {
+                    // remove subscribed events such that this action doesn't get called again
+                    renderSubscription.unsubscribe();
+                    pipeline._render(task, function () {
+                        done();
+                    });
+                } else {
+                    done();
+                }
+            });
+
+            pipeline._taskProcessed(task);
+
+            return;
+            // }.bind(this));
         },
 
         _getRule: function (task, action) {
@@ -535,12 +539,13 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         _taskProcessed: function (task) {
             var pipeline = this;
             this.data.numUnprocessedTasks--;
-            if (this.data.numUnprocessedTasks !== 0) {
+            console.log('[pipeline.server.js:538] processed:' + (task && task.id) + ' remains: ' + this.data.numUnprocessedTasks);
+            if (this.data.numUnprocessedTasks > 0) {
                 return;
             }
 
-            if (this.data.closedCalled) {
-                this.data.closed = true;
+            console.log('[pipeline.server.js:546] pipeline closed? :' + this.data.closed);
+            if (this.data.closed) {
                 this.data.events.fire('pipeline', 'onClose', function () {
                     if (pipeline.data.flushQueue.length === 0) {
                         return pipeline.__flushQueuedTasks('', {});
@@ -600,7 +605,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     meta: flushMeta
                 };
 
-            this.data.events.fire('pipeline', 'flush', function () {
+            console.log('[pipeline.server.js:603] flushing, done?: ' + pipeline.data.closed);
+            this.data.events.fire('pipeline', 'afterFlush', function () {
                 if (pipeline.data.closed) {
                     pipeline.ac.done(flushData.data + '</body></html>', flushData.meta);
                 } else {

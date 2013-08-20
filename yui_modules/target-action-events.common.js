@@ -3,9 +3,12 @@ YUI.add('target-action-events', function (Y) {
     'use strict';
 
     var Events = function (emitter) {
-        this.emmitter = emitter;
-        this.events = {};
-    };
+            this.emmitter = emitter;
+            this.events = {};
+        },
+        justCallback = function (event, done) {
+            return done();
+        };
 
     Events.prototype = {
         /* Calls any subscribed actions to a target's action
@@ -39,9 +42,8 @@ YUI.add('target-action-events', function (Y) {
                 Array.prototype.push.apply(actionArguments, Array.prototype.slice.call(arguments, 0).slice(3));
                 while (i < subscribedActions.length) {
                     if (subscribedActions[i].unsubscribed) {
-                        // remove unsubscribed action
-                        subscribedActions.splice(i, 1);
-                        continue;
+                        // neutralized unsubscribed action but still execute the callback to fire
+                        subscribedActions[i] = justCallback;
                     }
                     subscribedActions[i++].apply(this, actionArguments);
                 }
