@@ -23,12 +23,13 @@
                                 }
                             },
                             "search-results": {
+                                "timeout": 1,
                                 "type": "Box"
                             },
                             "ads": {
                                 "type": "Box",
                                 "error": "north-ad.errored",
-                                "render": "search-results.flushed && north-ad.rendered && south-ad.rendered",
+                                "render": "search-results.flushed && (north-ad.rendered || north-ad.errored)",
                                 "sections": {
                                     "north-ad": {
                                         "type": "Box"
