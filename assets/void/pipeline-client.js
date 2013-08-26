@@ -1,88 +1,118 @@
-YUI().use('target-action-events', function (Y) {
+/*jslint browser: true, indent: 4, plusplus: true */
+/*global unescape */
 
-    var Pipeline = function (dummyPipeline) {
-            this.events = new Y.Pipeline.Events();
-            this.tasks = {};
-            dummyPipeline.forEach(this.push.bind(this));
-        },
-        Task = function (config) {
-            mix(this, config);
-        };
+var pipeline = (function () {
+    'use strict';
 
-    Pipeline.prototype.push = function (taskConfig) {
-        var pipeline = this,
-            task = this._getTask(taskConfig),
-            displaySubscription;
+    //-- Private variables ----------------------------------------------------
 
-        task.flushed = true;
-        mix(task, taskConfig);
+    var events = new window.Pipeline.Events(),
+        tasks = {};
 
-        // subscribe to any events specified by the task
-        ['beforeDisplay', 'afterDisplay'].forEach(function (targetAction) {
-            if (!task[targetAction]) return;
+    //-- Private methods ------------------------------------------------------
 
-            var targets = {};
-            targets[task.id] = [targetAction];
-            this.events.subscribe(targets, task[targetAction]);
-        }, this);
+    function mix(receiver, supplier) {
+        var p;
 
-        // merge default displayTest with user provided test
-        if (taskConfig.displayTest) {
-            task.displayTest = function () {
-                return Task.prototype.displayTest.call(task) && taskConfig.displayTest(pipeline);
-            };
+        for (p in supplier) {
+            if (supplier.hasOwnProperty(p)) {
+                receiver[p] = supplier[p];
+            }
         }
+    }
 
-        // subscribe to events for the display action
-        if (task.displayTest()) {
-            pipeline.display(task);
-        } else {
-            displaySubscription = this.events.subscribe(task.displayTargets, function (event, done) {
-                if (task.displayTest(task)) {
-                    displaySubscription.unsubscribe();
-                    pipeline.display(task, done);
-                } else {
-                    done();
-                }
-            });
-        }
-    };
-
-    Pipeline.prototype._getTask = function (config) {
-        if (typeof config === 'string' || typeof config === 'number') {
-            return this.tasks[config] = (this.tasks[config] || new Task({ id: config }));
-        }
-        var task = this.tasks[config.id];
-        if (task) {
-            mix(task, config);
-        } else {
-            task = this.tasks[config.id] = new Task(config);
-        }
-        return task;
-    };
-
-    Pipeline.prototype.display = function (task) {
-        var stub = document.getElementById(task.id + '-section'),
-            pipeline = this;
-        this.events.fire(task.id, 'beforeDisplay', function () {
-            var makerNode = document.createElement();
-            makerNode.innerHTML = unescape(task.markup);
-
-            for (var i = 0; i < makerNode.children.length; i++) stub.parentNode.insertBefore(makerNode.children[i], stub);
-
-            task.displayed = true;
-
-            pipeline.events.fire(task.id, 'afterDisplay');
-            task.embeddedChildren.forEach(function (value) {
-                pipeline.events.fire(value, 'afterDisplay');
-            });
-        });
-    };
+    function Task(config) {
+        mix(this, config);
+    }
 
     Task.prototype.displayTest = function () {
         return !!document.getElementById(this.id + '-section');
     };
 
-    pipeline = new Pipeline(pipeline);
+    function getTask(config) {
+        if (typeof config === 'string' || typeof config === 'number') {
+            tasks[config] = (tasks[config] || new Task({ id: config }));
+            return tasks[config];
+        }
 
-});
+        var task = tasks[config.id];
+
+        if (task) {
+            mix(task, config);
+        } else {
+            task = tasks[config.id] = new Task(config);
+        }
+
+        return task;
+    }
+
+    // Public methods ---------------------------------------------------------
+
+    return {
+
+        push: function (taskConfig) {
+            var pipeline = this,
+                task = getTask(taskConfig),
+                displaySubscription;
+
+            task.flushed = true;
+            mix(task, taskConfig);
+
+            // subscribe to any events specified by the task
+            ['beforeDisplay', 'afterDisplay'].forEach(function (targetAction) {
+                if (!task[targetAction]) {
+                    return;
+                }
+
+                var targets = {};
+                targets[task.id] = [targetAction];
+                events.subscribe(targets, task[targetAction]);
+            }, this);
+
+            // merge default displayTest with user provided test
+            if (taskConfig.displayTest) {
+                task.displayTest = function () {
+                    return Task.prototype.displayTest.call(task) && taskConfig.displayTest(pipeline);
+                };
+            }
+
+            // subscribe to events for the display action
+            if (task.displayTest()) {
+                pipeline.display(task);
+            } else {
+                displaySubscription = events.subscribe(task.displayTargets, function (event, done) {
+                    if (task.displayTest(task)) {
+                        displaySubscription.unsubscribe();
+                        pipeline.display(task, done);
+                    } else {
+                        done();
+                    }
+                });
+            }
+        },
+
+        display: function (task) {
+            var stub = document.getElementById(task.id + '-section');
+
+            events.fire(task.id, 'beforeDisplay', function () {
+                var i, n;
+
+                n = document.createElement('div');
+                n.innerHTML = unescape(task.markup);
+
+                for (i = 0; i < n.children.length; i++) {
+                    stub.parentNode.insertBefore(n.children[i], stub);
+                }
+
+                task.displayed = true;
+
+                events.fire(task.id, 'afterDisplay');
+
+                task.embeddedChildren.forEach(function (value) {
+                    events.fire(value, 'afterDisplay');
+                });
+            });
+        }
+    };
+
+}());

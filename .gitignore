@@ -1,3 +1,7 @@
 artifacts
+node_modules
 npm-debug.log
-/node_modules/
+apps/app1/node_modules/mojito
+apps/app1/node_modules/mojito-cli
+apps/app1/assets
+apps/app1/shaker-meta.json

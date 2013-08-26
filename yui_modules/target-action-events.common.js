@@ -1,5 +1,7 @@
-/*jslint plusplus: true, forin: true */
-YUI.add('target-action-events', function (Y) {
+/*jslint indent: 4, plusplus: true */
+/*global YUI, window */
+
+(function () {
     'use strict';
 
     var Events = function (emitter) {
@@ -11,12 +13,7 @@ YUI.add('target-action-events', function (Y) {
         };
 
     Events.prototype = {
-        /* Calls any subscribed actions to a target's action
-         * @param {string} target The target.
-         * @param {string} targetAction The target's action.
-         * @param {string} done The callback called after all subscribed actions have been called.
-         * @params optional arguments
-         */
+
         fire: function (target, targetAction, done) {
             var subscribedActions = this.events[target] && this.events[target][targetAction],
                 numSubscribedActions = subscribedActions && subscribedActions.length,
@@ -52,30 +49,21 @@ YUI.add('target-action-events', function (Y) {
             }
         },
 
-        /* Sets an action subscribed to the targets specified
-         * @param {object} targets The targets to listen to.
-         * @param {function} subscribedActon The action that subscribes to the specified targets.
-         * @return {Event.subscription} The subscription to the targets subscribed to. This object
-         * can be used to unsubscribe from the targets.
-         */
         subscribe: function (targets, subscribedAction) {
-            var pipeline = this.pipeline,
-                i,
-                target,
-                targetAction,
-                subscribedActions,
-                subscription = new Events.Subscription(targets, subscribedAction);
+            var i, target, targetAction;
 
             for (target in targets) {
-                this.events[target] = this.events[target] || {};
-                for (i = 0; i < targets[target].length; i++) {
-                    targetAction = targets[target][i];
-                    this.events[target][targetAction] = this.events[target][targetAction] || [];
-                    this.events[target][targetAction].push(subscribedAction);
+                if (targets.hasOwnProperty(target)) {
+                    this.events[target] = this.events[target] || {};
+                    for (i = 0; i < targets[target].length; i++) {
+                        targetAction = targets[target][i];
+                        this.events[target][targetAction] = this.events[target][targetAction] || [];
+                        this.events[target][targetAction].push(subscribedAction);
+                    }
                 }
             }
 
-            return subscription;
+            return new Events.Subscription(targets, subscribedAction);
         },
 
         once: function (targets, subscribedAction) {
@@ -86,22 +74,20 @@ YUI.add('target-action-events', function (Y) {
         }
     };
 
+    // This is only used on the server - TODO: move me!
     Events.mergeTargets = function () {
-        var i,
-            j,
-            targets,
-            target,
-            targetAction,
-            mergedTargets = {};
+        var i, j, targets, target, targetAction, mergedTargets = {};
 
         for (i = 0; i < arguments.length; i++) {
             targets = arguments[i];
             for (target in targets) {
-                mergedTargets[target] = mergedTargets[target] || [];
-                for (j = 0; j < targets[target].length; j++) {
-                    targetAction = targets[target][j];
-                    if (mergedTargets[target].indexOf(targetAction) === -1) {
-                        mergedTargets[target].push(targetAction);
+                if (targets.hasOwnProperty(target)) {
+                    mergedTargets[target] = mergedTargets[target] || [];
+                    for (j = 0; j < targets[target].length; j++) {
+                        targetAction = targets[target][j];
+                        if (mergedTargets[target].indexOf(targetAction) === -1) {
+                            mergedTargets[target].push(targetAction);
+                        }
                     }
                 }
             }
@@ -115,17 +101,32 @@ YUI.add('target-action-events', function (Y) {
     };
 
     Events.Subscription.prototype = {
-        /* Marks the susbscribed action as unsubscribed so that it can be removed
-         */
+
         unsubscribe: function () {
             this.subscribedAction.unsubscribed = true;
-            // Removing the subscribed action can cause issues if event actions are being called and
-            // the array size changes in the middle, so we instead mark as unsubscribed
+            // Removing the subscribed action can cause issues if event actions
+            // are being called and the array size changes in the middle, so we
+            // instead mark as unsubscribed
         }
     };
 
-    Y.namespace('Pipeline').Events = Events;
-}, '0.0.1', {
-    requires: [
-    ]
-});
+    // Make this library available either as a YUI module, if YUI is defined,
+    // which is the case on the server, or as an object attached to the window
+    // object on the client side.
+
+    if (typeof YUI !== 'undefined') {
+
+        YUI.add('target-action-events', function (Y) {
+            Y.namespace('Pipeline').Events = Events;
+        });
+
+    } else if (typeof window !== 'undefined') {
+
+        if (!window.Pipeline) {
+            window.Pipeline = {};
+        }
+
+        window.Pipeline.Events = Events;
+    }
+
+}());
