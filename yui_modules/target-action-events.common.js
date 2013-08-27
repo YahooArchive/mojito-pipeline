@@ -4,16 +4,25 @@
 (function () {
     'use strict';
 
-    var Events = function (emitter) {
-            this.emmitter = emitter;
-            this.events = {};
-        },
-        justCallback = function (event, done) {
-            return done();
-        };
+    //-- PipelineEvents -------------------------------------------------------
 
-    Events.prototype = {
+    function PipelineEvents() {
+        this.events = {};
+    }
 
+    PipelineEvents.prototype = {
+
+        /**
+         * Invokes the subscribers that are interested in the specified action
+         * on the given target.
+         *
+         * @param {String} target The task id of the target (e.g., "searchbox")
+         *
+         * @param {String} targetAction The action that is being reported (e.g., "beforeFlush")
+         *
+         * @param {Function} done A function which accepts as single parameter
+         *      the number of subscribers that have been invoked.
+         */
         fire: function (target, targetAction, done) {
             var subscribedActions = this.events[target] && this.events[target][targetAction],
                 numSubscribedActions = subscribedActions && subscribedActions.length,
@@ -21,8 +30,7 @@
                 eventsCompleted = 0,
                 event = {
                     target: target,
-                    targetAction: targetAction,
-                    emitter: this.emitter
+                    targetAction: targetAction
                 },
                 eventDone = function () {
                     if (done && ++eventsCompleted === numSubscribedActions) {
@@ -32,7 +40,10 @@
                 actionArguments = [
                     event,
                     eventDone
-                ];
+                ],
+                callback = function (event, done) {
+                    return done();
+                };
 
             if (subscribedActions) {
                 // add optional arguments to the arguments passed to the action
@@ -40,7 +51,7 @@
                 while (i < subscribedActions.length) {
                     if (subscribedActions[i].unsubscribed) {
                         // neutralized unsubscribed action but still execute the callback to fire
-                        subscribedActions[i] = justCallback;
+                        subscribedActions[i] = callback;
                     }
                     subscribedActions[i++].apply(this, actionArguments);
                 }
@@ -49,21 +60,47 @@
             }
         },
 
+        /**
+         * Subscribes to a list of actions on multiple targets.
+         *
+         * @param {Object} targets The targets and the corresponding actions
+         *      on those targets we want to subscribe to, e.g.
+         *          {
+         *              "searchbox": ['beforeRender', 'afterFlush'],
+         *              "footer": ['beforeDisplay']
+         *          }
+         *
+         * @param {Function} subscribedAction a callback function which accepts
+         *      the following parameters:
+         *          - event: an object containg the following properties:
+         *              - target (e.g., "searchbox")
+         *              - targetAction (e.g., "beforeRender")
+         *          - done: a calback which must be invoked once the subscriber
+         *                  has finished executing. This allows a subscriber to
+         *                  be either synchronous or asynchronous and guarantee
+         *                  that subscribers are invoked in the right order.
+         *
+         * @return {PipelineEvents.Subscription} a subscription object
+         */
         subscribe: function (targets, subscribedAction) {
             var i, target, targetAction;
 
             for (target in targets) {
                 if (targets.hasOwnProperty(target)) {
-                    this.events[target] = this.events[target] || {};
+                    if (!this.events[target]) {
+                        this.events[target] = {};
+                    }
                     for (i = 0; i < targets[target].length; i++) {
                         targetAction = targets[target][i];
-                        this.events[target][targetAction] = this.events[target][targetAction] || [];
+                        if (!this.events[target][targetAction]) {
+                            this.events[target][targetAction] = [];
+                        }
                         this.events[target][targetAction].push(subscribedAction);
                     }
                 }
             }
 
-            return new Events.Subscription(targets, subscribedAction);
+            return new PipelineEvents.Subscription(targets, subscribedAction);
         },
 
         once: function (targets, subscribedAction) {
@@ -74,33 +111,14 @@
         }
     };
 
-    // This is only used on the server - TODO: move me!
-    Events.mergeTargets = function () {
-        var i, j, targets, target, targetAction, mergedTargets = {};
+    //-- PipelineEvents.Subscription ------------------------------------------
 
-        for (i = 0; i < arguments.length; i++) {
-            targets = arguments[i];
-            for (target in targets) {
-                if (targets.hasOwnProperty(target)) {
-                    mergedTargets[target] = mergedTargets[target] || [];
-                    for (j = 0; j < targets[target].length; j++) {
-                        targetAction = targets[target][j];
-                        if (mergedTargets[target].indexOf(targetAction) === -1) {
-                            mergedTargets[target].push(targetAction);
-                        }
-                    }
-                }
-            }
-        }
-        return mergedTargets;
-    };
-
-    Events.Subscription = function (targets, subscribedAction) {
+    PipelineEvents.Subscription = function (targets, subscribedAction) {
         this.targets = targets;
         this.subscribedAction = subscribedAction;
     };
 
-    Events.Subscription.prototype = {
+    PipelineEvents.Subscription.prototype = {
 
         unsubscribe: function () {
             this.subscribedAction.unsubscribed = true;
@@ -110,6 +128,7 @@
         }
     };
 
+    //-------------------------------------------------------------------------
     // Make this library available either as a YUI module, if YUI is defined,
     // which is the case on the server, or as an object attached to the window
     // object on the client side.
@@ -117,7 +136,7 @@
     if (typeof YUI !== 'undefined') {
 
         YUI.add('target-action-events', function (Y) {
-            Y.namespace('Pipeline').Events = Events;
+            Y.namespace('Pipeline').Events = PipelineEvents;
         });
 
     } else if (typeof window !== 'undefined') {
@@ -126,7 +145,7 @@
             window.Pipeline = {};
         }
 
-        window.Pipeline.Events = Events;
+        window.Pipeline.Events = PipelineEvents;
     }
 
 }());
