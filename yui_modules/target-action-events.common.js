@@ -4,8 +4,14 @@
 (function () {
     'use strict';
 
-    //-- PipelineEvents -------------------------------------------------------
+    function ASYNC_NOOP(event, callback) {
+        callback();
+    }
 
+    /**
+     * @class PipelineEvents
+     * @constructor
+     */
     function PipelineEvents() {
         this.events = {};
     }
@@ -16,119 +22,161 @@
          * Invokes the subscribers that are interested in the specified action
          * on the given target.
          *
-         * @param {String} target The task id of the target (e.g., "searchbox")
-         *
-         * @param {String} targetAction The action that is being reported (e.g., "beforeFlush")
-         *
-         * @param {Function} done A function which accepts as single parameter
-         *      the number of subscribers that have been invoked.
+         * @method fire
+         * @param {String} target The task that generated this event (e.g., "searchbox")
+         * @param {String} action The action that is being reported (e.g., "beforeFlush")
+         * @param {Function} callback A function which accepts as single
+         *      parameter the number of subscribers that have been invoked
+         *      as a result of this event being fired...
          */
-        fire: function (target, targetAction, done) {
-            var subscribedActions = this.events[target] && this.events[target][targetAction],
-                numSubscribedActions = subscribedActions && subscribedActions.length,
-                i = 0,
-                eventsCompleted = 0,
-                event = {
-                    target: target,
-                    targetAction: targetAction
-                },
-                eventDone = function () {
-                    if (done && ++eventsCompleted === numSubscribedActions) {
-                        done(eventsCompleted);
-                    }
-                },
-                actionArguments = [
-                    event,
-                    eventDone
-                ],
-                callback = function (event, done) {
-                    return done();
-                };
+        fire: function (target, action, callback) {
+            var subscriber,
+                subscribers,
+                subscribersCount,
+                subscribersInvoked,
+                evt,
+                fn,
+                args,
+                i;
 
-            if (subscribedActions) {
-                // add optional arguments to the arguments passed to the action
-                Array.prototype.push.apply(actionArguments, Array.prototype.slice.call(arguments, 0).slice(3));
-                while (i < subscribedActions.length) {
-                    if (subscribedActions[i].unsubscribed) {
-                        // neutralized unsubscribed action but still execute the callback to fire
-                        subscribedActions[i] = callback;
-                    }
-                    subscribedActions[i++].apply(this, actionArguments);
+            subscribers = this.events[target] && this.events[target][action];
+
+            if (!subscribers) {
+                if (callback) {
+                    callback(0);
                 }
-            } else if (done) {
-                done(0);
+                return;
+            }
+
+            subscribersInvoked = 0;
+            subscribersCount = subscribers.length;
+
+            // The event object passed to the subscribers.
+            evt = {
+                target: target,
+                action: action
+            };
+
+            // Subscribers can be asynchronous! Once they are done executing,
+            // they have to call a function which is passed as their second
+            // argument. This function checks whether all the subscribers have
+            // been invoked. If so, it invokes the callback passed to the
+            // 'fire' method...
+            fn = function () {
+                if (callback && ++subscribersInvoked === subscribersCount) {
+                    callback(subscribersInvoked);
+                }
+            };
+
+            // The arguments passed to a subscriber.
+            args = [evt, fn].concat(Array.prototype.slice.call(arguments, 0).slice(3));
+
+            for (i = 0; i < subscribersCount; i++) {
+                subscriber = subscribers[i];
+
+                if (subscriber.unsubscribed) {
+                    // This subscriber is not interested in subscribing to that
+                    // event, so we replace it with a 'noop' function...
+                    subscriber = ASYNC_NOOP;
+                }
+
+                subscriber.apply(this, args);
             }
         },
 
         /**
          * Subscribes to a list of actions on multiple targets.
          *
+         * @method subscribe
          * @param {Object} targets The targets and the corresponding actions
          *      on those targets we want to subscribe to, e.g.
          *          {
-         *              "searchbox": ['beforeRender', 'afterFlush'],
-         *              "footer": ['beforeDisplay']
+         *              "searchbox": ["beforeRender", "afterFlush"],
+         *              "footer": ["beforeDisplay"]
          *          }
-         *
-         * @param {Function} subscribedAction a callback function which accepts
-         *      the following parameters:
+         * @param {Function} fn callback function with the following parameters:
          *          - event: an object containg the following properties:
          *              - target (e.g., "searchbox")
-         *              - targetAction (e.g., "beforeRender")
-         *          - done: a calback which must be invoked once the subscriber
-         *                  has finished executing. This allows a subscriber to
-         *                  be either synchronous or asynchronous and guarantee
-         *                  that subscribers are invoked in the right order.
-         *
+         *              - action (e.g., "beforeRender")
+         *          - callback: a function which must be invoked once the subscriber
+         *              has finished executing. This allows a subscriber to be either
+         *              synchronous or asynchronous while guaranteeing that we can
+         *              resume processing once all the subscribers have been invoked.
          * @return {PipelineEvents.Subscription} a subscription object
          */
-        subscribe: function (targets, subscribedAction) {
-            var i, target, targetAction;
+        subscribe: function (targets, fn) {
+            var target,
+                actions,
+                action,
+                subscribers,
+                i;
 
             for (target in targets) {
                 if (targets.hasOwnProperty(target)) {
+
                     if (!this.events[target]) {
                         this.events[target] = {};
                     }
-                    for (i = 0; i < targets[target].length; i++) {
-                        targetAction = targets[target][i];
-                        if (!this.events[target][targetAction]) {
-                            this.events[target][targetAction] = [];
+
+                    actions = targets[target];
+
+                    for (i = 0; i < actions.length; i++) {
+                        action = actions[i];
+
+                        if (!this.events[target][action]) {
+                            this.events[target][action] = [];
                         }
-                        this.events[target][targetAction].push(subscribedAction);
+
+                        subscribers = this.events[target][action];
+                        subscribers.push(fn);
                     }
                 }
             }
 
-            return new PipelineEvents.Subscription(targets, subscribedAction);
+            return new PipelineEvents.Subscription(fn);
         },
 
-        once: function (targets, subscribedAction) {
+        /**
+         * Subscribes to a list of actions on multiple targets. The supplied
+         * callback will only be executed once, even though we might have
+         * subscribed to multiple targets and actions...
+         *
+         * @method once
+         * @return {PipelineEvents.Subscription} a subscription object
+         */
+        once: function (targets, fn) {
             var subscription = this.subscribe(targets, function () {
-                subscribedAction.apply(this, arguments);
+                fn.apply(this, arguments);
                 subscription.unsubscribe();
             });
+
+            return subscription;
         }
     };
 
-    //-- PipelineEvents.Subscription ------------------------------------------
-
-    PipelineEvents.Subscription = function (targets, subscribedAction) {
-        this.targets = targets;
-        this.subscribedAction = subscribedAction;
+    /**
+     * @class PipelineEvents.Subscription
+     * @constructor
+     */
+    PipelineEvents.Subscription = function (fn) {
+        this.fn = fn;
     };
 
     PipelineEvents.Subscription.prototype = {
 
+        /**
+         * Prevents a subscriber function from being called more than once.
+         * @method unsubscribe
+         * @see PipelineEvents::subscribe
+         */
         unsubscribe: function () {
-            this.subscribedAction.unsubscribed = true;
             // Removing the subscribed action can cause issues if event actions
             // are being called and the array size changes in the middle, so we
-            // instead mark as unsubscribed
+            // instead mark as unsubscribed.
+            this.fn.unsubscribed = true;
         }
     };
 
-    //-------------------------------------------------------------------------
     // Make this library available either as a YUI module, if YUI is defined,
     // which is the case on the server, or as an object attached to the window
     // object on the client side.
