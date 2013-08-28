@@ -1,88 +1,119 @@
-YUI().use('target-action-events', function (Y) {
+/*jslint browser: true, indent: 4, plusplus: true */
+/*global unescape */
 
-    var Pipeline = function (dummyPipeline) {
-            this.events = new Y.Pipeline.Events();
-            this.tasks = {};
-            dummyPipeline.forEach(this.push.bind(this));
+var pipeline = (function () {
+    'use strict';
+
+    var events = new window.Pipeline.Events();
+
+    /**
+     * @class PipelineTask
+     * @constructor
+     * @param {Object} config Contains the following properties:
+     *      - id
+     *      - markup
+     *      - embeddedChildren
+     *      - displayTargets
+     */
+    function PipelineTask(config) {
+        var p;
+
+        for (p in config) {
+            if (config.hasOwnProperty(p)) {
+                this[p] = config[p];
+            }
+        }
+    }
+
+    PipelineTask.prototype = {
+
+        /**
+         * Test whether the section corresponding to this task is in the DOM.
+         *
+         * @method displayTest
+         * @return {Boolean}
+         */
+        displayTest: function () {
+            return !!document.getElementById(this.id + '-section');
         },
-        Task = function (config) {
-            mix(this, config);
-        };
 
-    Pipeline.prototype.push = function (taskConfig) {
-        var pipeline = this,
-            task = this._getTask(taskConfig),
-            displaySubscription;
+        /**
+         * Fires the beforeDisplay event, injects the markup for this task into
+         * the DOM and fires the afterDisplay event.
+         *
+         * @method display
+         * @param {Function} callback Function invoked after the element has
+         *      been displayed (but before the afterDisplay event is fired)
+         */
+        display: function (callback) {
+            var self = this,
+                stub = document.getElementById(this.id + '-section');
 
-        task.flushed = true;
-        mix(task, taskConfig);
+            events.fire(this.id, 'beforeDisplay', function () {
+                var i, n;
 
-        // subscribe to any events specified by the task
-        ['beforeDisplay', 'afterDisplay'].forEach(function (targetAction) {
-            if (!task[targetAction]) return;
+                n = document.createElement('div');
+                n.innerHTML = unescape(self.markup);
 
-            var targets = {};
-            targets[task.id] = [targetAction];
-            this.events.subscribe(targets, task[targetAction]);
-        }, this);
-
-        // merge default displayTest with user provided test
-        if (taskConfig.displayTest) {
-            task.displayTest = function () {
-                return Task.prototype.displayTest.call(task) && taskConfig.displayTest(pipeline);
-            };
-        }
-
-        // subscribe to events for the display action
-        if (task.displayTest()) {
-            pipeline.display(task);
-        } else {
-            displaySubscription = this.events.subscribe(task.displayTargets, function (event, done) {
-                if (task.displayTest(task)) {
-                    displaySubscription.unsubscribe();
-                    pipeline.display(task, done);
-                } else {
-                    done();
+                for (i = 0; i < n.children.length; i++) {
+                    // TODO: Justify why we're doing insertBefore instead of appendChild...
+                    stub.parentNode.insertBefore(n.children[i], stub);
                 }
+
+                self.displayed = true;
+
+                if (callback) {
+                    callback();
+                }
+
+                events.fire(self.id, 'afterDisplay');
+
+                self.embeddedChildren.forEach(function (value) {
+                    events.fire(value, 'afterDisplay');
+                });
             });
         }
     };
 
-    Pipeline.prototype._getTask = function (config) {
-        if (typeof config === 'string' || typeof config === 'number') {
-            return this.tasks[config] = (this.tasks[config] || new Task({ id: config }));
+    return {
+
+        /**
+         * Pushes a new task into the pipeline, making it visible to the user
+         * once all the dependencies, if any, are resolved...
+         *
+         * @method push
+         * @param {Object} taskConfig Contains the following properties:
+         *      - id
+         *      - markup
+         *      - embeddedChildren
+         *      - displayTargets
+         */
+        push: function (taskConfig) {
+            var pipeline = this,
+                task = new PipelineTask(taskConfig),
+                subscription;
+
+            // Merge default displayTest with user provided test
+            if (taskConfig.displayTest) {
+                task.displayTest = function () {
+                    return PipelineTask.prototype.displayTest.call(task) &&
+                        taskConfig.displayTest(pipeline);
+                };
+            }
+
+            if (task.displayTest()) {
+                task.display();
+            } else {
+                subscription = events.subscribe(task.displayTargets, function (event, callback) {
+                    if (task.displayTest(task)) {
+                        subscription.unsubscribe();
+                        task.display(callback);
+                    } else {
+                        callback();
+                    }
+                });
+            }
         }
-        var task = this.tasks[config.id];
-        if (task) {
-            mix(task, config);
-        } else {
-            task = this.tasks[config.id] = new Task(config);
-        }
-        return task;
     };
 
-    Pipeline.prototype.display = function (task) {
-        var stub = document.getElementById(task.id + '-section'),
-            pipeline = this;
-        this.events.fire(task.id, 'beforeDisplay', function () {
-            var makerNode = document.createElement();
-            makerNode.innerHTML = unescape(task.markup);
-
-            for (var i = 0; i < makerNode.children.length; i++) stub.parentNode.insertBefore(makerNode.children[i], stub);
-
-            task.displayed = true;
-
-            pipeline.events.fire(task.id, 'afterDisplay');
-            task.embeddedChildren.forEach(function (value) {
-                pipeline.events.fire(value, 'afterDisplay');
-            });
-        });
-    };
-
-    Task.prototype.displayTest = function () {
-        return !!document.getElementById(this.id + '-section');
-    };
-
-    pipeline = new Pipeline(pipeline);
-
-});
+}());

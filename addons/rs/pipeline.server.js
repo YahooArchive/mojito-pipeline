@@ -1,4 +1,6 @@
-/*jslint  */
+/*jslint node: true */
+/*global YUI */
+
 YUI.add('addon-rs-pipeline', function (Y, NAME) {
     'use strict';
 
@@ -23,25 +25,22 @@ YUI.add('addon-rs-pipeline', function (Y, NAME) {
         minifyPipelineClient: function () {
             var self = this,
                 resources = this.rs.getResourceVersions({mojit: 'shared'}),
-                pipelineYUI,
                 eventsModule,
                 pipelineClient;
 
             Y.Array.some(resources, function (resource) {
-                if (resource.id === 'asset-js-void/pipeline-yui') {
-                    pipelineYUI = resource;
-                } else if (resource.id === 'yui-module--target-action-events') {
+                if (resource.id === 'yui-module--target-action-events') {
                     eventsModule = resource;
                 } else if (resource.id === 'asset-js-void/pipeline-client') {
                     pipelineClient = resource;
                 }
 
-                if (pipelineYUI && eventsModule && pipelineClient) {
+                if (eventsModule && pipelineClient) {
                     return true;
                 }
             });
 
-            async.each([pipelineYUI, eventsModule, pipelineClient],
+            async.each([eventsModule, pipelineClient],
                 function (resource, resourceDone) {
                     self.rs.getResourceContent(self.rs.makeStaticHandlerDetails(resource), function (err, content) {
                         resource.content = content.toString();
@@ -50,7 +49,7 @@ YUI.add('addon-rs-pipeline', function (Y, NAME) {
                 },
                 function (err) {
                     // TODO: handle when unable to read one of the modules
-                    self.unminifiedClient = pipelineYUI.content + eventsModule.content + pipelineClient.content + "\nif (YUI.Pipeline) {\n\tdelete YUI;\n}";
+                    self.unminifiedClient = eventsModule.content + pipelineClient.content;
                     self.client = self.minify(self.unminifiedClient);
                 });
         },
