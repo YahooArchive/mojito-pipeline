@@ -13,6 +13,7 @@
                     "pipeline": true,
                     "child": {
                         "type": "Master",
+                        "renderTimeout": 100,
                         "sections": {
                             "search-box": {
                                 "type": "Box",
@@ -23,13 +24,15 @@
                                 }
                             },
                             "search-results": {
-                                "timeout": 1,
+                                "//renderTimeout": 100,
+                                "//error": "search-result1.errored",
                                 "type": "Box"
                             },
                             "ads": {
                                 "type": "Box",
-                                "error": "north-ad.errored",
-                                "render": "search-results.flushed && (north-ad.rendered || north-ad.errored)",
+                                "//error": "north-ad.errored",
+                                "render": "search-results.rendered",
+                                "//render": "search-results.flushed && (north-ad.rendered || north-ad.errored)",
                                 "sections": {
                                     "north-ad": {
                                         "type": "Box"

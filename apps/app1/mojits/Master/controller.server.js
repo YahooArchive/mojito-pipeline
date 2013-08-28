@@ -26,6 +26,21 @@ YUI.add('MasterController', function (Y, NAME) {
                             taskType: 'dependency'
                         }
                     };
+
+                    if (i === 2) {
+                        task.onError = function (event, done, task, error) {
+                            task.data = "<span>" + error + "</span>";
+                            done();
+                        };
+                    }
+
+                    if (i === 4) {
+                        task.onTimeout = function (event, done, task, message) {
+                            task.data = "<span>" + message + "</span>";
+                            done();
+                        };
+                    }
+
                     setTimeout(function () {
                         ac.pipeline.push(task);
                         closePipeline();
@@ -55,10 +70,11 @@ YUI.add('MasterController', function (Y, NAME) {
                         taskType: section['default'] ? 'default section' : 'section'
                     }
                 };
+
                 setTimeout(function () {
                     ac.pipeline.push(task);
                     closePipeline();
-                }, 2000 * Math.random());
+                }, 200 * Math.random());
             });
 
             children = ac.params.body('children');

@@ -13,12 +13,16 @@ YUI.add('BoxController', function (Y, NAME) {
             ac.data.set('sectionName', ac.config.get('title'));
             ac.data.set('sectionType', ac.config.get('taskType'));
 
-            // if (view.title === 'north-ad') {
-            //     var a;
-            //     a.hello = 1;
-            // }
 
             Y.mix(view, ac.params.body('children'));
+
+            if (view.title === 'search-result2') {
+                view.setError(true);
+            }
+            if (view.title === 'search-result4') {
+                return;
+            }
+
             ac.done(view);
         }
     };
