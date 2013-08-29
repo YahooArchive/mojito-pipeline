@@ -310,10 +310,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             var pipeline = this,
                 getSections = function (sections, parent) {
                     Y.Object.each(sections, function (sectionConfig, sectionName) {
-                        pipeline.data.sections[sectionName] = sectionConfig;
-                        pipeline.data.sections[sectionName].sectionName = sectionName;
-                        pipeline.data.sections[sectionName].parentSectionName = parent && parent.sectionName;
-                        getSections(sectionConfig.sections, sectionConfig);
+                        var section = pipeline.data.sections[sectionName] = sectionConfig || {};
+                        section.sectionName = sectionName;
+                        section.parentSectionName = parent && parent.sectionName;
+                        getSections(section.sections, section);
                     });
                 };
 
@@ -366,9 +366,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             // also push any default sections of this task
             Y.Object.each(task.sections, function (config, sectionId) {
-                config.id = sectionId;
-                if (config['default']) {
-                    pipeline.push(config);
+                var section = config || {};
+                section.id = sectionId;
+                if (section['default']) {
+                    pipeline.push(section);
                 }
             });
 
@@ -583,8 +584,12 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                         task.meta = meta;
 
                         if (error) {
-                            pipeline._error(task, error, done);
-                        } else if (timeout) {
+                            return pipeline._error(task, error, done);
+                        }
+
+                        // merge any children meta
+                        task.meta = Y.mojito.util.metaMerge(task.meta, task.childrenMeta)
+                        if (timeout) {
                             pipeline._timeout(task, 'rendering took more than ' + task.renderTimeout + 'ms to complete.', afterRender);
                         } else {
                             afterRender();
@@ -593,25 +598,38 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
                 // copy any params specified by task config
                 // add a children object to the body attribute of params
-                params = task.params ? Y.clone(task.params) : {};
-                params.body = params.body || {};
-                params.body.children = params.body.children || {};
+
+                task.params = task.params || {};
+                task.params.body = task.params.body || {};
+                task.params.body.children = task.params.body.children || {};
 
                 // get all children tasks and sections
                 // and add to the params' body
                 Y.mix(children, task.childrenTasks);
                 Y.mix(children, task.childrenSections);
+
+                // allow the user to set parameters
+                if (task.setParams) {
+                    task.setParams(task, children);
+                }
+
+                task.childrenMeta = {};
+
                 Y.Object.each(children, function (childTask) {
-                    if (childTask.group) {
-                        params.body.children[childTask.group] = params.body.children[childTask.group] || [];
-                        params.body.children[childTask.group].push(childTask);
-                    } else {
-                        params.body.children[childTask.id] = childTask;
+                    if (!task.setParams) {
+                        if (childTask.group) {
+                            task.params.body.children[childTask.group] = task.params.body.children[childTask.group] || [];
+                            task.params.body.children[childTask.group].push(childTask);
+                        } else {
+                            task.params.body.children[childTask.id] = childTask;
+                        }
                     }
 
                     if (childTask.rendered) {
                         childTask.embedded = true;
                         task.embeddedChildren.push(childTask);
+                        // include child's meta in parent since it is now embedded
+                        task.childrenMeta = Y.mojito.util.metaMerge(task.childrenMeta, childTask.meta);
                         if (childTask.flushSubscription) {
                             childTask.flushSubscription.unsubscribe(); // parent will flush this child
                         }
@@ -622,7 +640,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     instance: task,
                     action: task.action || 'index',
                     context: pipeline.command.context,
-                    params: params
+                    params: task.params
                 };
 
                 pipeline.ac._dispatch(command, adapter);
@@ -646,8 +664,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     pipeline._flushQueuedTasks();
                     // report any task that hasnt been flushed
                     Y.Object.each(pipeline.data.tasks, function (task) {
-                        if (!task.flushed && task.id !== 'root') {
-                            Y.log(task.id + ' remained unflushed.', 'error');
+                        if (!task.flushed && task.id !== 'root' && task.pushed) {
+                            Y.log(task.id + '(' + task.type +') remained unflushed.', 'error');
                         }
                     });
 
@@ -719,6 +737,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     Y.namespace('mojito.addons.ac').pipeline = Pipeline;
 }, '0.0.1', {
     requires: [
+        'mojito-params-addon', // TODO: temp solution, master controller needs this to get root parameters
         'mojito',
         'mojito-utils',
         'base-base',
