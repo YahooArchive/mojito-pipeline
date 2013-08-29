@@ -37,13 +37,24 @@
                 evt,
                 fn,
                 args,
+                optionalArgs,
                 i;
 
             subscribers = this.events[target] && this.events[target][action];
+            optionalArgs = Array.prototype.slice.call(arguments, 0).slice(3);
 
             if (!subscribers) {
                 if (callback) {
-                    callback(0);
+                    if (target === '*') {
+                        return callback(0);
+                    }
+                    this.fire.apply(this, [
+                        '*',
+                        action,
+                        function (wildcardSubscribers) {
+                            callback(wildcardSubscribers);
+                        }
+                    ].concat(optionalArgs));
                 }
                 return;
             }
@@ -64,12 +75,21 @@
             // 'fire' method...
             fn = function () {
                 if (callback && ++subscribersInvoked === subscribersCount) {
-                    callback(subscribersInvoked);
+                    if (target === '*') {
+                        return callback(subscribersInvoked);
+                    }
+                    this.fire.apply(this, [
+                        '*',
+                        action,
+                        function (wildcardSubscribers) {
+                            callback(subscribersInvoked + wildcardSubscribers);
+                        }
+                    ].concat(optionalArgs));
                 }
-            };
+            }.bind(this);
 
             // The arguments passed to a subscriber.
-            args = [evt, fn].concat(Array.prototype.slice.call(arguments, 0).slice(3));
+            args = [evt, fn].concat(optionalArgs);
 
             for (i = 0; i < subscribersCount; i++) {
                 subscriber = subscribers[i];
