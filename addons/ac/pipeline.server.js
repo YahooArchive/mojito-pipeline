@@ -60,7 +60,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             tasks: {},
             numUnprocessedTasks: 0,
             sections: {},
-            flushQueue: []
+            flushQueue: [],
+            params: ac.params.all()
         };
         this._parsedRules = {};
         this._flushQueue = [];
@@ -321,16 +322,17 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         on: function (targetAction, action) {
-            return this.data.events.subscribe({
-                'pipeline': [targetAction]
-            }, action);
+            return this.onTask('pipeline', targetAction, action);
+        },
+
+        onTask: function (target, targetAction, action) {
+            var targets = {};
+            targets[target] = [targetAction];
+            return this.data.events.subscribe(targets, action);
         },
 
         close: function () {
-            this.data.closedCalled = true;
-            /*if (!this.data.numUnprocessedTasks) {
-                this._taskProcessed();
-            }*/
+            this.data.closeCalled = true;
         },
 
         push: function (taskConfig) {
@@ -546,7 +548,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     if (done) {
                         done(task.data, task.meta);
                     }
-                }, task.data, task.meta);
+                }, task);
             }, task, error);
         },
 
@@ -572,7 +574,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                             if (done) {
                                 done(task.data, task.meta);
                             }
-                        }, task.data, task.meta);
+                        }, task);
                     },
                     adapter = new Pipeline.Adapter(task, pipeline.adapter, function (data, meta, error, timeout) {
                         // make sure that this callback is not called multiple times
@@ -588,7 +590,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                         }
 
                         // merge any children meta
-                        task.meta = Y.mojito.util.metaMerge(task.meta, task.childrenMeta)
+                        task.meta = Y.mojito.util.metaMerge(task.meta, task.childrenMeta);
                         if (timeout) {
                             pipeline._timeout(task, 'rendering took more than ' + task.renderTimeout + 'ms to complete.', afterRender);
                         } else {
@@ -598,22 +600,15 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
                 // copy any params specified by task config
                 // add a children object to the body attribute of params
-
                 task.params = task.params || {};
                 task.params.body = task.params.body || {};
                 task.params.body.children = task.params.body.children || {};
+                task.childrenMeta = {};
 
                 // get all children tasks and sections
                 // and add to the params' body
                 Y.mix(children, task.childrenTasks);
                 Y.mix(children, task.childrenSections);
-
-                // allow the user to set parameters
-                if (task.setParams) {
-                    task.setParams(task, children);
-                }
-
-                task.childrenMeta = {};
 
                 Y.Object.each(children, function (childTask) {
                     if (!task.setParams) {
@@ -636,14 +631,17 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     }
                 });
 
-                command = {
-                    instance: task,
-                    action: task.action || 'index',
-                    context: pipeline.command.context,
-                    params: task.params
-                };
+                pipeline.data.events.fire(task.id, 'onParam', function () {
+                    command = {
+                        instance: task,
+                        action: task.action || 'index',
+                        context: pipeline.command.context,
+                        params: task.params
+                    };
 
-                pipeline.ac._dispatch(command, adapter);
+                    pipeline.ac._dispatch(command, adapter);
+                }, task, children);
+
             }, task);
         },
 
@@ -655,7 +653,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 return;
             }
 
-            if (this.data.closedCalled) {
+            if (this.data.closeCalled) {
                 this.data.closed = true;
                 this.data.events.fire('pipeline', 'onClose', function () {
                     if (pipeline.data.flushQueue.length === 0) {
@@ -665,7 +663,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     // report any task that hasnt been flushed
                     Y.Object.each(pipeline.data.tasks, function (task) {
                         if (!task.flushed && task.id !== 'root' && task.pushed) {
-                            Y.log(task.id + '(' + task.type +') remained unflushed.', 'error');
+                            Y.log(task.id + '(' + task.type + ') remained unflushed.', 'error');
                         }
                     });
 
@@ -737,7 +735,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     Y.namespace('mojito.addons.ac').pipeline = Pipeline;
 }, '0.0.1', {
     requires: [
-        'mojito-params-addon', // TODO: temp solution, master controller needs this to get root parameters
+        'mojito-params-addon',
         'mojito',
         'mojito-utils',
         'base-base',
