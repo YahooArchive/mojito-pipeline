@@ -16,7 +16,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             'timedOut' : 'onTimeout'
         },
         DATA_TIMEOUT = 5000,
-        RENDER_TIMEOUT = 1000,
+        RENDER_TIMEOUT = 3000,
         NAME_DOT_PROPERTY_REGEX = /([a-zA-Z_$][0-9a-zA-Z_$\-]*)\.([^\s]+)/gm,
         EVENT_TYPES = ['beforeRender', 'afterRender', 'beforeFlush', 'afterFlush', 'onError', 'onClose', 'onTimeout'],
         ACTIONS = ['render', 'flush', 'display', 'error'];
@@ -633,8 +633,12 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
                 pipeline.data.events.fire(task.id, 'onParam', function () {
                     command = {
-                        instance: task,
-                        action: task.action || 'index',
+                        instance: {
+                            base: task.base,
+                            type: task.type,
+                            action: task.action,
+                            config: task.config
+                        },
                         context: pipeline.command.context,
                         params: task.params
                     };
