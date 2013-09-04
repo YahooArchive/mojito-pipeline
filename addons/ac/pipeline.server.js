@@ -15,10 +15,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             'errored'  : 'onError',
             'timedOut' : 'onTimeout'
         },
-        DATA_TIMEOUT = 5000,
-        RENDER_TIMEOUT = 3000,
+        TIMEOUT = 5000,
         NAME_DOT_PROPERTY_REGEX = /([a-zA-Z_$][0-9a-zA-Z_$\-]*)\.([^\s]+)/gm,
-        EVENT_TYPES = ['beforeRender', 'afterRender', 'beforeFlush', 'afterFlush', 'onError', 'onClose', 'onTimeout'],
+        EVENT_TYPES = ['beforeRender', 'afterRender', 'beforeFlush', 'afterFlush', 'onError', 'onClose', 'onTimeout', 'onParam'],
         ACTIONS = ['render', 'flush', 'display', 'error'];
 
     // TODO: Document what this private utility method does...
@@ -44,15 +43,17 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     }
 
     function Pipeline(command, adapter, ac) {
+        this.ac = ac;
+
         if (!adapter.req.pipeline) {
             adapter.req.pipeline = this;
         } else {
             Y.mix(this, adapter.req.pipeline);
             return;
         }
+
         this.command = command;
         this.adapter = adapter;
-        this.ac = ac;
 
         this.data = {
             closed: false,
@@ -61,7 +62,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             numUnprocessedTasks: 0,
             sections: {},
             flushQueue: [],
-            params: ac.params.all()
+            params: ac.params.all(),
+            ac: ac
         };
         this._parsedRules = {};
         this._flushQueue = [];
@@ -86,6 +88,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         this.childrenSections = {}; // children that can be replaced by an empty <div> stub
         this.embeddedChildren = []; // children that had their markup ready and did not need an empty <div> stub
 
+        this.meta = {};
+
         // merge task config with the config that pipeline has for this task ...
         if (pipeline.data.sections[task.id]) {
             this.isSection = true;
@@ -106,9 +110,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 var child = self.childrenTasks[dependency] = pipeline._getTask(dependency);
                 child.parent = this;
                 // if unspecified, set timeouts to that of parent
-                child.dataTimeout = child.dataTimeout === undefined ? this.dataTimeout : child.dataTimeout;
-                child.renderTimeout = child.renderTimeout === undefined ? this.renderTimeout : child.renderTimeout;
-                self.renderTargets[dependency] = ['afterRender', 'onError'];
+                child.timeout = child.timeout === undefined ? this.timeout : child.timeout;
+                self.renderTargets[dependency] = ['afterRender'];
             }, this);
 
             // render after all sections iff js is not enabled on the client
@@ -116,10 +119,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 var child = self.childrenSections[childSectionId] = pipeline._getTask(childSectionId);
                 self.childrenSections[childSectionId].parent = this;
                 // if unspecified, set timeouts to that of parent
-                child.dataTimeout = child.dataTimeout === undefined ? this.dataTimeout : child.dataTimeout;
-                child.renderTimeout = child.renderTimeout === undefined ? this.renderTimeout : child.renderTimeout;
+                child.timeout = child.timeout === undefined ? this.timeout : child.timeout;
                 if (!pipeline.client.jsEnabled) {
-                    self.renderTargets[childSectionId] = ['afterRender', 'onError'];
+                    self.renderTargets[childSectionId] = ['afterRender'];
                 }
             }, this);
 
@@ -131,13 +133,12 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             if (!pipeline.client.jsEnabled) {
                 this.renderTest = this.noJSRenderTest;
                 this.flushTest = this.noJSFlushTest;
-                // add client to render targets since the noJSRenderTest
+                // add pipeline to render targets since the noJSRenderTest
                 // needs to know about pipeline's closed state
                 this.renderTargets.pipeline = ['onClose'];
             } else {
-
                 // by default flush when this task renders or errors out
-                this.flushTargets[this.id] = ['afterRender', 'onError'];
+                this.flushTargets[this.id] = ['afterRender'];
 
                 // combine default tests with user rules
                 Y.Array.each(ACTIONS, function (action) {
@@ -154,7 +155,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                         self[action + 'Targets'] = mergeEventTargets(self[action + 'Targets'], rule.targets);
                     }
                 });
-
             }
 
             // if task is root
@@ -248,10 +248,12 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         }
     };
 
-    Pipeline.Client = function (pipelineStore) {
-        this.script = pipelineStore.client;
-        this.unminifiedScript = pipelineStore.unminifiedClient;
-        this.jsEnabled = true;
+    Pipeline.Client = function (ac, rs) {
+        this.script = rs.pipeline.client;
+        this.unminifiedScript = rs.pipeline.unminifiedClient;
+        this.jsEnabled = ac.jscheck.status() === 'enabled';
+        // TODO: document that pipeline htmlframe can accept a jscheck boolean
+        ac.jscheck.run();
     };
 
     // rendering adapter for mojito
@@ -259,14 +261,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         this.callback = callback;
         this.task = task;
         this.data = '';
-        this.meta = {};
+        this.meta = task.meta;
         Y.mix(this, pipelineAdapter);
-
-        if (task.renderTimeout) {
-            task.timeoutSubscription = setTimeout(function () {
-                this.timeout();
-            }.bind(this), task.renderTimeout);
-        }
     };
 
     Pipeline.Adapter.prototype = {
@@ -286,12 +282,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             this.meta = (this.meta ? Y.mojito.util.metaMerge(this.meta, meta) : meta);
         },
 
-        timeout: function () {
-            if (this.callback) {
-                this.callback(this.data, this.meta, null, this.task.renderTimeout);
-            }
-        },
-
         error: function (err) {
             if (this.callback) {
                 this.callback(this.data, this.meta, err);
@@ -303,7 +293,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         namespace: 'pipeline',
 
         setStore: function (rs) {
-            this.client = new Pipeline.Client(rs.pipeline);
+            if (!this.client) {
+                this.client = new Pipeline.Client(this.ac, rs);
+            }
         },
 
         configure: function (config) {
@@ -335,6 +327,23 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             this.data.closeCalled = true;
         },
 
+        // this method should be called by the root mojit
+        // it either takes a single argument, a callback function
+        // or two arguments, data and meta
+        // if js is enabled then the callback is called immediately
+        // otherwise it is called after all other tasks have been processed
+        done: function (data, meta) {
+            var callback = Y.Lang.isFunction(data) ? data : function () {
+                console.log(data);
+                this.ac.done(data, meta);
+            }.bind(this);
+
+            if (this.client.jsEnabled) {
+                return callback();
+            }
+            this.data.rootDone = callback;
+        },
+
         push: function (taskConfig) {
             process.nextTick(function () {
                 this._push(taskConfig);
@@ -352,12 +361,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             task.pushed = true;
 
             // set timeouts if not specified
-            task.dataTimeout = task.dataTimeout === undefined ? DATA_TIMEOUT : task.dataTimeout;
-            task.renderTimeout = task.renderTimeout === undefined ? RENDER_TIMEOUT : task.renderTimeout;
+            task.timeout = task.timeout === undefined ? TIMEOUT : task.timeout;
 
             // subscribe to any events specified by the task
             Y.Array.each(EVENT_TYPES, function (targetAction) {
-
                 if (!task[targetAction]) {
                     return;
                 }
@@ -421,14 +428,14 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             });
 
             // trigger rendering after the timeout if timeout exists
-            if (task.dataTimeout) {
-                // handles the case when a dataTimeout has been reached
+            if (task.timeout) {
+                // handles the case when a timeout has been reached
                 task.timeoutSubscription = setTimeout(function () {
                     task.closeSubscription.unsubscribe();
                     // clear rendering listeners
                     task.renderSubscription.unsubscribe();
                     // fire timeout and then render
-                    pipeline._timeout(task, 'data still missing after ' + task.dataTimeout + 'ms.', function () {
+                    pipeline._timeout(task, 'data still missing after ' + task.timeout + 'ms.', function () {
                         // There is a race condition between the task finishing rendering
                         // and the pipeline closing. So we listen to pipeline.close in order to
                         // call its callback if rendering hasn't finished.
@@ -448,9 +455,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                             renderFinished = true;
                         });
                     });
-                }, task.dataTimeout);
+                }, task.timeout);
                 // handles the case where the pipeline is closed but a task still has missing dependencies
-                // and so, even though the dataTimeout hasn't been reached yet, it is eminent
+                // and so, even though the timeout hasn't been reached yet, it is eminent
                 task.closeSubscription = this.on('onClose', function (event, done) {
 
                     if (!task.timeoutSubscription) {
@@ -566,8 +573,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             var pipeline = this;
 
             pipeline.data.events.fire(task.id, 'beforeRender', function () {
-                var params,
-                    command,
+                var command,
                     children = {},
                     afterRender = function () {
                         pipeline.data.events.fire(task.id, 'afterRender', function () {
@@ -589,8 +595,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                             return pipeline._error(task, error, done);
                         }
 
-                        // merge any children meta
-                        task.meta = Y.mojito.util.metaMerge(task.meta, task.childrenMeta);
                         if (timeout) {
                             pipeline._timeout(task, 'rendering took more than ' + task.renderTimeout + 'ms to complete.', afterRender);
                         } else {
@@ -603,7 +607,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 task.params = task.params || {};
                 task.params.body = task.params.body || {};
                 task.params.body.children = task.params.body.children || {};
-                task.childrenMeta = {};
 
                 // get all children tasks and sections
                 // and add to the params' body
@@ -624,7 +627,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                         childTask.embedded = true;
                         task.embeddedChildren.push(childTask);
                         // include child's meta in parent since it is now embedded
-                        task.childrenMeta = Y.mojito.util.metaMerge(task.childrenMeta, childTask.meta);
+                        task.meta = Y.mojito.util.metaMerge(task.meta, childTask.meta);
                         if (childTask.flushSubscription) {
                             childTask.flushSubscription.unsubscribe(); // parent will flush this child
                         }
@@ -653,6 +656,11 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         _taskProcessed: function (task) {
             var pipeline = this;
             this.data.numUnprocessedTasks--;
+
+            if (!this.client.jsEnabled && this.data.closeCalled && this.data.numUnprocessedTasks === 1) {
+                return this._processRoot();
+            }
+
             if (this.data.numUnprocessedTasks > 0) {
                 return;
             }
@@ -674,6 +682,16 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 });
             } else {
                 this._flushQueuedTasks();
+            }
+        },
+
+        _processRoot: function () {
+            var root = this._getTask('root');
+            if (root && this.data.rootDone) {
+                Y.Object.each(root.childrenSections, function (child) {
+                    root.meta = Y.mojito.util.metaMerge(root.meta, child.meta);
+                });
+                this.data.rootDone();
             }
         },
 
@@ -727,9 +745,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             this.data.events.fire('pipeline', 'afterFlush', function () {
                 if (pipeline.data.closed) {
-                    pipeline.ac.done(flushData.data + '</body></html>', flushData.meta);
+                    pipeline.data.ac.done(flushData.data + '</body></html>', flushData.meta);
                 } else {
-                    pipeline.ac.flush(flushData.data, flushData.meta);
+                    pipeline.data.ac.flush(flushData.data, flushData.meta);
                 }
                 pipeline.data.flushQueue = [];
             }, flushData);
@@ -739,10 +757,11 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     Y.namespace('mojito.addons.ac').pipeline = Pipeline;
 }, '0.0.1', {
     requires: [
-        'mojito-params-addon',
-        'mojito',
-        'mojito-utils',
         'base-base',
-        'target-action-events'
+        'target-action-events',
+        'mojito',
+        'mojito-params-addon',
+        'mojito-utils',
+        'mojito-jscheck-addon'
     ]
 });
