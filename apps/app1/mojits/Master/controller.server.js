@@ -35,8 +35,8 @@ YUI.add('MasterController', function (Y, NAME) {
                     }
 
                     if (i === 4) {
-                        task.onTimeout = function (event, done, task, message) {
-                            task.data = "<span>" + message + "</span>";
+                        task.onError = function (event, done, task, error) {
+                            task.data = "<span>" + error + "</span>";
                             done();
                         };
                     }
@@ -79,13 +79,7 @@ YUI.add('MasterController', function (Y, NAME) {
 
             children = ac.params.body('children');
 
-            if (ac.pipeline.client.jsEnabled) {
-                ac.done(children);
-            } else {
-                ac.pipeline.on('close', function () {
-                    ac.done(children);
-                });
-            }
+            ac.pipeline.done(children);
         }
     };
 }, '0.0.1', {
