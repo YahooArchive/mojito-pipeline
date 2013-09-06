@@ -50,7 +50,7 @@ var pipeline = (function () {
                 stub = document.getElementById(this.id + '-section');
 
             events.fire(this.id, 'beforeDisplay', function () {
-                var i, n;
+                var i, n, child;
 
                 n = document.createElement('div');
                 n.innerHTML = unescape(self.markup);
@@ -68,9 +68,10 @@ var pipeline = (function () {
 
                 events.fire(self.id, 'afterDisplay');
 
-                self.embeddedChildren.forEach(function (value) {
-                    events.fire(value, 'afterDisplay');
-                });
+                for (i = 0; i < self.embeddedChildren.length; i++) {
+                    child = self.embeddedChildren[i];
+                    events.fire(child, 'afterDisplay');
+                }
             });
         }
     };

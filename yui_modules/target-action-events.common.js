@@ -30,7 +30,8 @@
          *      as a result of this event being fired...
          */
         fire: function (target, action, callback) {
-            var subscriber,
+            var self = this,
+                subscriber,
                 subscribers,
                 subscribersCount,
                 subscribersInvoked,
@@ -76,7 +77,7 @@
                     if (target === '*') {
                         return callback && callback(subscribersInvoked);
                     }
-                    this.fire.apply(this, [
+                    self.fire.apply(self, [
                         '*',
                         action,
                         function (wildcardSubscribers) {
@@ -84,7 +85,7 @@
                         }
                     ].concat(optionalArgs));
                 }
-            }.bind(this);
+            };
 
             // The arguments passed to a subscriber.
             args = [evt, fn].concat(optionalArgs);
