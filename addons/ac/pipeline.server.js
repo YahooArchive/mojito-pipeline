@@ -334,7 +334,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         // otherwise it is called after all other tasks have been processed
         done: function (data, meta) {
             var callback = Y.Lang.isFunction(data) ? data : function () {
-                console.log(data);
                 this.ac.done(data, meta);
             }.bind(this);
 
@@ -604,7 +603,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
                 // copy any params specified by task config
                 // add a children object to the body attribute of params
-                task.params = task.params || {};
+                task.params = task.params || pipeline.data.params; // TODO: should we do this
                 task.params.body = task.params.body || {};
                 task.params.body.children = task.params.body.children || {};
 
@@ -646,7 +645,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                         params: task.params
                     };
 
+                    // TODO: wrapping dispatch method with perf events for instrumentation purposes
+                    pipeline.data.events.fire(task.id, 'perfRenderStart', null, task);
                     pipeline.ac._dispatch(command, adapter);
+                    pipeline.data.events.fire(task.id, 'perfRenderEnd', null, task);
                 }, task, children);
 
             }, task);
