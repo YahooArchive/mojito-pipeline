@@ -17,10 +17,10 @@ YUI.add('BoxController', function (Y, NAME) {
             Y.mix(view, ac.params.body('children'));
 
             if (view.title === 'search-result2') {
-                view.setError(true);
+                error.setError(true);
             }
             if (view.title === 'search-result4') {
-                return;
+                //return;
             }
 
             ac.done(view);
