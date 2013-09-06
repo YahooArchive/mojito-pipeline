@@ -44,18 +44,16 @@
             optionalArgs = Array.prototype.slice.call(arguments, 0).slice(3);
 
             if (!subscribers) {
-                if (callback) {
-                    if (target === '*') {
-                        return callback(0);
-                    }
-                    this.fire.apply(this, [
-                        '*',
-                        action,
-                        function (wildcardSubscribers) {
-                            callback(wildcardSubscribers);
-                        }
-                    ].concat(optionalArgs));
+                if (target === '*') {
+                    return callback && callback(0);
                 }
+                this.fire.apply(this, [
+                    '*',
+                    action,
+                    function (wildcardSubscribers) {
+                        return callback && callback(wildcardSubscribers);
+                    }
+                ].concat(optionalArgs));
                 return;
             }
 
@@ -74,15 +72,15 @@
             // been invoked. If so, it invokes the callback passed to the
             // 'fire' method...
             fn = function () {
-                if (callback && ++subscribersInvoked === subscribersCount) {
+                if (++subscribersInvoked === subscribersCount) {
                     if (target === '*') {
-                        return callback(subscribersInvoked);
+                        return callback && callback(subscribersInvoked);
                     }
                     this.fire.apply(this, [
                         '*',
                         action,
                         function (wildcardSubscribers) {
-                            callback(subscribersInvoked + wildcardSubscribers);
+                            return callback && callback(subscribersInvoked + wildcardSubscribers);
                         }
                     ].concat(optionalArgs));
                 }
