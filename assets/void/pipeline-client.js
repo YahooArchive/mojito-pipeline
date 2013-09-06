@@ -1,4 +1,4 @@
-/*jslint browser: true, indent: 4, plusplus: true */
+/*jslint browser: true, indent: 4, plusplus: true, nomen: true */
 /*global unescape */
 
 var pipeline = (function () {
@@ -77,6 +77,10 @@ var pipeline = (function () {
 
     return {
 
+        tasks: {},
+
+        events: events,
+
         /**
          * Pushes a new task into the pipeline, making it visible to the user
          * once all the dependencies, if any, are resolved...
@@ -92,6 +96,8 @@ var pipeline = (function () {
             var pipeline = this,
                 task = new PipelineTask(taskConfig),
                 subscription;
+
+            this.tasks[taskConfig.id] = task;
 
             // Merge default displayTest with user provided test
             if (taskConfig.displayTest) {
@@ -113,6 +119,12 @@ var pipeline = (function () {
                     }
                 });
             }
+        },
+
+        _getTask: function (id) {
+            return this.tasks[id] || {
+                id: id
+            };
         }
     };
 
