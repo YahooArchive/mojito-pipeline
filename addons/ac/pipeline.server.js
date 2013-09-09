@@ -63,7 +63,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             sections: {},
             flushQueue: [],
             params: ac.params.all(),
-            ac: ac
+            ac: ac,
+            frameData: {}
         };
         this._parsedRules = {};
         this._flushQueue = [];
@@ -298,7 +299,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             }
         },
 
-        configure: function (config) {
+        configure: function (config, frameData) {
             config.sectionName = 'root';
             var pipeline = this,
                 getSections = function (sections, parent) {
@@ -311,6 +312,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 };
 
             getSections(config.sections, undefined);
+
+            this.data.frameData = frameData || this.data.frameData;
         },
 
         on: function (targetAction, action) {
