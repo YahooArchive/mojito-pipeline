@@ -17,10 +17,6 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
             }
         };
 
-    Y.applyConfig({
-        useSync: true
-    });
-
     suite.add(new YUITest.TestCase({
 
         name: 'unit tests',
