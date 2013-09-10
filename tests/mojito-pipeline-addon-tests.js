@@ -1,4 +1,4 @@
-/*jslint nomen: true, indent: 4 */
+/*jslint nomen: true, indent: 4, evil: true */
 /*global YUI, YUITest */
 
 YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
@@ -78,19 +78,19 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
 
         'merge targets works as intended': function () {
             var targets1 = {
-                a: ['world'],
-                b: ['foo']
-            },
-            targets2 = {
-                a: ['hello'],
-                b: ['bar'],
-                c: ['baz']
-            },
-            merged = {
-                a: ['world', 'hello'],
-                b: ['foo', 'bar'],
-                c: ['baz']
-            };
+                    a: ['world'],
+                    b: ['foo']
+                },
+                targets2 = {
+                    a: ['hello'],
+                    b: ['bar'],
+                    c: ['baz']
+                },
+                merged = {
+                    a: ['world', 'hello'],
+                    b: ['foo', 'bar'],
+                    c: ['baz']
+                };
             // check result against expected merged targets
             Y.Object.each(Pipeline._mergeEventTargets(targets1, targets2), function (events, target) {
                 A.areEqual(JSON.stringify(events), JSON.stringify(merged[target]));
@@ -159,7 +159,7 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
             var renderCalled = false;
             ac.pipeline._render = function () {
                 renderCalled = true;
-                A.isNotUndefined(ac.pipeline._getTask('root').renderTargets['b']);
+                A.isNotUndefined(ac.pipeline._getTask('root').renderTargets.b);
             };
             ac.pipeline._push({
                 id: 'root',
@@ -175,7 +175,7 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
             var renderCalled = false;
             ac.pipeline._render = function () {
                 renderCalled = true;
-                A.isNotUndefined(ac.pipeline._getTask('b').renderTargets['c']);
+                A.isNotUndefined(ac.pipeline._getTask('b').renderTargets.c);
             };
             ac.pipeline.push({
                 id: 'b',
@@ -200,7 +200,7 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
                     'b': {}
                 }
             });
-            A.isNotUndefined(ac.pipeline._getTask('a').renderTargets['b']);
+            A.isNotUndefined(ac.pipeline._getTask('a').renderTargets.b);
         },
         'without client js, flushTest is always false event for a task without dependencies': function () {
             ac.pipeline.client.jsEnabled = false;
@@ -242,7 +242,7 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
             try {
                 eval(wrapped);
                 A.pass();
-            } catch(e) {
+            } catch (e) {
                 A.fail();
             }
         },
@@ -257,7 +257,7 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
                 }));
             });
         },
-        'if js not enabled, process root and tasks with adapter, force synchronous first task - expect no exception': function() {
+        'if js not enabled, process root and tasks with adapter, force synchronous first task - expect no exception': function () {
             var rootDone = 0,
                 tasksDone = 0;
             ac.expect({
