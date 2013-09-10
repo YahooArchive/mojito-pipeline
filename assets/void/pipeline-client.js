@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2013, Yahoo! Inc. All rights reserved.
+ * Copyrights licensed under the New BSD License.
+ * See the accompanying LICENSE file for terms.
+ */
 /*jslint browser: true, indent: 4, plusplus: true, nomen: true */
 /*global unescape */
 
@@ -56,7 +61,14 @@ var pipeline = (function () {
                 n.innerHTML = unescape(self.markup);
 
                 for (i = 0; i < n.children.length; i++) {
-                    // TODO: Justify why we're doing insertBefore instead of appendChild...
+                    // insert content just before the stub inside the parent node
+                    // e.g.:
+                    // <div id="parent">
+                    //  <!-- the content will be inserted here -->
+                    //  <div id="blahblah-section"></div> <!-- this is the stub -->
+                    //  <span> some normal content</span>
+                    //  <!-- this is where stub.parentNode.appendChild would insert the node, which is incorrect -->
+                    // </div>
                     stub.parentNode.insertBefore(n.children[i], stub);
                 }
 
