@@ -141,6 +141,23 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
             });
             test.wait(200);
         },
+        'timeouts are inherited down to dependencies and sections': function () {
+            var test = this;
+            ac.pipeline._push({
+                id: 'a',
+                dependencies: ['b'],
+                timeout: 100
+            });
+            ac.pipeline._push({
+                id: 'b' // b has 'ba' as section
+            });
+            ac.pipeline._push({
+                id: 'ba',
+                timeout: 200
+            });
+            A.areEqual(100, ac.pipeline._getTask('b').timeout);
+            A.areEqual(100, ac.pipeline._getTask('ba').timeout);
+        },
         'closed event subscription': function () {
             ac.pipeline.close();
             ac.pipeline._render = function (task) {
