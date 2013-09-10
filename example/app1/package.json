@@ -6,7 +6,7 @@
         "mojito": "0.7.x",
         "mojito-cli": "~0.0.5",
         "mojito-pipeline": "0.0.x",
-        "mojito-shaker": "git+ssh://git@github.com:yahoo/mojito-shaker.git#pipeline"
+        "mojito-shaker": "4.0.x"
     },
     "engines": {
         "node": "> 0.8",
