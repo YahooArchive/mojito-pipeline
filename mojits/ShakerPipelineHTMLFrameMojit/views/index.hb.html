@@ -1,0 +1,32 @@
+<!DOCTYPE HTML>
+<html class="{{html_class}}" {{html_attributes}}>
+<head>
+<script type="text/javascript">var MOJITO_INIT=new Date().getTime();</script>
+{{#meta}}
+<meta name="{{name}}" content="{{content}}">
+{{/meta}}
+{{^meta}}
+<meta name="creator" content="Yahoo! Mojito {{mojito_version}}">
+{{/meta}}
+
+{{{prefetch}}}
+
+<title>{{title}}</title>
+
+{{{shakerInlineCss}}}
+{{{top}}}
+{{{shakerTop}}}
+
+</head>
+<body>
+
+{{{pipelineClient}}}
+
+{{{child}}}
+
+{{{shakerInlineJs}}}
+{{{bottom}}}
+
+{{{postfetch}}}
+
+{{{end}}}

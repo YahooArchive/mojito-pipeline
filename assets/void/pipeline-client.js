@@ -1,4 +1,4 @@
-/*jslint browser: true, indent: 4, plusplus: true */
+/*jslint browser: true, indent: 4, plusplus: true, nomen: true */
 /*global unescape */
 
 var pipeline = (function () {
@@ -50,7 +50,7 @@ var pipeline = (function () {
                 stub = document.getElementById(this.id + '-section');
 
             events.fire(this.id, 'beforeDisplay', function () {
-                var i, n;
+                var i, n, child;
 
                 n = document.createElement('div');
                 n.innerHTML = unescape(self.markup);
@@ -68,14 +68,19 @@ var pipeline = (function () {
 
                 events.fire(self.id, 'afterDisplay');
 
-                self.embeddedChildren.forEach(function (value) {
-                    events.fire(value, 'afterDisplay');
-                });
+                for (i = 0; i < self.embeddedChildren.length; i++) {
+                    child = self.embeddedChildren[i];
+                    events.fire(child, 'afterDisplay');
+                }
             });
         }
     };
 
     return {
+
+        tasks: {},
+
+        events: events,
 
         /**
          * Pushes a new task into the pipeline, making it visible to the user
@@ -92,6 +97,8 @@ var pipeline = (function () {
             var pipeline = this,
                 task = new PipelineTask(taskConfig),
                 subscription;
+
+            this.tasks[taskConfig.id] = task;
 
             // Merge default displayTest with user provided test
             if (taskConfig.displayTest) {
@@ -113,6 +120,12 @@ var pipeline = (function () {
                     }
                 });
             }
+        },
+
+        _getTask: function (id) {
+            return this.tasks[id] || {
+                id: id
+            };
         }
     };
 
