@@ -20,36 +20,13 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         EVENT_TYPES = ['beforeRender', 'afterRender', 'beforeFlush', 'afterFlush', 'onError', 'onClose', 'onTimeout', 'onParam'],
         ACTIONS = ['render', 'flush', 'display', 'error'];
 
-    // TODO: Document what this private utility method does...
-    function mergeEventTargets() {
-        var i, j, targets, target, targetAction, mergedTargets = {};
-
-        for (i = 0; i < arguments.length; i++) {
-            targets = arguments[i];
-            for (target in targets) {
-                if (targets.hasOwnProperty(target)) {
-                    mergedTargets[target] = mergedTargets[target] || [];
-                    for (j = 0; j < targets[target].length; j++) {
-                        targetAction = targets[target][j];
-                        if (mergedTargets[target].indexOf(targetAction) === -1) {
-                            mergedTargets[target].push(targetAction);
-                        }
-                    }
-                }
-            }
-        }
-
-        return mergedTargets;
-    }
-
     function Pipeline(command, adapter, ac) {
         this.ac = ac;
 
         if (!adapter.req.pipeline) {
             adapter.req.pipeline = this;
         } else {
-            Y.mix(this, adapter.req.pipeline);
-            return;
+            return Y.mix(this, adapter.req.pipeline);
         }
 
         this.command = command;
@@ -83,6 +60,12 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         this.errorTargets   = {};
         this.flushTargets   = {};
         this.displayTargets = {};
+
+        this.renderSubscription  = null;
+        this.errorSubscription   = null;
+        this.flushSubscription   = null;
+        this.timeoutSubscription = null;
+        this.closeSubscription   = null;
 
         this.childrenTasks    = {}; // children that should block the task rendering
         this.childrenSections = {}; // children that can be replaced by an empty <div> stub
@@ -152,7 +135,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                         };
 
                         // add the rule targets
-                        self[action + 'Targets'] = mergeEventTargets(self[action + 'Targets'], rule.targets);
+                        self[action + 'Targets'] = Pipeline._mergeEventTargets(self[action + 'Targets'], rule.targets);
                     }
                 });
             }
@@ -169,8 +152,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         noJSRenderTest: function (pipeline) {
+            console.log('[pipeline.server.js:155] nojs test for: ' + this.id + ': ' + Task.prototype.renderTest.call(this));
             // test original renderTest which checks for children dependencies
-            if (!Task.prototype.renderTest.bind(this).call()) {
+            if (!Task.prototype.renderTest.call(this)) {
                 return false;
             }
 
@@ -334,7 +318,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         // otherwise it is called after all other tasks have been processed
         done: function (data, meta) {
             var callback = Y.Lang.isFunction(data) ? data : function () {
-                console.log(data);
                 this.ac.done(data, meta);
             }.bind(this);
 
@@ -400,6 +383,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     pipeline._taskProcessed(task);
                 });
             }
+
             // else subscribe to error events
             task.errorSubscription = this.data.events.subscribe(task.errorTargets, function (events, done) {
                 if (task.errorTest()) {
@@ -754,6 +738,28 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         }
     };
 
+    Pipeline._mergeEventTargets = function () {
+        var i, j, targets, target, targetAction, mergedTargets = {};
+
+        for (i = 0; i < arguments.length; i++) {
+            targets = arguments[i];
+            for (target in targets) {
+                if (targets.hasOwnProperty(target)) {
+                    mergedTargets[target] = mergedTargets[target] || [];
+                    for (j = 0; j < targets[target].length; j++) {
+                        targetAction = targets[target][j];
+                        if (mergedTargets[target].indexOf(targetAction) === -1) {
+                            mergedTargets[target].push(targetAction);
+                        }
+                    }
+                }
+            }
+        }
+
+        return mergedTargets;
+    };
+    Pipeline._Task = Task;
+
     Y.namespace('mojito.addons.ac').pipeline = Pipeline;
 }, '0.0.1', {
     requires: [
@@ -761,7 +767,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         'target-action-events',
         'mojito',
         'mojito-params-addon',
-        'mojito-utils',
+        'mojito-util',
         'mojito-jscheck-addon'
     ]
 });
