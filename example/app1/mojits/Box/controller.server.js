@@ -4,9 +4,10 @@ YUI.add('BoxController', function (Y, NAME) {
     Y.namespace('mojito.controllers')[NAME] = {
         index: function (ac) {
             var view = {
-                title: ac.config.get('title'),
-                taskType: ac.config.get('taskType')
-            };
+                    title: ac.config.get('title'),
+                    taskType: ac.config.get('taskType')
+                },
+                error;
 
             //ac.assets.addCss('./box.css');
             //ac.assets.addJs('./script.js');
@@ -18,9 +19,6 @@ YUI.add('BoxController', function (Y, NAME) {
 
             if (view.title === 'search-result2') {
                 error.setError(true);
-            }
-            if (view.title === 'search-result4') {
-                //return;
             }
 
             ac.done(view);

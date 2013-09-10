@@ -1,4 +1,5 @@
 YUI.add('BoxIndexBinder', function (Y, NAME) {
+	'use strict';
     Y.namespace('mojito.binders')[NAME] = {
         init: function (mojitProxy) {
             var sectionName = mojitProxy.data.get('sectionName'),
