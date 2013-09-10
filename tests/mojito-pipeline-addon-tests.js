@@ -177,7 +177,7 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
                 renderCalled = true;
                 A.isNotUndefined(ac.pipeline._getTask('b').renderTargets.c);
             };
-            ac.pipeline.push({
+            ac.pipeline._push({
                 id: 'b',
                 render: 'c.rendered'
             });
