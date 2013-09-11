@@ -3,6 +3,7 @@
  * Copyrights licensed under the New BSD License.
  * See the accompanying LICENSE file for terms.
  */
+
 /*jslint node: true, nomen: true, plusplus: true, regexp: true */
 /*globals YUI, escape */
 
@@ -11,6 +12,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
     var vm = require('vm'),
         businessScripts = {},
+
         PROPERTYEVENTSMAP = {
             'closed'   : 'onClose',
             'rendered' : 'afterRender',
@@ -19,6 +21,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             'errored'  : 'onError',
             'timedOut' : 'onTimeout'
         },
+
         TIMEOUT = 5000,
         NAME_DOT_PROPERTY_REGEX = /([a-zA-Z_$][0-9a-zA-Z_$\-]*)\.([^\s]+)/gm,
         EVENT_TYPES = ['beforeRender', 'afterRender', 'beforeFlush', 'afterFlush', 'onError', 'onClose', 'onTimeout', 'onParam'],
@@ -93,6 +96,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     }
 
     Task.prototype = {
+
         initialize: function (task, pipeline) {
             var self = this;
 
@@ -187,14 +191,17 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 return !task.rendered;
             });
         },
+
         // default: "never flush anything", let the root handle it
         noJSFlushTest: function (pipeline) {
             return false;
         },
+
         // default: "flush if this task is rendered"
         flushTest: function (pipeline) {
             return this.rendered;
         },
+
         // default: "if rule exists, default to true, else default to false"
         errorTest: function () {
             return !!this.error;
@@ -206,6 +213,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             }
             return this.data;
         },
+
         // wrap markup into a pipeline.push() with other useful info to place the markup in the skeleton
         wrap: function (pipeline) {
             var wrapped = 'pipeline.push({' +
@@ -221,7 +229,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     Y.Array.each(property, function (section, index) {
                         property[index] = section.id;
                     });
-                    wrapped += ',\n' + propertyName + ": " + JSON.stringify(property);
+                    wrapped += ',\n' + propertyName + ': ' + JSON.stringify(property);
                     break;
                 case 'displayTest':
                     wrapped += ',\n' + propertyName + ': function (pipeline) {' +
@@ -256,6 +264,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     };
 
     Pipeline.Adapter.prototype = {
+
         done: function (data, meta) {
             if (!this.callback) {
                 return;
@@ -280,6 +289,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     };
 
     Pipeline.prototype = {
+
         namespace: 'pipeline',
 
         /**
@@ -354,7 +364,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         _push: function (taskConfig) {
             var pipeline = this,
-                targets,
                 task = pipeline._getTask(taskConfig);
 
             // keep track to know when to flush the batch
@@ -399,7 +408,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             // test task error condition - if true immediately error-out
             if (task.errorTest()) {
-                return pipeline._error(task, "Error condition returned true.", function () {
+                return pipeline._error(task, 'Error condition returned true.', function () {
                     pipeline._taskProcessed(task);
                 });
             }
@@ -408,7 +417,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             task.errorSubscription = this.data.events.subscribe(task.errorTargets, function (events, done) {
                 if (task.errorTest()) {
                     task.errorSubscription.unsubscribe();
-                    pipeline._error(task, "Error condition returned true.");
+                    pipeline._error(task, 'Error condition returned true.');
                 }
                 done();
             });
@@ -420,6 +429,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 });
                 return;
             }
+
             // else subscribe to render events
             task.renderSubscription = this.data.events.subscribe(task.renderTargets, function (event, done) {
                 if (task.renderTest(pipeline)) {
@@ -433,6 +443,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             // trigger rendering after the timeout if timeout exists
             if (task.timeout) {
+
                 // handles the case when a timeout has been reached
                 task.timeoutSubscription = setTimeout(function () {
 
@@ -460,6 +471,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                         });
                     });
                 }, task.timeout);
+
                 // handles the case where the pipeline is closed but a task still has missing dependencies
                 // and so, even though the timeout hasn't been reached yet, it is imminent
                 task.closeSubscription = this.on('onClose', function (event, done) {
@@ -709,7 +721,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             var pipeline = this,
                 i,
                 j,
-                flushStr = "",
+                flushStr = '',
                 flushMeta = {},
                 task,
                 processedTasks = 0,
@@ -785,6 +797,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     };
 
     Y.namespace('mojito.addons.ac').pipeline = Pipeline;
+
 }, '0.0.1', {
     requires: [
         'base-base',
