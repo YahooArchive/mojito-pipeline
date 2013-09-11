@@ -27,6 +27,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     function Pipeline(command, adapter, ac) {
         this.ac = ac;
 
+        // the pipeline properties need to be shared across ac instances
+        // and adapter.req is a singleton across request
         if (!adapter.req.pipeline) {
             adapter.req.pipeline = this;
         } else {
@@ -36,7 +38,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         this.command = command;
         this.adapter = adapter;
 
-        // TODO: what is 'data' describing here?
+        // TODO: revisit this storage of shared properties across mojits
         this.data = {
             closed: false,
             events: new Y.Pipeline.Events(),
@@ -44,9 +46,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             numUnprocessedTasks: 0,
             sections: {},
             flushQueue: [],
+            // the html frame parameters
             params: ac.params.all(),
+            // the html frame action context
             ac: ac,
-            // TODO: what s this?
             frameData: {}
         };
         this._parsedRules = {};
@@ -147,15 +150,14 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 });
             }
 
-            // if task is root
+            // if task is child of the html frame
             if (this.id === 'root') {
                 // renderTest should return true if js is disabled
+                // TODO: why do we have to frce immetiate execution of the root in the noJS case?
                 this.renderTest = pipeline.client.jsEnabled ? this.renderTest : function () { return true; };
                 // flush test should always be false
                 this.flushTest = function () { return false; };
             }
-
-
         },
 
         noJSRenderTest: function (pipeline) {
@@ -165,16 +167,14 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             }
 
             if (pipeline.data.closed) {
-                // if pipeline is closed return false if any child section
-                // has been pushed but not rendered
+                // if pipeline is closed return false if any child section has been pushed but not rendered
                 return !Y.Object.some(this.childrenSections, function (childSection, childSectionId) {
                     var childSectionTask = pipeline._getTask(childSectionId);
                     return !childSectionTask.rendered && childSectionTask.pushed;
                 });
             }
 
-            // if pipeline is still open, return false if
-            // any child section has not been rendered
+            // if pipeline is still open, return false if any child section has not been rendered
             return !Y.Object.some(this.childrenSections, function (childSection, childSectionId) {
                 var childSectionTask = pipeline._getTask(childSectionId);
                 return !childSectionTask.rendered;
@@ -242,7 +242,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         this.script = rs.pipeline.client;
         this.unminifiedScript = rs.pipeline.unminifiedClient;
         this.jsEnabled = ac.jscheck.status() === 'enabled';
-        // TODO: document that pipeline htmlframe can accept a jscheck boolean
+        // TODO: document that pipeline htmlframe can accept a jscheck boolean configuration
         ac.jscheck.run();
     };
 
@@ -282,12 +282,17 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     Pipeline.prototype = {
         namespace: 'pipeline',
 
+        /**
+         * called by mojito at initialization to share the resource store with this ac addon
+         * @param {ResourceStore} rs the runtime ResourceStore
+         */
         setStore: function (rs) {
             if (!this.client) {
                 this.client = new Pipeline.Client(this.ac, rs);
             }
         },
 
+        // TODO: find another way to let children change the template data passed to the htmlframe
         configure: function (config, frameData) {
             config.sectionName = 'root';
             var pipeline = this,
@@ -306,11 +311,13 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             this.data.frameData = frameData || this.data.frameData;
         },
 
+        // TODO: merge with onTask and find a way to call 'on' on tasks
         on: function (targetAction, action) {
             return this.onTask('pipeline', targetAction, action);
         },
 
-        // TODO: where is this used, change the name
+        // TODO: agree on new names for target, targetAction, action
+        // and rename in all files
         onTask: function (target, targetAction, action) {
             var targets = {};
             targets[target] = [targetAction];
@@ -326,7 +333,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         // or two arguments, data and meta
         // if js is enabled then the callback is called immediately
         // otherwise it is called after all other tasks have been processed
-        // TODO: how can this be merged with close?
+        // TODO: make the closing prcess more streamlined
         done: function (data, meta) {
             var callback = Y.Lang.isFunction(data) ? data : function () {
                 this.ac.done(data, meta);
@@ -358,8 +365,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             // set timeouts if not specified
             task.timeout = task.timeout === undefined ? TIMEOUT : task.timeout;
 
-            // TODO: is this even useful
-            // subscribe to any events specified by the task
+            // TODO: have Task public, allow users to construct tasks and let them
+            // call 'on' directly on tasks - put this in the Task constructor
             Y.Array.each(EVENT_TYPES, function (targetAction) {
                 if (!task[targetAction]) {
                     return;
@@ -433,9 +440,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     task.renderSubscription.unsubscribe();
                     // fire timeout and then render
                     pipeline._timeout(task, 'data still missing after ' + task.timeout + 'ms.', function () {
-                        // There is a race condition between the task finishing rendering
-                        // and the pipeline closing. So we listen to pipeline.close in order to
-                        // call its callback if rendering hasn't finished.
+                        // In case a task has a timeout that is triggered after pipeline closing,
+                        // we want to block the closing untill all renderings are finished. The events module
+                        // resumes the closing after ALL the onCloseDone of the subscribers have been called;
                         var onCloseDone,
                             renderFinished = false;
                         pipeline.on('onClose', function (event, done) {
@@ -517,6 +524,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             this.data.flushQueue.push(task);
         },
 
+        // TODO: make public
         _getTask: function (config) {
             var task;
 
@@ -601,7 +609,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
                 // copy any params specified by task config
                 // add a children object to the body attribute of params
-                task.params = task.params || pipeline.data.params; // TODO: should we do this
+                task.params = task.params || pipeline.data.params;
                 task.params.body = task.params.body || {};
                 task.params.body.children = task.params.body.children || {};
 
@@ -645,6 +653,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
                     // TODO: wrapping dispatch method with perf events for instrumentation purposes
                     pipeline.data.events.fire(task.id, 'perfRenderStart', null, task);
+                    // TODO: follow up with the asynchronicity of dispatch
                     pipeline.ac._dispatch(command, adapter);
                     pipeline.data.events.fire(task.id, 'perfRenderEnd', null, task);
                 }, task, children);
@@ -774,7 +783,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         return mergedTargets;
     };
-    Pipeline._Task = Task;
 
     Y.namespace('mojito.addons.ac').pipeline = Pipeline;
 }, '0.0.1', {
