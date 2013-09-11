@@ -11,7 +11,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     'use strict';
 
     var vm = require('vm'),
-
         businessScripts = {},
 
         PROPERTYEVENTSMAP = {
@@ -40,6 +39,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         this.command = command;
         this.adapter = adapter;
 
+        // TODO: what is 'data' describing here?
         this.data = {
             closed: false,
             events: new Y.Pipeline.Events(),
@@ -49,6 +49,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             flushQueue: [],
             params: ac.params.all(),
             ac: ac,
+            // TODO: what s this?
             frameData: {}
         };
         this._parsedRules = {};
@@ -160,7 +161,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         noJSRenderTest: function (pipeline) {
-            console.log('[pipeline.server.js:155] nojs test for: ' + this.id + ': ' + Task.prototype.renderTest.call(this));
             // test original renderTest which checks for children dependencies
             if (!Task.prototype.renderTest.call(this)) {
                 return false;
@@ -299,16 +299,17 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         configure: function (config, frameData) {
             config.sectionName = 'root';
             var pipeline = this,
-                getSections = function (sections, parent) {
+                // walk through the sections config tree and populate the pipeline sections object
+                flattenSections = function (sections, parent) {
                     Y.Object.each(sections, function (sectionConfig, sectionName) {
                         var section = pipeline.data.sections[sectionName] = sectionConfig || {};
                         section.sectionName = sectionName;
                         section.parentSectionName = parent && parent.sectionName;
-                        getSections(section.sections, section);
+                        flattenSections(section.sections, section);
                     });
                 };
 
-            getSections(config.sections, undefined);
+            flattenSections(config.sections, undefined);
 
             this.data.frameData = frameData || this.data.frameData;
         },
@@ -317,6 +318,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             return this.onTask('pipeline', targetAction, action);
         },
 
+        // TODO: where is this used, change the name
         onTask: function (target, targetAction, action) {
             var targets = {};
             targets[target] = [targetAction];
@@ -332,6 +334,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         // or two arguments, data and meta
         // if js is enabled then the callback is called immediately
         // otherwise it is called after all other tasks have been processed
+        // TODO: how can this be merged with close?
         done: function (data, meta) {
             var callback = Y.Lang.isFunction(data) ? data : function () {
                 this.ac.done(data, meta);
@@ -344,6 +347,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         push: function (taskConfig) {
+            // TODO: status of the asynchronicity of adapter rendering?
             process.nextTick(function () {
                 this._push(taskConfig);
             }.bind(this));
@@ -361,6 +365,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             // set timeouts if not specified
             task.timeout = task.timeout === undefined ? TIMEOUT : task.timeout;
 
+            // TODO: is this even useful
             // subscribe to any events specified by the task
             Y.Array.each(EVENT_TYPES, function (targetAction) {
                 if (!task[targetAction]) {
@@ -432,8 +437,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
                 // handles the case when a timeout has been reached
                 task.timeoutSubscription = setTimeout(function () {
+
                     task.closeSubscription.unsubscribe();
-                    // clear rendering listeners
                     task.renderSubscription.unsubscribe();
                     // fire timeout and then render
                     pipeline._timeout(task, 'data still missing after ' + task.timeout + 'ms.', function () {
@@ -459,7 +464,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 }, task.timeout);
 
                 // handles the case where the pipeline is closed but a task still has missing dependencies
-                // and so, even though the timeout hasn't been reached yet, it is eminent
+                // and so, even though the timeout hasn't been reached yet, it is imminent
                 task.closeSubscription = this.on('onClose', function (event, done) {
 
                     if (!task.timeoutSubscription) {
