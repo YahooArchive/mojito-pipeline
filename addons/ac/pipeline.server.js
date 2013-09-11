@@ -236,6 +236,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                             'return eval(\'' +
                                 pipeline._getRule(this, 'display').rule + '\');}';
                     break;
+                case 'timedOut':
+                case 'errored':
+                    wrapped += ',\n' + propertyName + ': ' + property;
+                    break;
                 default:
                 }
             }, this);
@@ -651,6 +655,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     }
                 });
 
+                // TODO: change 'onParam' to 'beforeRender' and move all parameter setting before firing the 'beforeRender' event
                 pipeline.data.events.fire(task.id, 'onParam', function () {
                     command = {
                         instance: {
