@@ -158,7 +158,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         noJSRenderTest: function (pipeline) {
-            console.log('[pipeline.server.js:155] nojs test for: ' + this.id + ': ' + Task.prototype.renderTest.call(this));
             // test original renderTest which checks for children dependencies
             if (!Task.prototype.renderTest.call(this)) {
                 return false;
@@ -212,6 +211,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 'markup: "' + escape(this.data) + '"';
 
             Y.Object.each(this, function (property, propertyName) {
+                var embeddedChildren = [];
                 switch (propertyName) {
                 case 'id':
                     wrapped += ',\n' + propertyName + ': "' + property + '"';
@@ -219,9 +219,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 case 'displayTargets':
                 case 'embeddedChildren':
                     Y.Array.each(property, function (section, index) {
-                        property[index] = section.id;
+                        embeddedChildren.push(section.id);
                     });
-                    wrapped += ',\n' + propertyName + ": " + JSON.stringify(property);
+                    wrapped += ',\n' + propertyName + ": " + JSON.stringify(embeddedChildren);
                     break;
                 case 'displayTest':
                     wrapped += ',\n' + propertyName + ': function (pipeline) {' +
@@ -232,7 +232,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 }
             }, this);
 
-            wrapped += '});\n';
+            wrapped += '});';
 
             return wrapped;
         }
@@ -317,6 +317,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         close: function () {
             this.data.closeCalled = true;
+            this._flushIfReady();
         },
 
         // this method should be called by the root mojit
@@ -336,6 +337,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         push: function (taskConfig) {
+            // keep track to know when to flush the batch
+            this.data.numUnprocessedTasks++;
+
             process.nextTick(function () {
                 this._push(taskConfig);
             }.bind(this));
@@ -345,9 +349,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             var pipeline = this,
                 targets,
                 task = pipeline._getTask(taskConfig);
-
-            // keep track to know when to flush the batch
-            this.data.numUnprocessedTasks++;
 
             task.pushed = true;
 
@@ -618,6 +619,11 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     if (childTask.rendered) {
                         childTask.embedded = true;
                         task.embeddedChildren.push(childTask);
+                        // if this embedded child is in the flush queue, remove it
+                        var index = pipeline.data.flushQueue.indexOf(childTask);
+                        if (index !== -1) {
+                            pipeline.data.flushQueue.splice(index, 1);
+                        }
                         // include child's meta in parent since it is now embedded
                         task.meta = Y.mojito.util.metaMerge(task.meta, childTask.meta);
                         if (childTask.flushSubscription) {
@@ -649,9 +655,12 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         // keep track of the number of processed tasks in this batch and flush it if we're done
         _taskProcessed: function (task) {
-            var pipeline = this;
             this.data.numUnprocessedTasks--;
+            this._flushIfReady();
+        },
 
+        _flushIfReady: function () {
+            var pipeline = this;
             if (!this.client.jsEnabled && this.data.closeCalled && this.data.numUnprocessedTasks === 1) {
                 return this._processRoot();
             }
@@ -663,9 +672,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             if (this.data.closeCalled) {
                 this.data.closed = true;
                 this.data.events.fire('pipeline', 'onClose', function () {
-                    if (pipeline.data.flushQueue.length === 0) {
-                        return pipeline.__flushQueuedTasks('', {});
-                    }
                     pipeline._flushQueuedTasks();
                     // report any task that hasnt been flushed
                     Y.Object.each(pipeline.data.tasks, function (task) {
@@ -673,7 +679,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                             Y.log(task.id + '(' + task.type + ') remained unflushed.', 'error');
                         }
                     });
-
                 });
             } else {
                 this._flushQueuedTasks();
@@ -694,17 +699,27 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         _flushQueuedTasks: function () {
             var pipeline = this,
                 i,
-                j,
-                flushStr = "",
+                flushStr = '',
                 flushMeta = {},
                 task,
-                processedTasks = 0,
-                flushAndFire = function () {
-                    if (++processedTasks === pipeline.data.flushQueue.length) {
-                        pipeline.__flushQueuedTasks(flushStr, flushMeta);
+                numflushedTasks = 0,
+                flush = function (task) {
+                    pipeline.data.events.fire(task.id, 'beforeFlush', function () {
+                        task.flushed = true;
+                        if (numflushedTasks === pipeline.data.flushQueue.length) {
+                            pipeline.__flushQueuedTasks(flushStr, flushMeta);
+                        }
+                        pipeline.data.events.fire(task.id, 'afterFlush');
+                    });
+                },
+                flushEmbeddedDescendants = function (task) {
+                    var j,
+                        embeddedChild;
+                    for (j = 0; j < task.embeddedChildren.length; j++) {
+                        embeddedChild = task.embeddedChildren[j];
+                        flush(embeddedChild);
+                        flushEmbeddedDescendants(embeddedChild);
                     }
-                    task.flushed = true;
-                    pipeline.data.events.fire(task.id, 'afterFlush');
                 };
 
             // if the pipeline is closed but there is no data pipeline still has to flush the closing tags
@@ -715,18 +730,15 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             for (i = 0; i < this.data.flushQueue.length; i++) {
                 task = this.data.flushQueue[i];
 
-                // add embedded children to flushQueue such that their flush events are called
-                for (j = 0; j < task.embeddedChildren.length; j++) {
-                    this.data.flushQueue.push(task.embeddedChildren[j]);
-                }
+                flushStr += task.wrap(pipeline);
 
-                // do not flush embedded children
-                if (!task.embedded) {
-                    flushStr += task.wrap(pipeline);
-                    Y.mojito.util.metaMerge(flushMeta, task.meta);
-                }
+                Y.mojito.util.metaMerge(flushMeta, task.meta);
 
-                this.data.events.fire(task.id, 'beforeFlush', flushAndFire);
+                ++numflushedTasks;
+                flush(task);
+
+                // flush any embedded decendents
+                flushEmbeddedDescendants(task, flush);
             }
         },
 
@@ -739,6 +751,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 };
 
             this.data.events.fire('pipeline', 'afterFlush', function () {
+                flushData.data = '<!-- Flush Start -->\n' + flushData.data + '\n<!-- Flush End -->\n\n';
                 if (pipeline.data.closed) {
                     pipeline.data.ac.done(flushData.data + '</body></html>', flushData.meta);
                 } else {
