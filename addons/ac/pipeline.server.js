@@ -349,7 +349,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         // or two arguments, data and meta
         // if js is enabled then the callback is called immediately
         // otherwise it is called after all other tasks have been processed
-        // TODO: make the closing prcess more streamlined
+        // TODO: make the closing process more streamlined
         done: function (data, meta) {
             var callback = Y.Lang.isFunction(data) ? data : function () {
                 this.ac.done(data, meta);
@@ -614,7 +614,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
                 // copy any params specified by task config
                 // add a children object to the body attribute of params
-                task.params = task.params || pipeline.data.params;
+                // TODO is it necessary to get parameters from frame?
+                task.params = task.params || Y.clone(pipeline.data.params);
                 task.params.body = task.params.body || {};
                 task.params.body.children = task.params.body.children || {};
 
