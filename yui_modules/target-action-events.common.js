@@ -125,7 +125,7 @@
          *          - callback: a function which must be invoked once the subscriber
          *              has finished executing. This allows a subscriber to be either
          *              synchronous or asynchronous while guaranteeing that we can
-         *              resume processing once all the subscribers have been invoked.
+         *              resume processing once ALL the subscribers have been invoked.
          * @return {PipelineEvents.Subscription} a subscription object
          */
         subscribe: function (targets, fn) {

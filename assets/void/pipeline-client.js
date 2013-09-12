@@ -110,6 +110,7 @@ var pipeline = (function () {
                 task = new PipelineTask(taskConfig),
                 subscription;
 
+            // TODO: fire an 'onPush' event
             this.tasks[taskConfig.id] = task;
 
             // Merge default displayTest with user provided test
@@ -120,6 +121,7 @@ var pipeline = (function () {
                 };
             }
 
+            // TODO: add the 'onPush' event in the targets to handle error and timedOut states from the server
             if (task.displayTest()) {
                 task.display();
             } else {
