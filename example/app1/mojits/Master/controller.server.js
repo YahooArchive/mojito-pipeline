@@ -21,25 +21,18 @@ YUI.add('MasterController', function (Y, NAME) {
                         id: 'search-result' + i,
                         group: 'results',
                         type: 'Box',
+                        errorContent: {
+                            "id": "error-section",
+                            "type": "Error",
+                            "config": {
+                                "errorTitle": "Error title"
+                            }
+                        },
                         config: {
                             title: 'search-result' + i,
                             taskType: 'dependency'
                         }
                     };
-
-                    if (i === 2) {
-                        task.onError = function (event, done, task, error) {
-                            task.data = "<span>" + error + "</span>";
-                            done();
-                        };
-                    }
-
-                    if (i === 4) {
-                        task.onError = function (event, done, task, error) {
-                            task.data = "<span>" + error + "</span>";
-                            done();
-                        };
-                    }
 
                     setTimeout(function () {
                         ac.pipeline.push(task);

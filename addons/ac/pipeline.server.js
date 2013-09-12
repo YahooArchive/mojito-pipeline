@@ -569,16 +569,30 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         _error: function (task, error, done) {
             var pipeline = this;
-            task.errored = true;
-            task.rendered = true;
-            task.data = '<span>ERROR</span>';
+
             Y.log(task.id + ' had an error: ' + error, 'error');
+            task.errored = true;
             this.data.events.fire(task.id, 'onError', function () {
-                pipeline.data.events.fire(task.id, 'afterRender', function () {
-                    if (done) {
-                        done(task.data, task.meta);
-                    }
-                }, task);
+                var errorTask = task.errorContent;
+                // if there is no fallback, actificially render the task to ''
+                if (!errorTask) {
+                    task.data = '';
+                    task.rendered = true;
+                    pipeline.data.events.fire(task.id, 'afterRender', function () {
+                        if (done) {
+                            done(task.data, task.meta);
+                        }
+                    }, task);
+                } else {
+                    // else replace the original task with an error task in the pipeline
+                    errorTask.id      = task.id;
+                    errorTask.pushed  = true;
+                    errorTask.errored = true;
+                    // clear to have _getTask reconstruct a task
+                    pipeline.data.tasks[task.id] = undefined;
+                    // and try to redispatch
+                    pipeline._dispatch(pipeline._getTask(errorTask), done);
+                }
             }, task, error);
         },
 
@@ -596,34 +610,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             var pipeline = this;
 
             pipeline.data.events.fire(task.id, 'beforeRender', function () {
-                var command,
-                    children = {},
-                    afterRender = function () {
-                        pipeline.data.events.fire(task.id, 'afterRender', function () {
-                            if (done) {
-                                done(task.data, task.meta);
-                            }
-                        }, task);
-                    },
-                    adapter = new Pipeline.Adapter(task, pipeline.adapter, function (data, meta, error, timeout) {
-                        // make sure that this callback is not called multiple times
-                        delete adapter.callback;
-
-                        task.timeoutSubscription = clearTimeout(task.timeoutSubscription);
-                        task.rendered = true;
-                        task.data = data;
-                        task.meta = meta;
-
-                        if (error) {
-                            return pipeline._error(task, error, done);
-                        }
-
-                        if (timeout) {
-                            pipeline._timeout(task, 'rendering took more than ' + task.renderTimeout + 'ms to complete.', afterRender);
-                        } else {
-                            afterRender();
-                        }
-                    });
+                var children = {};
 
                 // copy any params specified by task config
                 // add a children object to the body attribute of params
@@ -663,26 +650,56 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 });
 
                 // TODO: change 'onParam' to 'beforeRender' and move all parameter setting before firing the 'beforeRender' event
-                pipeline.data.events.fire(task.id, 'onParam', function () {
-                    command = {
-                        instance: {
-                            base: task.base,
-                            type: task.type,
-                            action: task.action,
-                            config: task.config
-                        },
-                        context: pipeline.command.context,
-                        params: task.params
-                    };
-
-                    // TODO: wrapping dispatch method with perf events for instrumentation purposes
-                    pipeline.data.events.fire(task.id, 'perfRenderStart', null, task);
-                    // TODO: follow up with the asynchronicity of dispatch
-                    pipeline.ac._dispatch(command, adapter);
-                    pipeline.data.events.fire(task.id, 'perfRenderEnd', null, task);
-                }, task, children);
+                pipeline.data.events.fire(task.id, 'onParam', pipeline._dispatch.bind(pipeline, task, done), task, children);
 
             }, task);
+        },
+
+        _dispatch: function (task, done) {
+            var pipeline = this,
+                command = {
+                    instance: {
+                        base: task.base,
+                        type: task.type,
+                        action: task.action,
+                        config: task.config
+                    },
+                    context: pipeline.command.context,
+                    params: task.params
+                },
+                afterRender = function () {
+                    pipeline.data.events.fire(task.id, 'afterRender', function () {
+                        if (done) {
+                            done(task.data, task.meta);
+                        }
+                    }, task);
+                },
+                adapter = new Pipeline.Adapter(task, pipeline.adapter, function (data, meta, error, timeout) {
+                    // make sure that this callback is not called multiple times
+                    delete adapter.callback;
+
+                    task.timeoutSubscription = clearTimeout(task.timeoutSubscription);
+                    task.rendered = true;
+                    task.data = data;
+                    task.meta = meta;
+
+                    if (error) {
+                        return pipeline._error(task, error, done);
+                    }
+
+                    if (timeout) {
+                        pipeline._timeout(task, 'rendering took more than ' + task.renderTimeout + 'ms to complete.', afterRender);
+                    } else {
+                        afterRender();
+                    }
+                });
+
+            // TODO: wrapping dispatch method with perf events for instrumentation purposes
+            pipeline.data.events.fire(task.id, 'perfRenderStart', null, task);
+            // TODO: follow up with the asynchronicity of dispatch
+            pipeline.ac._dispatch(command, adapter);
+            pipeline.data.events.fire(task.id, 'perfRenderEnd', null, task);
+
         },
 
         // keep track of the number of processed tasks in this batch and flush it if we're done
