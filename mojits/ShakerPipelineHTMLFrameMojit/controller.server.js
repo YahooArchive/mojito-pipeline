@@ -1,9 +1,4 @@
 /*
- * Copyright (c) 2013, Yahoo! Inc. All rights reserved.
- * Copyrights licensed under the New BSD License.
- * See the accompanying LICENSE file for terms.
- */
-/*
  * Copyright (c) 2011-2013, Yahoo! Inc.  All rights reserved.
  * Copyrights licensed under the New BSD License.
  * See the accompanying LICENSE file for terms.
@@ -98,7 +93,6 @@ YUI.add('ShakerPipelineHTMLFrameMojit', function (Y, NAME) {
                 ac.instance.controller,
                 ac.instance.views.index,
                 new Y.mojito.OutputBuffer(data.mojit_view_id, function (error, html) {
-                    html = html + "<script>console.log('root')</script>";
                     ac.flush(html, meta);
                     callback();
                 }));
@@ -124,7 +118,7 @@ YUI.add('ShakerPipelineHTMLFrameMojit', function (Y, NAME) {
                 sections: {
                     root: root
                 }
-            });
+            }, ac.shaker.data.htmlData);
             ac.pipeline.push(root);
 
             if (ac.pipeline.client.jsEnabled) {
@@ -225,8 +219,7 @@ YUI.add('ShakerPipelineHTMLFrameMojit', function (Y, NAME) {
 
             // TODO: is this even worth it?
             // merge any consecutive script
-            // TODO: added new lines to distinguish flushes
-            flushData.data = flushData.data.replace(/<\/script><script>/g, '') + '\n\n';
+            flushData.data = flushData.data.replace(/<\/script><script>/g, '');
         }
     };
 
