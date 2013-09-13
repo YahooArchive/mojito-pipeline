@@ -22,10 +22,9 @@ YUI.add('MasterController', function (Y, NAME) {
                         group: 'results',
                         type: 'Box',
                         errorContent: {
-                            "id": "error-section",
                             "type": "Error",
                             "config": {
-                                "errorTitle": "Error title"
+                                "errorTitle": "This is an error title"
                             }
                         },
                         config: {

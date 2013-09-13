@@ -585,13 +585,12 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     }, task);
                 } else {
                     // else replace the original task with an error task in the pipeline
-                    errorTask.id      = task.id;
-                    errorTask.pushed  = true;
-                    errorTask.errored = true;
-                    // clear to have _getTask reconstruct a task
-                    pipeline.data.tasks[task.id] = undefined;
+                    errorTask.id = task.id + '-errored-at-' + Date.now();
                     // and try to redispatch
-                    pipeline._dispatch(pipeline._getTask(errorTask), done);
+                    pipeline._dispatch(pipeline._getTask(errorTask), function (data, meta) {
+                        pipeline._getTask(task.id).data = pipeline._getTask(errorTask.id).data;
+                        done(data, meta);
+                    });
                 }
             }, task, error);
         },
