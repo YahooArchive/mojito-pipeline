@@ -1,0 +1,9 @@
+[{
+    "settings": ["runtime:server"],
+
+    "root": {
+        "verbs": ["get"],
+        "path": "/",
+        "call": "rootframe.index"
+    }
+}]
