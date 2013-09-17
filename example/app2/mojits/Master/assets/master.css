@@ -1,0 +1,29 @@
+.master {
+    width: 700px;
+}
+
+.master .left {
+    float: left;
+    width: 475px;
+}
+
+.master .right {
+    float: left;
+    width: 220px;
+}
+
+.master .bottom, .master .middle {
+    border-bottom: none;
+    border-left: none;
+    border-right: none;
+}
+
+.master .top {
+    border: none;
+}
+
+.master .left {
+    border-top: none;
+    border-bottom: none;
+    border-left: none;
+}

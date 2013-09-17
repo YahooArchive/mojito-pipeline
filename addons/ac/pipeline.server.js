@@ -292,7 +292,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 }
             }, this);
 
-            wrapped += '});';
+            wrapped += '});\n';
 
             return wrapped;
         }
@@ -709,16 +709,29 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         _error: function (task, error, done) {
             var pipeline = this;
-            task.errored = true;
-            task.rendered = true;
-            task.data = '<span>ERROR</span>';
+
             Y.log(task.id + ' had an error: ' + error, 'error');
+            task.errored = true;
             this.data.events.fire(task.id, 'onError', function () {
-                pipeline.data.events.fire(task.id, 'afterRender', function () {
-                    if (done) {
-                        done(task.data, task.meta);
-                    }
-                }, task);
+                var errorTask = task.errorContent;
+                // if there is no fallback, actificially render the task to ''
+                if (!errorTask) {
+                    task.data = '';
+                    task.rendered = true;
+                    pipeline.data.events.fire(task.id, 'afterRender', function () {
+                        if (done) {
+                            done(task.data, task.meta);
+                        }
+                    }, task);
+                } else {
+                    // else replace the original task with an error task in the pipeline
+                    errorTask.id = task.id + '-errored-at-' + Date.now();
+                    // and try to redispatch
+                    pipeline._dispatch(pipeline._getTask(errorTask), function (data, meta) {
+                        pipeline._getTask(task.id).data = pipeline._getTask(errorTask.id).data;
+                        done(data, meta);
+                    });
+                }
             }, task, error);
         },
 

@@ -21,25 +21,17 @@ YUI.add('MasterController', function (Y, NAME) {
                         id: 'search-result' + i,
                         group: 'results',
                         type: 'Box',
+                        errorContent: {
+                            "type": "Error",
+                            "config": {
+                                "errorTitle": "This is an error title"
+                            }
+                        },
                         config: {
                             title: 'search-result' + i,
-                            taskType: 'dependency'
+                            cssClass: 'dependency'
                         }
                     };
-
-                    if (i === 2) {
-                        task.onError = function (event, done, task, error) {
-                            task.data = "<span>" + error + "</span>";
-                            done();
-                        };
-                    }
-
-                    if (i === 4) {
-                        task.onError = function (event, done, task, error) {
-                            task.data = "<span>" + error + "</span>";
-                            done();
-                        };
-                    }
 
                     setTimeout(function () {
                         ac.pipeline.push(task);
@@ -63,11 +55,10 @@ YUI.add('MasterController', function (Y, NAME) {
                 pushedTasks++;
                 var task = {
                     id: section.sectionName,
-                    type: section.type,
                     dependencies: section.sectionName === 'search-results' ? searchResultsDependencies : [],
                     config: {
                         title: section.sectionName,
-                        taskType: section['default'] ? 'default section' : 'section'
+                        cssClass: section['default'] ? 'default section' : 'section'
                     }
                 };
 

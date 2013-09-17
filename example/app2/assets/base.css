@@ -1,0 +1,28 @@
+h1 {
+    font-size: 18px;
+    margin: 0;
+}
+
+.frameBorder {
+    border-color: black;
+    border-style: solid;
+    border-width: 3px;
+}
+
+.default.section {
+    color: rgb(85, 163, 85);
+}
+
+.section {
+    color: rgb(87, 87, 173);
+}
+
+.dependency {
+    color: rgb(192, 79, 79);
+}
+
+.stub {
+    color: gray;
+    border: 2px solid silver;
+    padding: 5px;
+}

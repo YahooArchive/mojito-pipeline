@@ -1,0 +1,85 @@
+[
+    {
+        "settings": [ "master" ],
+        "actionTimeout": 1000,
+        "staticHandling": {
+            "appName": "app"
+        },
+        "specs": {
+            "rootframe": {
+                "type": "ShakerPipelineHTMLFrameMojit",
+                "config": {
+                    "deploy": true,
+                    "pipeline": true,
+                    "child": {
+                        "type": "Master",
+                        "sections": { # children that can be streamed asynchronously
+                            "search-box": { # id of the task that will be pushed in the controller of Master
+                                "type": "Box", # type of the mojit to be dispatched by the task
+                                "default": true, # whether this task should be automatically pushed by Master
+                                "config": { # regular mojit config
+                                    "title": "Search Box"
+                                }
+                            },
+                            "search-results": {
+                                "type": "SearchResults"
+                            },
+                            "ads": {
+                                "type": "Ads",
+                                "render": "search-results.rendered", # when to render the 'ads' task
+                                "sections": {
+                                    "north-ad": {
+                                        "type": "Box"
+                                    },
+                                    "south-ad": {
+                                        "type": "Box"
+                                    }
+                                }
+                            },
+                            "footer": {
+                                "type": "Box",
+                                "flush": "pipeline.closed", # when to flush this task
+                                "default": true,
+                                "config": {
+                                    "title": "footer"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+
+        "shaker": {
+            "tasks": {
+                "js": {
+                    "jsminify": true
+                },
+                "css": {
+                    "cssminify": true
+                }
+            },
+            "resources": {
+                "assets": "inline"
+            },
+            "routeRollups": {
+                "module": "mojitrollup",
+                "rollups": {
+                    "root": [
+                        "Master"
+                    ]
+                }
+            },
+            "locations": {
+                "local": true
+            },
+            "settings": {
+                "inline": true,
+                "serveLocation": "local",
+                "serveJs": {
+                    "position": "bottom"
+                }
+            }
+        }
+    }
+]
