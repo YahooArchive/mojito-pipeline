@@ -30,6 +30,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     function Pipeline(command, adapter, ac) {
         this.ac = ac;
 
+        this.anonymousTaskPrefix = 0;
+
         // the pipeline properties need to be shared across ac instances
         // and adapter.req is a singleton across request
         if (!adapter.req.pipeline) {
@@ -362,18 +364,21 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         push: function (taskConfig) {
+            var task = this._getTask(taskConfig);
+
             // keep track to know when to flush the batch
             this.data.numUnprocessedTasks++;
 
             // TODO: status of the asynchronicity of adapter rendering?
             process.nextTick(function () {
-                this._push(taskConfig);
+                this._push(task);
             }.bind(this));
+
+            return task.id;
         },
 
-        _push: function (taskConfig) {
-            var pipeline = this,
-                task = pipeline._getTask(taskConfig);
+        _push: function (task) {
+            var pipeline = this;
 
             task.pushed = true;
 
@@ -554,6 +559,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 // create task if one with this id doesn't exist
                 task = this.data.tasks[config.id] = this.data.tasks[config.id] || new Task(config, this);
                 return task;
+            }
+
+            if (!config.id) {
+                config.id = 'autoId' + this.anonymousTaskPrefix++ + '@' + (config.type || config.base);
             }
 
             // get by config object - if it doesn't exist just create it
