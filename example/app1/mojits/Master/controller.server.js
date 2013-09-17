@@ -79,7 +79,7 @@ YUI.add('MasterController', function (Y, NAME) {
 
             children = ac.params.body('children');
 
-            ac.pipeline.done(children);
+            ac.done(children);
         }
     };
 }, '0.0.1', {
