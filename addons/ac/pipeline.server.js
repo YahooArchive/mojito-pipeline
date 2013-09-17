@@ -387,7 +387,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         close: function () {
-            console.log('Close: ' + this.data.numUnprocessedTasks);
             this.data.closeCalled = true;
             this._flushIfReady();
         },
@@ -395,7 +394,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         push: function (taskConfig) {
             // keep track to know when to flush the batch
             this.data.numUnprocessedTasks++;
-            console.log('Pushed: ' + taskConfig.id + ' - ' + this.data.numUnprocessedTasks);
             // TODO: status of the asynchronicity of adapter rendering?
             process.nextTick(function () {
                 this._push(taskConfig);
@@ -745,7 +743,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         // keep track of the number of processed tasks in this batch and flush it if we're done
         _taskProcessed: function (task) {
             this.data.numUnprocessedTasks--;
-            console.log('Processed: ' + task.id + ' - ' + this.data.numUnprocessedTasks);
             this._flushIfReady();
         },
 
