@@ -245,7 +245,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 }
             }, this);
 
-            wrapped += '});';
+            wrapped += '});\n';
 
             return wrapped;
         }
