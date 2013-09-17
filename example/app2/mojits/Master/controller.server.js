@@ -5,21 +5,18 @@ YUI.add('MasterController', function (Y, NAME) {
 
     var RUNTIME_TASKS = [{
             id: 'search-result1',
-            // group: 'results',
             type: 'Box',
             config: {
                 title: 'search-result1'
             }
         }, {
             id: 'search-result2',
-            // group: 'results',
             type: 'Box',
             config: {
                 title: 'search-result2'
             }
         }, {
             id: 'search-result3',
-            // group: 'results',
             type: 'Box',
             config: {
                 title: 'search-result3'
@@ -54,12 +51,11 @@ YUI.add('MasterController', function (Y, NAME) {
     Y.namespace('mojito.controllers')[NAME] = {
 
         index: function (ac) {
-            var view = {},
-                i;
+            var view = {};
 
-            for (i = 0; i < RUNTIME_TASKS.length; i++) {
-                ac.pipeline.push(RUNTIME_TASKS[i]);
-            }
+            RUNTIME_TASKS.forEach(function (runtimeTaskConfig) {
+                ac.pipeline.push(runtimeTaskConfig);
+            });
 
             ac.pipeline.close();
 
