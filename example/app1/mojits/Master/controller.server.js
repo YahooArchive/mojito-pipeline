@@ -29,7 +29,7 @@ YUI.add('MasterController', function (Y, NAME) {
                         },
                         config: {
                             title: 'search-result' + i,
-                            taskType: 'dependency'
+                            cssClass: 'dependency'
                         }
                     };
 
@@ -55,11 +55,10 @@ YUI.add('MasterController', function (Y, NAME) {
                 pushedTasks++;
                 var task = {
                     id: section.sectionName,
-                    type: section.type,
                     dependencies: section.sectionName === 'search-results' ? searchResultsDependencies : [],
                     config: {
                         title: section.sectionName,
-                        taskType: section['default'] ? 'default section' : 'section'
+                        cssClass: section['default'] ? 'default section' : 'section'
                     }
                 };
 
