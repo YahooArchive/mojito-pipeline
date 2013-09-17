@@ -5,21 +5,21 @@ YUI.add('MasterController', function (Y, NAME) {
 
     var RUNTIME_TASKS = [{
             id: 'search-result1',
-            group: 'results',
+            // group: 'results',
             type: 'Box',
             config: {
                 title: 'search-result1'
             }
         }, {
             id: 'search-result2',
-            group: 'results',
+            // group: 'results',
             type: 'Box',
             config: {
                 title: 'search-result2'
             }
         }, {
             id: 'search-result3',
-            group: 'results',
+            // group: 'results',
             type: 'Box',
             config: {
                 title: 'search-result3'
