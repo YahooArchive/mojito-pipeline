@@ -33,8 +33,10 @@ YUI.add('ShakerPipelineHTMLFrameMojit', function (Y, NAME) {
             this._pipelineRoot(child);
         },
 
-        _initialFlush: function (data, meta, callback) {
-            var ac = this.ac;
+        _render: function (data, meta, callback) {
+            var ac = this.ac,
+                renderer = new Y.mojito.ViewRenderer(ac.instance.views.index.engine,
+                    ac._adapter.page.staticAppConfig.viewEngine);
 
             // Add pipeline client
             // TODO: use minified script
@@ -48,7 +50,7 @@ YUI.add('ShakerPipelineHTMLFrameMojit', function (Y, NAME) {
             ac.shaker._addRouteRollups(meta.assets, ['top', 'shakerTop']);
             ac.shaker._addAppResources(meta.assets);
 
-            this._processMeta(meta);
+            this._processMeta(meta, true);
 
             // meta.assets from child should be piped into
             // the frame's assets before doing anything else.
@@ -75,69 +77,55 @@ YUI.add('ShakerPipelineHTMLFrameMojit', function (Y, NAME) {
                 }
             }, true);
 
-            if (ac.pipeline.data.closed) {
-                ac.done(data, meta);
-            } else {
-                this._render(data, meta, callback);
-            }
-        },
-
-        _render: function (data, meta, callback) {
-            var ac = this.ac,
-                renderer = new Y.mojito.ViewRenderer(ac.instance.views.index.engine,
-                    ac._adapter.page.staticAppConfig.viewEngine);
-
-            data.mojit_view_id = 'ShakerPipelineHTMLFrame';
-
             renderer.render(data,
                 ac.instance.controller,
                 ac.instance.views.index,
                 new Y.mojito.OutputBuffer(data.mojit_view_id, function (error, html) {
-                    ac.flush(html, meta);
-                    callback();
+                    callback(html, meta);
                 }));
         },
 
-        _pipelineRoot: function (root) {
+        _pipelineRoot: function (rootConfig) {
             var self = this,
                 ac = this.ac;
 
-            Y.mix(root, {
+            Y.mix(rootConfig, {
                 id: 'root',
-                params: ac.pipeline.data.params,
-                afterRender: function (event, done, task) {
-                    var rootHTML = task.data,
-                        meta = task.meta;
-                    self._initialFlush.call(self, {
-                        child: rootHTML
-                    }, meta, done);
+                beforeFlush: function (event, done, root) {
+                    self._render.call(self, {
+                        child: root.data
+                    }, root.meta, function (data, meta) {
+                        root.data = data;
+                        root.meta = meta;
+                        done();
+                    });
                 }
             });
 
             ac.pipeline.configure({
                 sections: {
-                    root: root
+                    root: rootConfig
                 }
             }, ac.shaker.data.htmlData);
-            ac.pipeline.push(root);
+            ac.pipeline.push(rootConfig);
 
             if (ac.pipeline.client.jsEnabled) {
                 // force the mojito client to be place on the bottom
                 ac.shaker.set('serveJs', {
                     position: 'bottom'
                 });
+
+                ac.pipeline.on('afterFlush', function (event, done, flushData) {
+                    self._processMeta(flushData.meta);
+                    self._wrapFlushData(flushData);
+                    done();
+                });
             } else {
                 ac.shaker.set('serveJs', false);
             }
-
-            ac.pipeline.on('afterFlush', function (event, done, flushData) {
-                self._processMeta(flushData.meta);
-                self._wrapFlushData(flushData);
-                done();
-            });
         },
 
-        _processMeta: function (meta) {
+        _processMeta: function (meta, isRoot) {
             var self = this,
                 flushedAssets = this.flushedAssets,
                 postfetch = this.postfetch,
@@ -169,7 +157,7 @@ YUI.add('ShakerPipelineHTMLFrameMojit', function (Y, NAME) {
             meta.assets = meta.assets || {};
 
             // is this is last flush, add route rollup, loader/mojito-client and bootstrap
-            if (ac.pipeline.data.closed) {
+            if (ac.pipeline.data.closed && !isRoot) {
                 // add any postfetch assets
                 Y.mojito.util.metaMerge(meta.assets, {
                     'postfetch': postfetch
@@ -182,6 +170,7 @@ YUI.add('ShakerPipelineHTMLFrameMojit', function (Y, NAME) {
             ac.shaker._filterAndUpdate(meta.assets);
 
             if (!ac.pipeline.data.closed) {
+                // TODO remove bottom also
                 // remove any postfetch assets
                 Y.Object.each(meta.assets.postfetch, function (typeAssets, type) {
                     Array.prototype.push.apply(postfetch[type], typeAssets);
