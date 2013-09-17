@@ -2,7 +2,9 @@ YUI.add('AdsController', function (Y, NAME) {
     'use strict';
 
     Y.namespace('mojito.controllers')[NAME] = {
+
         index: function (ac) {
+
             var view = {
                     title: ac.config.get('title')
                 };

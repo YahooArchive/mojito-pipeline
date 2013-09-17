@@ -52,6 +52,7 @@ YUI.add('MasterController', function (Y, NAME) {
         index: function (ac) {
 
             RUNTIME_TASKS.forEach(function (runtimeTaskConfig) {
+
                 ac.pipeline.push(runtimeTaskConfig);
             });
 
