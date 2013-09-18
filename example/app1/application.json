@@ -1,7 +1,7 @@
 [
     {
         "settings": [ "master" ],
-        "actionTimeout": 1000,
+        "actionTimeout": 3000,
         "staticHandling": {
             "appName": "app"
         },

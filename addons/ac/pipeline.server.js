@@ -46,22 +46,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             // TODO
             task.actionContext = this;
             task.doneArgs = doneArgs;
-            pipeline._afterDispatch(task, this.command.callback);
+            pipeline._afterDispatch(task, task.dispatchCallback);
         },
-        error: function () {
-            var errorArguments = arguments,
-                pipeline = this.command.pipeline,
-                task = this.command.task;
-            if (!task) {
-                return MojitoActionContext.prototype.error.apply(this, errorArguments);
-            }
-            // TODO explain
-            // do not need to render after an error
-            task.renderSubscription.unsubscribe();
-            pipeline._afterDispatch(task, function () {
-                return MojitoActionContext.prototype.error.apply(this, errorArguments);
-            }.bind(this));
-        }
+        error: MojitoActionContext.prototype.error
     };
 
     Y.namespace('mojito').ActionContext = PipelineActionContext;
@@ -184,12 +171,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 this.renderTargets.pipeline = ['onClose'];
             }
 
-            // by default render when this task has been dispatched
-            this.renderTargets[this.id] = ['afterDispatch'];
-
-            // by default flush when this task renders
-            this.flushTargets[this.id] = ['afterRender'];
-
             // combine default tests with user rules
             Y.Array.each(ACTIONS, function (action) {
                 if (self[action]) {
@@ -216,15 +197,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         renderTest: function (pipeline) {
-            return this.dispatched;
+            return true;
         },
 
         noJSRenderTest: function (pipeline) {
-            // test original renderTest which checks if this has been dispatched
-            if (!Task.prototype.renderTest.call(this)) {
-                return false;
-            }
-
             if (pipeline.data.closed) {
                 // if pipeline is closed return false if any child section has been pushed but not rendered
                 // this means that there is a child section that hasn't been rendered and this task should wait before rendering
@@ -239,9 +215,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             });
         },
 
-        // default: "flush if this task is rendered"
+        // default: flush unless this task is embedded
         flushTest: function (pipeline) {
-            return this.rendered;
+            return !this.embedded;
         },
 
         // default: when js is disabled only the root should be flush
@@ -426,34 +402,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 }
             });
 
-            // subscribe to render events
-            task.renderSubscription = this.data.events.subscribe(task.renderTargets, function (event, done) {
-                if (task.renderTest(pipeline)) {
-                    // remove subscribed events such that this action doesn't get called again
-                    task.renderSubscription.unsubscribe();
-                    return pipeline._render(task, done);
-                }
-                done();
-            });
-
-            if (task.isSection) {
-                // subscribe to flush events
-                task.flushSubscription = pipeline.data.events.subscribe(task.flushTargets, function (event, done) {
-                    if (task.flushTest(pipeline)) {
-                        // remove subscribed events such that this action doesn't get called again
-                        task.flushSubscription.unsubscribe();
-                        pipeline._addToFlushQueue(task);
-                    }
-                    done();
-                });
-            }
-
             // test task error condition - if true immediately error-out
             if (task.errorTest()) {
-                return pipeline._afterDispatch(task, function () {
-                    pipeline._error(task, 'Error condition returned true.', function () {
-                        pipeline._taskProcessed(task);
-                    });
+                return pipeline._error(task, 'Error condition returned true.', function () {
+                    pipeline._taskProcessed(task);
                 });
             }
 
@@ -461,7 +413,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             task.errorSubscription = this.data.events.subscribe(task.errorTargets, function (events, done) {
                 if (task.errorTest()) {
                     task.errorSubscription.unsubscribe();
-                    pipeline._error(task, 'Error condition returned true.');
+                    pipeline._error(task, 'Error condition returned true.', done);
                 }
                 done();
             });
@@ -535,7 +487,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             pipeline._taskProcessed(task);
         },
 
-        _dispatch: function (task, done) {
+        _dispatch: function (task, callback) {
             var pipeline = this;
 
             // copy any params specified by task config
@@ -565,19 +517,14 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                         // make sure that this callback is not called multiple times
                         delete adapter.callback;
 
-                        task.timeoutSubscription = clearTimeout(task.timeoutSubscription);
-                        task.rendered = true;
                         task.data = data;
                         task.meta = meta;
 
                         if (error) {
-                            return pipeline._error(task, error, task.renderDone);
+                            return pipeline._error(task, 'Error after dispatching.', task.renderCallback || task.dispatchCallback);
                         }
 
-                        pipeline.data.events.fire(task.id, 'afterRender', function () {
-                            task.renderDone();
-                        }, task);
-
+                        pipeline._afterRender(task, task.renderCallback);
                     });
 
                 // TODO: change 'onParam' to 'beforeRender' and move all parameter setting before firing the 'beforeRender' event
@@ -597,20 +544,42 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 // TODO: wrapping dispatch method with perf events for instrumentation purposes
                 pipeline.data.events.fire(task.id, 'perfRenderStart', null, task);
                 // TODO
-                command.callback = done;
+                task.dispatchCallback = callback;
                 pipeline.ac._dispatch(command, adapter);
-
                 pipeline.data.events.fire(task.id, 'perfRenderEnd', null, task);
             }, task);
         },
 
         _afterDispatch: function (task, callback) {
+            var pipeline = this;
             task.dispatched = true;
-            this.data.events.fire(task.id, 'afterDispatch', callback);
+            task.timeoutSubscription = clearTimeout(task.timeoutSubscription);
+            this.data.events.fire(task.id, 'afterDispatch', function () {
+                if (task.errored) {
+                    return callback && callback();
+                }
+                pipeline._prepareToRender(task, callback);
+            });
         },
 
-        _render: function (task, done) {
-            task.renderDone = done;
+        _prepareToRender: function (task, callback) {
+            var pipeline = this;
+            if (task.renderTest(pipeline)) {
+                return pipeline._render(task, callback);
+            }
+            task.renderSubscription = this.data.events.subscribe(task.renderTargets, function (event, done) {
+                if (task.renderTest(pipeline)) {
+                    // remove subscribed events such that this action doesn't get called again
+                    task.renderSubscription.unsubscribe();
+                    return pipeline._render(task, done);
+                }
+                done();
+            });
+            callback();
+        },
+
+        _render: function (task, callback) {
+            task.renderCallback = callback;
             var pipeline = this;
             Y.Object.each(task.childrenTasks, function (childTask) {
                 if (childTask.rendered) {
@@ -618,10 +587,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     task.embeddedChildren.push(childTask);
 
                     // include child's meta in parent since it is now embedded
-                    // TODO: should merge meta before flushing
                     Y.mojito.util.metaMerge(task.meta, childTask.meta);
 
-                    if (childTask.flushSubscription) {
+                    if (childTask.isSection) {
                         // if this embedded child is in the flush queue, remove it
                         var index = pipeline.data.flushQueue.indexOf(childTask);
                         if (index !== -1) {
@@ -629,11 +597,50 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                         }
                         // make sure the flushSubscription is unsubscribed
                         // because it will get flushed automatically with the parent
-                        childTask.flushSubscription.unsubscribe(); //
+                        return childTask.flushSubscription && childTask.flushSubscription.unsubscribe();
                     }
                 }
             });
             MojitoActionContext.prototype.done.apply(task.actionContext, task.doneArgs);
+        },
+
+        _afterRender: function (task, callback) {
+            var pipeline = this;
+            task.rendered = true;
+
+            pipeline.data.events.fire(task.id, 'afterRender', function () {
+                if (task.errored) {
+                    return callback && callback();
+                }
+                pipeline._prepareToFlush(task, callback);
+            }, task);
+        },
+
+        _prepareToFlush: function (task, callback) {
+            var pipeline = this;
+            if (!task.isSection) {
+                return callback && callback();
+            }
+
+            if (task.flushTest(pipeline)) {
+                return pipeline._addToFlushQueue(task, callback);
+            }
+
+            // subscribe to flush events
+            task.flushSubscription = pipeline.data.events.subscribe(task.flushTargets, function (event, done) {
+                if (task.flushTest(pipeline)) {
+                    // remove subscribed events such that this action doesn't get called again
+                    task.flushSubscription.unsubscribe();
+                    return pipeline._addToFlushQueue(task, done);
+                }
+                done();
+            });
+            return callback && callback();
+        },
+
+        _addToFlushQueue: function (task, callback) {
+            this.data.flushQueue.push(task);
+            return callback && callback();
         },
 
         // get the cached rule or parse it if it doesnt exist
@@ -676,10 +683,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             };
         },
 
-        _addToFlushQueue: function (task) {
-            this.data.flushQueue.push(task);
-        },
-
         // TODO: make public
         _getTask: function (config) {
             var task;
@@ -705,21 +708,37 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             return task;
         },
 
-        _error: function (task, error, done) {
+        _error: function (task, error, callback) {
             var pipeline = this;
 
             Y.log(task.id + ' had an error: ' + error, 'error');
             task.errored = true;
+            task.data = '<span>ERROR</span>';
+
             this.data.events.fire(task.id, 'onError', function () {
+                var done = function () {
+                    pipeline._prepareToFlush(task, callback);
+                };
+
+                if (!task.dispatched) {
+                    pipeline._afterDispatch(task, function () {
+                        pipeline._afterRender(task, done);
+                    });
+                } else if (!task.rendered) {
+                    pipeline._afterRender(task, done);
+                } else {
+                    return done();
+                }
+                return;
+
+                // TODO modify this to work with refactored code
                 var errorTask = task.errorContent;
                 // if there is no fallback, actificially render the task to ''
                 if (!errorTask) {
                     task.data = '';
                     task.rendered = true;
                     pipeline.data.events.fire(task.id, 'afterRender', function () {
-                        if (done) {
-                            done(task.data, task.meta);
-                        }
+                        return done && done(task.data, task.meta);
                     }, task);
                 } else {
                     // else replace the original task with an error task in the pipeline
@@ -727,7 +746,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     // and try to redispatch
                     pipeline._dispatch(pipeline._getTask(errorTask), function (data, meta) {
                         pipeline._getTask(task.id).data = pipeline._getTask(errorTask.id).data;
-                        done(data, meta);
+                        return done && done(data, meta);
                     });
                 }
             }, task, error);
@@ -782,11 +801,17 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     data: ''
                 },
                 task,
-                numflushedTasks = 0,
+                numFlushedTasks = 0,
                 flush = function (task) {
                     pipeline.data.events.fire(task.id, 'beforeFlush', function () {
                         task.flushed = true;
 
+                        // remove any error subscription
+                        if (task.errorSubscription) {
+                            task.errorSubscription.unsubscribe();
+                        }
+
+                        // TODO should we remove firing of events that are useless?
                         pipeline.data.events.fire(task.id, 'afterFlush', null, task);
 
                         if (task.embedded) {
@@ -801,9 +826,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                             Y.mojito.util.metaMerge(flushData.meta, task.meta);
                         }
 
-                        ++numflushedTasks;
+                        ++numFlushedTasks;
 
-                        if (numflushedTasks === pipeline.data.flushQueue.length) {
+                        if (numFlushedTasks === pipeline.data.flushQueue.length) {
                             pipeline.__flushQueuedTasks(rootData, flushData);
                             return done && done();
                         }
@@ -828,7 +853,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             for (i = 0; i < this.data.flushQueue.length; i++) {
                 task = this.data.flushQueue[i];
-
                 // flush any embedded descendants
                 flushEmbeddedDescendants(task, flush);
 
