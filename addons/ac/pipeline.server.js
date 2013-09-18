@@ -561,7 +561,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 return task;
             }
 
-            if (!config.id) {
+            if (config.id === undefined) {
                 config.id = 'autoId' + this.anonymousTaskPrefix++ + '@' + (config.type || config.base);
             }
 
