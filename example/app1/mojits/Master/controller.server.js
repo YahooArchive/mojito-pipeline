@@ -48,7 +48,7 @@ YUI.add('MasterController', function (Y, NAME) {
             }
 
             // push sections
-            Y.Object.each(ac.pipeline.data.sections, function (section) {
+            Y.Object.each(ac.pipeline.sections, function (section) {
                 if (section.sectionName === 'root' || section.sectionName === 'search-box' || section.sectionName === 'footer') {
                     return;
                 }
