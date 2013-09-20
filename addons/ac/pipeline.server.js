@@ -4,15 +4,13 @@
  * See the accompanying LICENSE file for terms.
  */
 
-/*jslint node: true, nomen: true, plusplus: true, regexp: true */
+/*jslint node: true, nomen: true, plusplus: true, regexp: true, evil: true */
 /*globals YUI, escape */
 
 YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     'use strict';
 
-    var vm = require('vm'),
-        businessScripts = {},
-        MojitoActionContextDone = Y.mojito.ActionContext.prototype.done,
+    var MojitoActionContextDone = Y.mojito.ActionContext.prototype.done,
 
         // Events that tasks may experience throughout their life cycles.
         EVENT_TYPES = ['beforeDispatch', 'afterDisptach', 'beforeRender', 'afterRender', 'beforeFlush', 'afterFlush', 'onError', 'onTimeout'],
@@ -33,7 +31,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         TIMEOUT = 5000,
         NAME_DOT_PROPERTY_REGEX = /([a-zA-Z_$][0-9a-zA-Z_$\-]*)\.([^\s]+)/gm;
-
 
     // Y.mojito.ActionContext is replaced by a custom pipeline version in order
     // to hook into ac.done and render tasks according to any render rule specified.
@@ -84,6 +81,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         this.sectionTasks     = {}; // Children that can be replaced by empty div's and flushed later.
         this.childrenTasks    = {}; // All children.
         this.embeddedChildren = []; // Children that were rendered before this task was rendered and so this task contains them.
+
+        this.embedded = false; // This task is not considered embedded until its parent labels it as such.
 
         this.meta = {};
 
@@ -153,7 +152,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     var rule = pipeline._getRule(self, action),
                         defaultTest = self[action + 'Test'];
 
-                    // TODO: only replace test is there is a user rule
                     // replace the test with combined test
                     self[action + 'Test'] = function () {
                         return defaultTest.call(self, pipeline) && rule.test();
@@ -166,7 +164,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         /**
-         * By default this task may be dispatched if there are no dependencies or all have been rendered.
+         * This task may be dispatched if there are no dependencies or all have been rendered.
          * @param {Object} pipeline Pipeline reference
          * @returns {boolean} Whether to dispatch this task
          */
@@ -177,7 +175,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         /**
-         * By default this task may render immediately after dispatch.
+         * This task may render immediately after dispatch.
          * @param {Object} pipeline Pipeline reference
          * @returns {boolean} Whether to render this task
          */
@@ -207,66 +205,45 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         /**
-         * By default this task may be flushed only if it is not already embedded in another task.
+         * This task may be flushed only if it is not already embedded in another task.
          * @param {Object} pipeline Pipeline reference
-         * @returns {boolean} Whether to render this task
+         * @returns {boolean} Whether to flush this task
          */
-        // default: flush unless this task is embedded
         flushTest: function (pipeline) {
             return !this.embedded;
         },
 
-        // default: when js is disabled only the root should be flush
+        /**
+         * When JS is disabled, only the root should be flushed with all sections embedded within it.
+         * @param {Object} pipeline Pipeline reference
+         * @returns {boolean} Whether to flush this task
+         */
         noJSFlushTest: function (pipeline) {
             return this.id === 'root';
         },
 
-        // default: "if rule exists, default to true, else default to false"
+        /**
+         * If there is a user error rule, then the default test should return true so that when it is and'ed with
+         * the user rule, the user rule is the determining condition. Otherwise return false.
+         * @param {Object} pipeline Pipeline reference
+         * @returns {boolean} Whether to error out this task
+         */
         errorTest: function () {
             return !!this.error;
         },
 
+        /**
+         * If this task hasn't been rendered, then an empty div is returned, which is used as a placeholder by
+         * the Pipeline client side in order to place the rendered html on the page when ready. Otherwise this
+         * returns the actual rendered html. This method can be used by a parent controller to access the content
+         * of its dependent children, or by the view renderer.
+         * @returns {boolean} The rendered html if available, otherwise a placeholder div,
+         */
         toString: function () {
             if (!this.rendered) {
                 return '<div id="' + this.id + '-section"></div>';
             }
             return this.data;
-        },
-
-        // wrap markup into a pipeline.push() with other useful info to place the markup in the skeleton
-        wrap: function (pipeline) {
-            var wrapped = 'pipeline.push({' +
-                'markup: "' + escape(this.data) + '"';
-
-            Y.Object.each(this, function (property, propertyName) {
-                var embeddedChildren = [];
-                switch (propertyName) {
-                case 'id':
-                    wrapped += ',\n' + propertyName + ': "' + property + '"';
-                    break;
-                case 'displayTargets':
-                case 'embeddedChildren':
-                    Y.Array.each(property, function (section, index) {
-                        embeddedChildren.push(section.id);
-                    });
-                    wrapped += ',\n' + propertyName + ": " + JSON.stringify(embeddedChildren);
-                    break;
-                case 'displayTest':
-                    wrapped += ',\n' + propertyName + ': function (pipeline) {' +
-                            'return eval(\'' +
-                                pipeline._getRule(this, 'display').rule + '\');}';
-                    break;
-                case 'timedOut':
-                case 'errored':
-                    wrapped += ',\n' + propertyName + ': ' + property;
-                    break;
-                default:
-                }
-            }, this);
-
-            wrapped += '});\n';
-
-            return wrapped;
         }
     };
 
@@ -308,8 +285,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         this.anonymousTaskPrefix = 0;
 
-        this._parsedRules = {};
-        this._vmContext = vm.createContext({ pipeline: this });
+        this._parsedRulesCache = {};
     }
 
     Pipeline.prototype = {
@@ -653,18 +629,18 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         // get the cached rule or parse it if it doesnt exist
         _getRule: function (task, action) {
             var rule = task[action];
-            if (!this._parsedRules[rule]) {
-                this._parsedRules[rule] = this._parseRule(task, action);
+            if (!this._parsedRulesCache[rule]) {
+                this._parsedRulesCache[rule] = this._parseRule(task, action);
             }
-            return this._parsedRules[rule];
+            return this._parsedRulesCache[rule];
         },
 
         _parseRule: function (task, action) {
             var targets = {},
-                rulz = task[action],
-                self = this;
+                rule = task[action],
+                pipeline = this;
 
-            rulz = rulz.replace(NAME_DOT_PROPERTY_REGEX, function (expression, objectId, property) {
+            rule = rule.replace(NAME_DOT_PROPERTY_REGEX, function (expression, objectId, property) {
                 // add a target if one found in this bit of the rule
                 if (STATE_EVENT_MAP[property]) {
                     targets[objectId] = targets[objectId] || [];
@@ -678,14 +654,11 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 }
             });
 
-            // cache compiled scripts globally
-            businessScripts[rulz] = businessScripts[rulz] || vm.createScript(rulz);
-
             return {
                 targets: targets,
-                rule: rulz,
+                rule: rule,
                 test: function () {
-                    return businessScripts[rulz].runInContext(self._vmContext);
+                    return eval(rule);
                 }
             };
         },
@@ -833,7 +806,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                             rootData.data = task.data;
                             rootData.meta = task.meta;
                         } else {
-                            flushData.data += task.wrap(pipeline);
+                            flushData.data += pipeline._serializeTask(task);
                             Y.mojito.util.metaMerge(flushData.meta, task.meta);
                         }
 
@@ -886,6 +859,49 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 }
                 pipeline._flushQueue = [];
             }, flushData);
+        },
+
+        /**
+         * Serializes the task into a JS statement that calls the Pipeline client push method once the task is flushed
+         * to the client. The push method tasks an object with several properties including 'markup', which is an
+         * escaped string representation of the task's html.
+         * @param {Object} task The task to serialize
+         * @return {String} The serialized task
+         */
+        _serializeTask: function (task) {
+            var pipeline = this,
+                serialized = 'pipeline.push({' +
+                    'markup: "' + escape(task.data) + '"';
+
+            Y.Object.each(task, function (property, propertyName) {
+                var embeddedChildren = [];
+                switch (propertyName) {
+                case 'id':
+                    serialized += ',\n' + propertyName + ': "' + property + '"';
+                    break;
+                case 'displayTargets':
+                case 'embeddedChildren':
+                    Y.Array.each(property, function (section, index) {
+                        embeddedChildren.push(section.id);
+                    });
+                    serialized += ',\n' + propertyName + ": " + JSON.stringify(embeddedChildren);
+                    break;
+                case 'displayTest':
+                    serialized += ',\n' + propertyName + ': function (pipeline) {' +
+                            'return eval(\'' +
+                                pipeline._getRule(task, 'display').rule + '\');}';
+                    break;
+                case 'timedOut':
+                case 'errored':
+                    serialized += ',\n' + propertyName + ': ' + property;
+                    break;
+                default:
+                }
+            });
+
+            serialized += '});\n';
+
+            return serialized;
         }
     };
 
