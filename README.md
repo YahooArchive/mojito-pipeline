@@ -129,4 +129,8 @@ Each rule is a `String` that symbolizes boolean expressions based on javascript'
 In this example, the `'render'` rule means "render 'ads' whenever 'search-results' is rendered". The states of a task that you can use are: `'pushed'`, `'dispatched'`, `'rendered'`, `'flushed'`, `'displayed'`, `'errored'` and `'timedOut'`
 
 ##ac.pipeline.push(Object taskConfig)
+Pushes a given task into the pippeline. This task will be processed according to the configuration given to the pipeline and the `taskConfig` object. This call is non-blocking: upon return, the task will exist in the pipeline but will not have started its lifecyle.
+### taskConfig
+Some additional task configuration that will be merged with the configuration given to the pipeline in application.yaml. See the API above for more details about this object.
 ##ac.pipeline.close()
+Indicates to Pipeline that no more tasks will be pushed. This call is necessary 
