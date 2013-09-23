@@ -15,5 +15,118 @@ members of a task object that describe a task state and are modified throughout 
 ###`'render'`, `'flush'`, `'display'`, `'error'`, `'timeout'`
 task actions which can be triggered under certain conditions defined by a boolean expression of other task states
 
-#Lifecycle of a task
-Inside the pipeline, the task goes through a series of stages that eventually lead to its displaying in the client's browser. 
+##Example
+```yaml
+# application.yaml
+[
+    {
+        "settings": [ "master" ],
+        # ...
+        "specs": {
+            "rootframe": {
+                "type": "SearchHTMLFrame",
+                "config": {
+                    "deploy": true,
+                    "pipeline": true,
+                    "child": {
+                        "type": "Master",
+                        "sections": {
+                            "search-box": {
+                                "type": "Box",
+                                "default": true,
+                                "config": {
+                                    "title": "Search Box"
+                                }
+                            },
+                            "search-results": {
+                                "type": "SearchResults"
+                            },
+                            "ads": {
+                                "type": "Ads",
+                                "render": "search-results.rendered",
+                                "sections": {
+                                    "north-ad": {
+                                        "type": "Box"
+                                    },
+                                    "south-ad": {
+                                        "type": "Box"
+                                    }
+                                }
+                            },
+                            "footer": {
+                                "type": "Box",
+                                "flush": "pipeline.closed",
+                                "default": true,
+                                "config": {
+                                    "title": "footer"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+            # ...
+    }
+]
+```
+```javascript
+// Master/Parent Controller
+Y.namespace('mojito.controllers')[NAME] = {
+
+    index: function (ac) {
+
+        backend.getData(function (dataBit) {
+            // this function is invoked for each data bit received
+            var runtimeTaskConfig;
+
+            if (!dataBit) {
+                return ac.pipeline.close();
+            }
+
+            runtimeTaskConfig = makeTaskConfig(dataBit);
+            ac.pipeline.push(runtimeTaskConfig);
+        });
+
+        ac.done(ac.params.body('children'));
+    }
+};
+```
+In the code above, you can see an number of arbitrary variables that are hopefully self-explanatory. One of them, `makeTaskConfig` represents a function that generates a task configuration with the data returned by the backend. This configuration and the one you can find in application.yaml are documented in the API Doc section below.
+
+#API Doc.
+##Static and runtime task configuration
+###what is `runtimeTaskConfig` in `ac.pipeline.push(runtimeTaskConfig);`?
+the object passed to the `ac.pipeline.push` method will be merged with the static mojit configuration listed in application.yaml under the corresponding id. It is expected that static configurations will be located in the application.yaml, whereas the configurations that require runtime, will be the members of taskConfig. If listed in both application.yaml and in the `taskConfig`, properties will be overridden by the latter.
+Here is the list of the members that a task can receive that are meaningful to pipeline:
+###`id`
+the id that this task can be referenced with (in business rules or when setting dependencies)
+###`type`
+the mojit type that the task should instantiate. This is a normal mojito parameter.
+###`sections`
+an `Object` defining this task's children sections (see terminology above) indexed by the task ids of those sections.
+###`dependencies`
+an `Array` containing the ids of this task's dependencies (see terminology above).
+###`default`
+a `Boolean` indicating whether this task should be automatically pushed by it's parent with the static config (see terminology above).
+###`group`
+a `String` of a name for an Array allocated in the ac.params.body('children') of the parent of this task where all the rendered tasks having the same group name will be listed when they are rendered. Grouped tasks will usually be defined at runtime and be dependencies/blocking of their parent.
+###`timeout`
+a `Number` representing the time in milliseconds that this task should stay blocked on its dependencies before it should be forced to unblock itself.
+###action rules
+there is 4 possible action rules that can be defined by the user. their names are `render`, `flush`, `display`, and `error`. 
+Each rule defines the condition that should trigger a new stage in the lifecycle of the task (see the lifecycle of a task above). 
+Each rule is a `String` that symbolizes boolean expressions based on javascript's syntax. Each term of the expression can be a boolean `true` or `false`, or another expression based on a task attributes/states. To refer to a task in a rule, you can use the dot-notation on the task id just as if it was a javascript object. example (taken from the example above): 
+```yaml
+                            "ads": {
+                                "type": "Ads",
+                                "render": "search-results.rendered",
+                                "sections": {
+					# ...
+                                }
+                            }
+```
+In this example, the `'render'` rule means "render 'ads' whenever 'search-results' is rendered". The states of a task that you can use are: `'pushed'`, `'dispatched'`, `'rendered'`, `'flushed'`, `'displayed'`, `'errored'` and `'timedOut'`
+
+##ac.pipeline.push(Object taskConfig)
+##ac.pipeline.close()
