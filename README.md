@@ -97,7 +97,7 @@ In the code above, you can see an number of arbitrary variables that are hopeful
 #API Doc.
 ##Static and runtime task configuration
 ###what is `runtimeTaskConfig` in `ac.pipeline.push(runtimeTaskConfig);`?
-the object passed to the `ac.pipeline.push` method will be merged with the static mojit configuration listed in application.yaml under the corresponding id. It is expected that static configurations will be located in the application.yaml, whereas the configurations that require runtime, will be the members of taskConfig. If listed in both application.yaml and in the `taskConfig`, properties will be overridden by the latter.
+the object passed to the `ac.pipeline.push` method will be merged with the static mojit configuration listed in application.yaml under the corresponding id. It is expected that static configurations will be located in the application.yaml, whereas the configurations that require runtime, will be the members of `runtimeTaskConfig`. If listed in both application.yaml and in the `runtimeTaskConfig`, properties will be overridden by the latter.
 Here is the list of the members that a task can receive that are meaningful to pipeline:
 ###`id`
 the id that this task can be referenced with (in business rules or when setting dependencies)
