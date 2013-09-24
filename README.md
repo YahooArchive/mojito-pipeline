@@ -1,6 +1,12 @@
 #mojito-pipeline
 mojito-pipeline allows a mojito app to selectively schedule the rendering, the streaming and the displaying of mojits/sections of the page from the server to and on the client/browser. It leverages node's event-oriented architecture to let you push those sections as their data comes from the backend and handles structural dependencies, custom programmatic dependencies, errors and timeouts, and gives you a lot of power to manage the lifecycle of your sections.
 
+#Table of contents
+	[Terminology](https://github.com/yahoo/mojito-pipeline#terminology)
+	[Example](https://github.com/yahoo/mojito-pipeline#example)
+	[API Doc](https://github.com/yahoo/mojito-pipeline#api-doc)
+	[Code Structure](https://github.com/yahoo/mojito-pipeline#code-structure)
+
 #Terminology
 ###task
 a pipeline internal object that represents the scheduled runtime of a mojit instance and is created with a mojit configuration pushed in the pipeline by the user
@@ -15,7 +21,7 @@ members of a task object that describe a task state and are modified throughout 
 ###`'render'`, `'flush'`, `'display'`, `'error'`, `'timeout'`
 task actions which can be triggered under certain conditions defined by a boolean expression of other task states
 
-##Example
+#Example
 ```yaml
 # application.yaml
 [
