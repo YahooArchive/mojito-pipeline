@@ -10,7 +10,6 @@
                 "type": "ShakerPipelineHTMLFrameMojit",
                 "config": {
                     "deploy": true,
-                    "pipeline": true,
                     "child": {
                         "type": "Master",
                         "sections": {

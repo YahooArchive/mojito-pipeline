@@ -1,5 +1,4 @@
-/* Pipeline add-on to be used by mojits that need to push tasks, and the htmlframe mojit.
- * Copyright (c) 2013, Yahoo! Inc. All rights reserved.
+/* Copyright (c) 2013, Yahoo! Inc. All rights reserved.
  * Copyrights licensed under the New BSD License.
  * See the accompanying LICENSE file for terms.
  */
