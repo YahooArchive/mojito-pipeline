@@ -56,8 +56,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     // Responsible for parsing user specified rules in the configuration passed to Pipeline.
     RuleParser = {
         // Regular expression for extracting variable names and their properties, e.g., "var1.prop1".
-        // TODO get rid of negation, specify actual chars
-        NAME_DOT_PROPERTY_REGEX: /([a-zA-Z_$][0-9a-zA-Z_$\-]*)\.([^\s]+)/gm,
+        NAME_DOT_PROPERTY_REGEX: /([a-zA-Z_$][0-9a-zA-Z_$\-]*)\.([a-zA-Z_$][0-9a-zA-Z_$]*)/gm,
 
         // A cache used such that rules are only parsed once for all requests.
         cachedParsedRules: {},
