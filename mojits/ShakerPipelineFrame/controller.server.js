@@ -9,7 +9,7 @@
 /*global YUI*/
 
 
-YUI.add('ShakerPipelineHTMLFrameMojit', function (Y, NAME) {
+YUI.add('SearchHTMLFrame', function (Y, NAME) {
 
     'use strict';
 
@@ -102,7 +102,7 @@ YUI.add('ShakerPipelineHTMLFrameMojit', function (Y, NAME) {
                 }
             });
 
-            ac.pipeline.configure({
+            ac.pipeline.initialize({
                 sections: {
                     root: rootConfig
                 }
@@ -115,7 +115,7 @@ YUI.add('ShakerPipelineHTMLFrameMojit', function (Y, NAME) {
                     position: 'bottom'
                 });
 
-                ac.pipeline.on('afterFlush', function (event, done, flushData) {
+                ac.pipeline.on('pipeline', 'afterFlush', function (event, done, flushData) {
                     self._processMeta(flushData.meta);
                     self._wrapFlushData(flushData);
                     done();
@@ -157,7 +157,7 @@ YUI.add('ShakerPipelineHTMLFrameMojit', function (Y, NAME) {
             meta.assets = meta.assets || {};
 
             // is this is last flush, add route rollup, loader/mojito-client and bootstrap
-            if (ac.pipeline.data.closed && !isRoot) {
+            if (ac.pipeline.closed && !isRoot) {
                 // add any postfetch assets
                 Y.mojito.util.metaMerge(meta.assets, {
                     'postfetch': postfetch
@@ -169,7 +169,7 @@ YUI.add('ShakerPipelineHTMLFrameMojit', function (Y, NAME) {
 
             ac.shaker._filterAndUpdate(meta.assets);
 
-            if (!ac.pipeline.data.closed) {
+            if (!ac.pipeline.closed) {
                 // TODO remove bottom also
                 // remove any postfetch assets
                 Y.Object.each(meta.assets.postfetch, function (typeAssets, type) {
