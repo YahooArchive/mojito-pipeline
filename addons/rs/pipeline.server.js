@@ -5,6 +5,9 @@
  */
 /*jslint node: true */
 /*global YUI */
+/**
+ * Handles pipeline's client-side minification
+ */
 
 YUI.add('addon-rs-pipeline', function (Y, NAME) {
     'use strict';

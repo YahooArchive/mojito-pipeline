@@ -114,9 +114,9 @@ a `String` of a name for an Array allocated in the ac.params.body('children') of
 ###`timeout`
 a `Number` representing the time in milliseconds that this task should stay blocked on its dependencies before it should be forced to unblock itself.
 ###action rules
-there is 4 possible action rules that can be defined by the user. their names are `render`, `flush`, `display`, and `error`. 
-Each rule defines the condition that should trigger a new stage in the lifecycle of the task (see the lifecycle of a task above). 
-Each rule is a `String` that symbolizes boolean expressions based on javascript's syntax. Each term of the expression can be a boolean `true` or `false`, or another expression based on a task attributes/states. To refer to a task in a rule, you can use the dot-notation on the task id just as if it was a javascript object. example (taken from the example above): 
+there is 4 possible action rules that can be defined by the user. their names are `render`, `flush`, `display`, and `error`.
+Each rule defines the condition that should trigger a new stage in the lifecycle of the task (see the lifecycle of a task above).
+Each rule is a `String` that symbolizes boolean expressions based on javascript's syntax. Each term of the expression can be a boolean `true` or `false`, or another expression based on a task attributes/states. To refer to a task in a rule, you can use the dot-notation on the task id just as if it was a javascript object. example (taken from the example above):
 ```yaml
                             "ads": {
                                 "type": "Ads",
@@ -130,10 +130,28 @@ In this example, the `'render'` rule means "render 'ads' whenever 'search-result
 In addition you can use the `'closed'` state on the id `'pipeline'` (just try to not call any of you tasks 'pipeline'...).
 
 ##ac.pipeline.push(Object taskConfig)
-Pushes a given task into the pippeline. This task will be processed according to the configuration given to the pipeline and the `taskConfig` object. 
+Pushes a given task into the pippeline. This task will be processed according to the configuration given to the pipeline and the `taskConfig` object.
 This call is non-blocking: upon return, the task will exist in the pipeline but will not have started its lifecyle.
 ### taskConfig
-Some additional task configuration that will be merged with the configuration given to the pipeline in application.yaml. 
+Some additional task configuration that will be merged with the configuration given to the pipeline in application.yaml.
 See the [API above](https://github.com/yahoo/mojito-pipeline/blob/master/README.md#static-and-runtime-task-configuration) for more details about this object.
 ##ac.pipeline.close()
 Indicates to Pipeline that no more tasks will be pushed. The pipeline will trigger its 'onClose' event, flush the remaining tasks and send the closing markup.
+
+
+
+#Code Structure
+##addons
+###ac/pipeline.server.js
+Exposes the main access points into the pipeline. Implements the public ac.pipeline addon and private `Task` class.
+###rs/pipeline.server.js
+Handles pipeline's client-side minification
+##assets/void/pipeline-client.js
+The client-side piece of the pipeline that handles the end of the processing of the tasks that are shipped to the client.
+##mojits
+###PipelineHTMLFrameMojit
+A replacement for mojito's HTMLFrameMojit that handles pipelining of the frame.
+###ShakerPipelineHTMLFrameMojit
+A replacement for mojito's HTMLFrameMojit that handles both pipelining and mojito-shaker
+###yui_modules/target-action-events.common.js
+An implementation of a publish-subscribe model that lets the subscriber choose multiple publishers and multiple events at a time.

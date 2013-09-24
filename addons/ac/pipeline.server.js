@@ -7,6 +7,11 @@
 /*jslint node: true, nomen: true, plusplus: true, regexp: true, evil: true */
 /*globals YUI, escape */
 
+/**
+ * Exposes the main access points into the pipeline.
+ * Implements the public ac.pipeline addon and private `Task` class.
+ */
+
 YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     'use strict';
 

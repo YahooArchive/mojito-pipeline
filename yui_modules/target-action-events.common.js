@@ -6,6 +6,11 @@
 /*jslint indent: 4, plusplus: true */
 /*global YUI, window */
 
+/**
+ * An implementation of a publish-subscribe model that lets the subscriber
+ * choose multiple publishers and multiple events at a time.
+ */
+
 (function () {
     'use strict';
 
