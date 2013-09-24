@@ -3,8 +3,10 @@
  * Copyrights licensed under the New BSD License.
  * See the accompanying LICENSE file for terms.
  */
+
 /*jslint browser: true, indent: 4, plusplus: true, nomen: true */
 /*global unescape */
+
 /**
  * The client-side piece of the pipeline that handles the end of the processing
  * of the tasks that are shipped to the client.
