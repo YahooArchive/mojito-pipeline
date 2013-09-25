@@ -465,8 +465,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
          * @param {ResourceStore} rs The runtime ResourceStore
          */
         setStore: function (rs) {
-            if (!this.client.unminifiedScript) {
-                this.client.unminifiedScript = rs.pipeline.unminifiedClient;
+            if (!this.client.script) {
+                this.client.script = rs.pipeline.client;
             }
         },
 
@@ -979,7 +979,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                             task.errorSubscription.unsubscribe();
                         }
 
-                        // TODO should we remove firing of events that are useless?
                         pipeline._events.fire(task.id, 'afterFlush', function () {
                             if (task.embedded) {
                                 return;
@@ -1036,7 +1035,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             flushData.data = flushData.data ? '<script>' + flushData.data + '</script>' : '';
 
             Y.mojito.util.metaMerge(flushData.meta, rootData.meta);
-            this._events.fire('pipeline', 'afterFlush', function () {
+            this._events.fire('pipeline', 'beforeFlush', function () {
                 if (pipeline.closed) {
                     pipeline._frame.ac.done('<!-- Flush Start -->\n' + rootData.data + flushData.data + '</body></html>' + '\n<!-- Flush End -->\n\n', flushData.meta);
                 } else {
