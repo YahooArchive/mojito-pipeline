@@ -1,30 +1,24 @@
-{{!--
-  Copyright (c) 2013, Yahoo! Inc. All rights reserved.
-  Copyrights licensed under the New BSD License.
-  See the accompanying LICENSE file for terms.
---}}<!DOCTYPE HTML>
+<!DOCTYPE HTML>
 <html>
-	<head>
-		<script type="text/javascript">var MOJITO_INIT=new Date().getTime();</script>
-		{{#meta}}
-		<meta name="{{name}}" content="{{content}}">
-		{{/meta}}
-		{{^meta}}
-		<meta name="creator" content="Yahoo! Mojito {{mojito_version}}">
-		{{/meta}}
+<head>
+<script type="text/javascript">var MOJITO_INIT=new Date().getTime();</script>
+{{#meta}}
+<meta name="{{name}}" content="{{content}}">
+{{/meta}}
+{{^meta}}
+<meta name="creator" content="Yahoo! Mojito {{mojito_version}}">
+{{/meta}}
 
-		<title>{{title}}</title>
+<title>{{title}}</title>
 
-		{{{top}}}
+{{{top}}}
 
-	</head>
-	<body>
+</head>
+<body>
+{{{pipelineClient}}}
 
-		{{{child}}}
+{{{child}}}
 
-
-
-		{{{bottom}}}
-		{{{pipeline_client}}}
+{{{bottom}}}
 
 {{{end}}}

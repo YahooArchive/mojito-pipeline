@@ -1,106 +1,109 @@
 /*
- * Copyright (c) 2013, Yahoo! Inc. All rights reserved.
+ * Copyright (c) 2013, Yahoo! Inc.  All rights reserved.
  * Copyrights licensed under the New BSD License.
  * See the accompanying LICENSE file for terms.
  */
-/*jslint anon:true, sloppy:true, nomen:true*/
-/*global YUI*/
-YUI.add('PipelineHTMLFrameMojit', function (Y, NAME) {
+
+/*jslint nomen:true, plusplus:true*/
+
+YUI.add('PipelineFrameMojit', function (Y, NAME) {
     'use strict';
+
     Y.namespace('mojito.controllers')[NAME] = {
 
         index: function (ac) {
-            var frameClosed = false,
-                self = this,
-                childConfig = ac.config.get('child'),
-                flushedAssets = {
-                    css: [],
-                    js: [],
-                    blob: []
-                },
-                binders = {};
+            var child = ac.config.get('child');
 
-            Y.mix(childConfig, {
-                id: 'root',
-                afterRender: function (event, done, childHTML, meta) {
-                    Y.mix(binders, meta.binders);
-                    self.flushFrame(ac, childHTML, meta, done);
-                }
-            });
-
-            ac.pipeline.configure({
-                sections: {
-                    root: childConfig
-                }
-            });
-            ac.pipeline.push(childConfig);
-
-            ac.pipeline.on('flush', function (event, done, flushData) {
-                var top = '',
-                    mojitoClientAssets;
-                Y.mix(binders, flushData.meta.binders);
-                if (ac.pipeline.data.closed && ac.config.get('deploy') === true) {
-                    mojitoClientAssets = {};
-                    ac.assets.assets = mojitoClientAssets;
-                    ac.deploy.constructMojitoClientRuntime(ac.assets, binders);
-                    flushData.meta.assets.bottom = flushData.meta.assets.bottom || {};
-                    flushData.meta.assets.bottom.js = flushData.meta.assets.bottom.js || [];
-                    flushData.meta.assets.bottom.blob = flushData.meta.assets.bottom.blob || [];
-                    Array.prototype.push.apply(flushData.meta.assets.bottom.js, mojitoClientAssets.top.js);
-                    Array.prototype.push.apply(flushData.meta.assets.bottom.blob, mojitoClientAssets.bottom.blob);
-                }
-                // surround flush data with top and bottom
-                Y.Object.each(flushData.meta.assets, function (locationAssets, location) {
-                    Y.Object.each(locationAssets, function (typeAssets, type) {
-                        Y.Array.each(typeAssets, function (asset) {
-                            // skip assets of unknown type and those that have been flushed in the past
-                            if (!flushedAssets[type] || flushedAssets[type].indexOf(asset) !== -1) {
-                                return;
-                            }
-                            flushedAssets[type].push(asset);
-
-                            var wrappedAsset = type === 'js' ? '<script type="text/javascript" src="' + asset + '"></script>' :
-                                    type === 'css' ? '<link type="text/css" rel="stylesheet" href="' + asset + '"></link>' : asset;
-                            if (location === 'top') {
-                                top = wrappedAsset + flushData.data;
-                            } else {
-                                flushData.data += wrappedAsset;
-                            }
-                        });
-                    });
-                });
-
-                flushData.data = top + flushData.data;
-                done();
-            });
+            this._init(ac);
+            this._pipelineRoot(child);
         },
 
-        flushFrame: function (ac, childHTML, meta, done) {
-            // meta.assets from child should be piped into
-            // the frame's assets before doing anything else.
-            ac.assets.addAssets(meta.assets);
+        _init: function (ac) {
+            this.ac = ac;
+            this.flushedAssets = {
+                css: [],
+                js: [],
+                blob: []
+            };
+            this.view = {};
+            this.binders = {};
+        },
 
-            if (ac.pipeline.closed && ac.config.get('deploy') === true) {
-                ac.deploy.constructMojitoClientRuntime(ac.assets,
-                    meta.binders);
+        /**
+         * Initializes Pipeline, pushes the root task and subscribes to flushing events in
+         * order to render the this frame and wrap flushed sections with their assets.
+         * @param {Object} rootConfig The root level mojit config passed to this HTMLFrame.
+         */
+        _pipelineRoot: function (rootConfig) {
+            var self = this,
+                ac = this.ac;
+
+            Y.mix(rootConfig, {
+                id: 'root',
+                // Before the root is flushed to the client it needs to be embedded into
+                // this frame, such that this frame is flushed with the root mojit
+                // and any placeholder div's.
+                beforeFlush: function (event, done, root) {
+                    self.view.child = root.data;
+                    self._render.call(self, self.view, root.meta, function (data, meta) {
+                        root.data = data;
+                        root.meta = meta;
+                        done();
+                    });
+                }
+            }, true);
+
+            ac.pipeline.initialize({
+                sections: {
+                    root: rootConfig
+                }
+            }, self.view);
+
+            ac.pipeline.push(rootConfig);
+
+            // If JS is enabled, before pipeline flushes serialized sections, the meta data is
+            // processed in order to wrap the serialized sections with any assets.
+            if (ac.pipeline.client.jsEnabled) {
+                ac.pipeline.on('pipeline', 'beforeFlush', function (event, done, flushData) {
+                    self._processMeta(flushData.meta);
+                    self._addMojitoClient(flushData.meta);
+                    self._wrapFlushData(flushData);
+                    done();
+                });
             }
+        },
 
-            // we don't care much about the views specified in childs
-            // and for the parent, we have a fixed one.
+        /**
+         * Renders this frame using the available view data, and meta.
+         * @param {Object} view The data to be passed to this frame's view.
+         * @param {Object} meta The meta data currently available.
+         * @param {Function} callback The function to call after rendering.
+         */
+        _render: function (view, meta, callback) {
+            var ac = this.ac,
+                renderer = new Y.mojito.ViewRenderer(ac.instance.views.index.engine,
+                    ac._adapter.page.staticAppConfig.viewEngine);
+
             meta.view = {
                 name: 'index'
             };
 
-            var renderer,
-                data = Y.merge(ac.pipeline.htmlData, ac.assets.renderLocations(), {
-                    end: !ac.pipeline.client.jsEnabled || ac.pipeline.data.closed ? '</body></html>' : ''
-                }, {
-                    title: ac.config.get('title') || 'Powered by Mojito Pipeline',
-                    mojito_version: Y.mojito.version,
-                    child: childHTML,
-                    pipeline_client: '<script>' + ac.pipeline.client.unminifiedScript + '</script>'
-                });
+            // Add pipeline client to the view data.
+            if (ac.pipeline.client.jsEnabled) {
+                view.pipelineClient = '<script>' + ac.pipeline.client.script + '</script>';
+            }
 
+            // Process the meta data. The second arguments indicates that meta is associated with
+            // the root mojit.
+            this._processMeta(meta);
+
+            // Pass the assets to this frame's asset, such that they appear in the rendered view.
+            ac.assets.addAssets(meta.assets);
+
+            // Merge the rendered assets with the view data.
+            view = Y.merge(view, ac.assets.renderLocations());
+            // Make sure the meta data has an HTTP header that specifies the content-type
+            // as text/html, such that the client renders the page as HTML.
             meta = Y.mojito.util.metaMerge(meta, {
                 http: {
                     headers: {
@@ -109,36 +112,137 @@ YUI.add('PipelineHTMLFrameMojit', function (Y, NAME) {
                 }
             }, true);
 
-            // 1. mixing bottom and top fragments from assets into
-            //    the template data, along with title and mojito version.
-            // 2. mixing meta with child metas, along with some extra
-            //    headers.
-            if (ac.pipeline.closed) {
-                ac.done(data, meta);
-            } else {
-                renderer = new Y.mojito.ViewRenderer(ac.instance.views.index.engine,
-                    ac._adapter.page.staticAppConfig.viewEngine);
+            // Render this frame's view and pass the rendered page to the callback.
+            renderer.render(view,
+                ac.instance.controller,
+                ac.instance.views.index,
+                new Y.mojito.OutputBuffer(NAME, function (error, html) {
+                    callback(html, meta);
+                }));
+        },
 
-                data.mojit_view_id = 'PipelineHTMLFrame';
+        /**
+         * Process the meta data by filtering out any asset that has already been flushed,
+         * and queuing up bottom assets so that they get flushed at the end.
+         * @param {Object} meta The meta data to be processed.
+         */
+        _processMeta: function (meta) {
+            var self = this,
+                flushedAssets = this.flushedAssets,
+                binders = this.binders,
+                ac = this.ac;
 
-                renderer.render(data,
-                    ac.instance.controller,
-                    ac.instance.views.index,
-                    new Y.mojito.OutputBuffer(data.mojit_view_id, function (error, html) {
-                        ac.flush(html, meta);
-                        done();
-                    }));
+            // Keep track of all the binders associated with each flush, so that they can be used to
+            // construct the Mojito client on the last flush.
+            Y.mix(binders, meta.binders);
 
+            // filter out any asset that has already been flushed
+            Y.Object.each(meta.assets, function (locationAssets, location) {
+                Y.Object.each(locationAssets, function (typeAssets, type) {
+                    var i = 0,
+                        asset;
+                    while (i < typeAssets.length) {
+                        asset = typeAssets[i];
+                        if (flushedAssets[type] && flushedAssets[type].indexOf(asset) !== -1) {
+                            typeAssets.splice(i, 1);
+                            continue;
+                        }
+                        if (flushedAssets[type]) {
+                            flushedAssets[type].push(asset);
+                        }
+                        i++;
+                    }
+                });
+            });
+
+            meta.assets = meta.assets || {};
+        },
+
+        /**
+         * Adds the Mojito client runtime to the meta data.
+         * @param {Object} meta
+         */
+        _addMojitoClient: function (meta) {
+            var ac = this.ac,
+                binders = this.binders,
+                bottom = this.bottom;
+
+            // Construct the Mojito client runtime if this it the last flush and the Mojito client should be deployed.
+            if (ac.pipeline.closed && ac.config.get('deploy') === true) {
+                // Clear any assets such that only the Mojito client runtime appears.
+                ac.assets.assets = {};
+                // Get the Mojito client assets.
+                ac.deploy.constructMojitoClientRuntime(ac.assets, binders);
+
+                // Make sure that meta data assets have a bottom with js and blob
+                // in order to receive the Mojito client runtime.
+                meta.assets.bottom = meta.assets.bottom || {};
+                meta.assets.bottom.js = meta.assets.bottom.js || [];
+                meta.assets.bottom.blob = meta.assets.bottom.blob || [];
+
+                // All Mojito client assets should go on the bottom, to ensure that scripts are
+                // downloaded after any inline script is executed.
+                Array.prototype.push.apply(meta.assets.bottom.js, ac.assets.assets.top.js);
+                Array.prototype.push.apply(meta.assets.bottom.blob, ac.assets.assets.bottom.blob);
             }
+        },
 
+        /**
+         * Wraps the data to be flushed with any corresponding rendered assets.
+         * @param {Object} flushData The data to be flushed.
+         */
+        _wrapFlushData: function (flushData) {
+            var self = this,
+                renderedAssets = {
+                    'top': '',
+                    'bottom': ''
+                },
+                ac = this.ac;
+
+            // Surround flush data with top and bottom rendered assets.
+            Y.Object.each(flushData.meta.assets, function (locationAssets, location) {
+                Y.Object.each(locationAssets, function (typeAssets, type) {
+                    // Don't add JS assets if JS is disabled.
+                    if (type === 'js' && !ac.pipeline.client.jsEnabled) {
+                        return;
+                    }
+                    Y.Array.each(typeAssets, function (asset) {
+                        var renderedAsset = type === 'js' ? '<script type="text/javascript" src="' + asset + '"></script>' :
+                                        type === 'css' ? '<link type="text/css" rel="stylesheet" href="' + asset + '"></link>' : asset;
+                        // Concatenates the rendered assets to the renderedAssets.top/bottom buffers.
+                        self._concatRenderdAssets(renderedAsset, renderedAssets, location, type);
+                    });
+                });
+            });
+            flushData.data = renderedAssets.top + flushData.data + renderedAssets.bottom;
+
+            // merge any consecutive script
+            flushData.data = flushData.data.replace(/<\/script><script>/g, '');
+        },
+
+        /**
+         * Concatenates the rendered assets to the top and bottom buffers of renderedAssets.
+         * This function can be used by HTML frames extending this frame in order to define where
+         * a rendered assets should be placed based on its location and type.
+         * @param {String} renderedAsset The rendered JS or CSS asset.
+         * @param {Object} renderedAssets Object containing top and bottom string buffers for rendered assets.
+         * @param {String} location The location of the rendered asset.
+         * @param {String} type The type of the rendered asset.
+         */
+        _concatRenderdAssets: function (renderedAsset, renderedAssets, location, type) {
+            if (location === 'top') {
+                renderedAssets.top += renderedAsset;
+            } else {
+                renderedAssets.bottom += renderedAsset;
+            }
         }
     };
 
 }, '0.1.0', {requires: [
     'mojito',
     'mojito-util',
-    'mojito-http-addon',
     'mojito-assets-addon',
+    'mojito-http-addon', // Gives access to the HTTP object, to any controller using the pipeline add-on.
     'mojito-deploy-addon',
     'mojito-config-addon',
     'mojito-pipeline-addon'
