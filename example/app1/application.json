@@ -7,7 +7,7 @@
         },
         "specs": {
             "rootframe": {
-                "type": "ShakerPipelineHTMLFrameMojit",
+                "type": "ShakerPipelineFrame",
                 "config": {
                     "deploy": true,
                     "child": {
