@@ -255,7 +255,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         /**
          * This task may be dispatched if there are no dependencies or all have been rendered.
-         * This function will be combined with a user-defined function with the same name if it exists.
+         * This function will be combined with a corresponding, user-defined rule if it exists.
          * @param {Object} pipeline Pipeline reference
          * @returns {boolean} Whether to dispatch this task
          */
@@ -268,7 +268,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         /**
          * By default this method always returns true since a task should render immediately after dispatch
          * unless it has rendering dependencies.
-         * This function will be combined with a user-defined function with the same name if it exists.
+         * This function will be combined with a corresponding, user-defined rule if it exists.
          * @param {Object} pipeline Pipeline reference
          * @returns {boolean} Whether to render this task
          */
@@ -299,7 +299,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         /**
          * This task may be flushed only if it is not already embedded in another task.
-         * This function will be combined with a user-defined function with the same name if it exists.
+         * This function will be combined with a corresponding, user-defined rule if it exists.
          * @param {Object} pipeline Pipeline reference
          * @returns {boolean} Whether to flush this task
          */
@@ -319,7 +319,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         /**
          * If there is a user error rule, then the default test should return true so that when it is and'ed with
          * the user rule, the user rule is the determining condition. Otherwise return false.
-         * This function will be combined with a user-defined function with the same name if it exists.
+         * This function will be combined with a corresponding, user-defined rule if it exists.
          * @param {Object} pipeline Pipeline reference
          * @returns {boolean} Whether to error out this task
          */
@@ -651,54 +651,57 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 task.timeout = TIMEOUT;
             }
 
-            // Handles the case when a timeout has been reached.
-            task.timeoutSubscription = setTimeout(function () {
+            if (task.timeout) {
 
-                task.closeSubscription.unsubscribe();
-                task.dispatchSubscription.unsubscribe();
-                // Fire timeout and then dispatch.
-                pipeline._timeout(task, 'data still missing after ' + task.timeout + 'ms.', function () {
-                    // In case a task has a timeout that is triggered after pipeline closing,
-                    // we want to block the closing until all dispatchings are finished. The events module
-                    // resumes the closing after ALL the onClose of the subscribers have been called;
-                    var onCloseDone,
-                        dispatched = false;
+                // Handles the case when a timeout has been reached.
+                task.timeoutSubscription = setTimeout(function () {
 
-                    pipeline.on('pipeline', 'onClose', function (event, done) {
-                        if (dispatched) {
+                    task.closeSubscription.unsubscribe();
+                    task.dispatchSubscription.unsubscribe();
+                    // Fire timeout and then dispatch.
+                    pipeline._timeout(task, 'data still missing after ' + task.timeout + 'ms.', function () {
+                        // In case a task has a timeout that is triggered after pipeline closing,
+                        // we want to block the closing until all dispatchings are finished. The events module
+                        // resumes the closing after ALL the onClose of the subscribers have been called;
+                        var onCloseDone,
+                            dispatched = false;
+
+                        pipeline.on('pipeline', 'onClose', function (event, done) {
+                            if (dispatched) {
+                                done();
+                            } else {
+                                onCloseDone = done;
+                            }
+                        });
+
+                        pipeline._dispatch(task, function () {
+                            if (onCloseDone) {
+                                onCloseDone();
+                            }
+                            dispatched = true;
+                        });
+                    });
+                }, task.timeout);
+
+                // Handles the case where the pipeline is closed but a task still has missing dependencies
+                // and so, even though the timeout hasn't been reached yet, it is imminent.
+                task.closeSubscription = this.on('pipeline', 'onClose', function (event, done) {
+
+                    if (!task.timeoutSubscription) {
+                        return done();
+                    }
+                    task.dispatchSubscription.unsubscribe();
+
+                    clearTimeout(task.timeoutSubscription);
+                    task.timeoutSubscription = null;
+
+                    pipeline._timeout(task, 'data still missing after pipeline closed.', function () {
+                        pipeline._dispatch(task, function () {
                             done();
-                        } else {
-                            onCloseDone = done;
-                        }
-                    });
-
-                    pipeline._dispatch(task, function () {
-                        if (onCloseDone) {
-                            onCloseDone();
-                        }
-                        dispatched = true;
+                        });
                     });
                 });
-            }, task.timeout);
-
-            // Handles the case where the pipeline is closed but a task still has missing dependencies
-            // and so, even though the timeout hasn't been reached yet, it is imminent.
-            task.closeSubscription = this.on('pipeline', 'onClose', function (event, done) {
-
-                if (!task.timeoutSubscription) {
-                    return done();
-                }
-                task.dispatchSubscription.unsubscribe();
-
-                clearTimeout(task.timeoutSubscription);
-                task.timeoutSubscription = null;
-
-                pipeline._timeout(task, 'data still missing after pipeline closed.', function () {
-                    pipeline._dispatch(task, function () {
-                        done();
-                    });
-                });
-            });
+            }
 
             callback();
         },
@@ -769,7 +772,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 // Keep track of this method's callback, since this callback should be passed to Pipeline._afterDispatch after dispatching.
                 // TODO try finding a better way to keep track of the callback.
                 task.dispatchCallback = callback;
-                // dispatch will call the controller, which in turn calls ac.done, which calls @_afterDispatch
+                // Dispatch will call the controller, which in turn calls ac.done, which calls @_afterDispatch.
                 pipeline._frame.ac._dispatch(command, adapter);
             }, task);
         },
@@ -852,7 +855,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             // Keep track of this method's callback, since this callback should be passed to Pipeline._afterRender after rendering.
             // TODO try finding a better way to keep track of the callback.
             task.renderCallback = callback;
-            // call the original ac.done
+            // Call the original ac.done
             MojitoActionContextDone.apply(task.actionContext, task.doneArgs);
         },
 
