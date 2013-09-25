@@ -3,8 +3,10 @@
  * Copyrights licensed under the New BSD License.
  * See the accompanying LICENSE file for terms.
  */
+
 /*jslint node: true */
 /*global YUI */
+
 /**
  * Handles pipeline's client-side minification
  */
