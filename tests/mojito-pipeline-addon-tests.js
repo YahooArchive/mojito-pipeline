@@ -4,7 +4,6 @@
 YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
     'use strict';
 
-
     var A = YUITest.Assert,
         Value = YUITest.Mock.Value,
         NOOP = function () {},
@@ -33,7 +32,6 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
                                 return ac.pipeline.close();
                             }
                             var taskConfig = task === '' ? {} : Y.mix({id: task}, ac.pipeline.sections[task] || {});
-                            taskConfig.type = taskConfig.type === undefined ? 'Noop' : taskConfig.type;
                             ac.pipeline.push(taskConfig);
                         });
                     }, Number(time));
@@ -64,48 +62,9 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
                         rendered: [],
                         flushed: [],
                         flushes: 0,
-                        closed: false/*,
-                        acJscheckStatusCount: 0,
-                        acJscheckRunCount: 0,
-                        acFlushCount: 0,
-                        acDoneCount: 0,
-                        acDispatchCount: 0*/
+                        closed: false
                     },
-                    expected = routeConfig.expected && routeConfig.expected[jsEnabled ? 'js' : 'nojs'] || {};
-
-                /*expected.acJscheckStatusCount = 1;
-                expected.acDoneCount = 1;
-                Y.mix(ac, {
-                    jscheck: {
-                        status: function () {
-                            results.acJscheckStatusCount++;
-                            return jsEnabled ? 'enabled' : 'disabled';
-                        },
-                        run: function () {
-                            results.acJscheckRunCount++;
-                        }
-                    },
-                    done: function () {
-                        results.acDoneCount++;
-                    },
-                    flush: function () {
-                        results.acFlushCount++;
-                    },
-                    _dispatch: function (command, adapter) {
-                        var childAc = {
-                            pipeline: ac.pipeline,
-                            config: command.instance.config,
-                            command: command,
-                            adapter: adapter,
-                            error: command.instance.config && command.instance.config.error
-                        };
-
-                        results.acDispatchCount++;
-
-                        mojits[command.instance.type](childAc);
-                        Y.mojito.ActionContext.prototype.done.apply(childAc, [{}]);
-                    }
-                });*/
+                    expected = (routeConfig.expected && routeConfig.expected[jsEnabled ? 'js' : 'nojs']) || {};
 
                 ac.jscheck.expect({
                     method: 'run',
@@ -134,12 +93,13 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
                     callCount: expected.acDispatchCount,
                     run: function (command, adapter) {
                         var childAc = {
-                            pipeline: ac.pipeline,
                             config: command.instance.config,
                             command: command,
                             adapter: adapter,
                             error: command.instance.config && command.instance.config.error
                         };
+
+                        childAc.pipeline = new Pipeline(command, adapter, childAc);
 
                         mojits[command.instance.type](childAc);
                         Y.mojito.ActionContext.prototype.done.apply(childAc, [{}]);
@@ -152,12 +112,12 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
                 ac.pipeline.setStore(rs);
 
                 // Hook into pipeline methods to populate results
-                ac.pipeline.push = function () {
+                ac.pipeline.push = function (taskConfig) {
+                    taskConfig.type = taskConfig.type === undefined ? 'Noop' : taskConfig.type;
                     var id = Pipeline.prototype.push.apply(this, arguments);
                     results.pushed.push(id);
                 };
                 ac.pipeline._dispatch = function (task) {
-                    debugger;
                     results.dispatched.push(task.id);
                     Pipeline.prototype._dispatch.apply(this, arguments);
                 };
@@ -179,21 +139,19 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
                         // If one of the mocks fail, resume will end up being called twice so we should ignore the first one
                         //YUITest.TestRunner._waiting = true;
                         test.resume(function () {
-                            //ac.verify();
+                            ac.verify();
                             Mojito._compareResults(expected, results, test);
-                            callback(ac.pipeline, results);
+                            return callback && callback(ac.pipeline, results);
                         });
                     }
                 };
 
 
                 // Run Frame specified in the spec
-                //process.nextTick(function () {
-                    mojits[routeConfig.type](ac);
-                //});
+                mojits[routeConfig.type](ac);
 
                 // Make test wait
-                test.wait(500000, function () {
+                test.wait(100, function () {
                     A.fail('Pipeline never closed.');
                 });
 
@@ -201,6 +159,7 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
                 return ac.pipeline;
             },
 
+            // TODO also compare the logs generated.
             _compareResults: function (expected, results, test) {
                 var compareArray = function (arr1, arr2, type) {
                     A.areEqual(arr1.length, arr2.length, 'Unexpected ' + type + ' array length.');
@@ -226,24 +185,31 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
         };
 
     Y.mojito.ActionContext.prototype.done = function () {
-        this.adapter.callback(this.error, {}, {});
+        this.adapter.callback(this.error, 'Rendered', {});
     };
     Y.use('mojito-pipeline-addon');
     Pipeline = Y.mojito.addons.ac.pipeline;
-
 
     suite.add(new YUITest.TestCase({
 
         name: 'unit tests',
 
-        'Test user rules': function () {//return;
-            Mojito.route('Route 1', true, this, function (pipeline, results) {
+        'Test user rules (JS)': function () {
+            Mojito.route('Route 1', true, this, function (pipeline) {
+                A.areSame(pipeline._tasks.root.toString(), 'Rendered');
             });
         },
-        'Test user rules 2': function () {
-            debugger;
-            Mojito.route('Route 1', false, this, function (pipeline, results) {
-            });
+
+        'Test user rules (No JS)': function () {
+            Mojito.route('Route 1', false, this);
+        },
+
+        'Test error conditions (JS)': function () {
+            Mojito.route('Route 2', true, this);
+        },
+
+        'Test misc task config options (JS)': function () {
+            Mojito.route('Route 3', true, this);
         }
     }));
 
