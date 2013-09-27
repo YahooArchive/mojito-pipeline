@@ -227,7 +227,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             // Combine default tests with user rules.
             Y.Array.each(ACTIONS, function (action) {
                 if (self.specs[action]) {
-                    var ruleTest = RuleParser.getParsedRule(self[action], pipeline),
+                    var ruleTest = RuleParser.getParsedRule(self.specs[action], pipeline),
                         defaultTest = self[action + 'Test'];
 
                     // Replace the action test with a combined test containing the default test and the rule test.
