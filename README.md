@@ -72,7 +72,7 @@ task actions which can be triggered under certain conditions defined by a boolea
                 }
             }
         },
-            # ...
+        # ...
     }
 ]
 ```
