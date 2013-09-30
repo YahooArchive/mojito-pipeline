@@ -225,7 +225,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 if (self.specs[action]) {
 
                     var defaultTest = self[action + 'Test'],
-                        parsedRule = RuleParser.getParsedRule(self[action], pipeline),
+                        parsedRule = RuleParser.getParsedRule(self.specs[action], pipeline),
                         ruleTest = function () {
                             return eval(parsedRule.rule);
                         };
