@@ -164,7 +164,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 Y.mix(specs, pipeline.sections[specs.id], true);
             }
 
-            // Merge this task with its specs
             self.specs = specs;
 
             if (!self.specs.type && !self.specs.base) {
@@ -207,7 +206,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 childTask.parent = self;
                 // Children sections without a specified timeout inherit this task's timeout.
                 if (childTask.timeout === undefined) {
-                    childTask.timeout = self.specs.timeout;
+                    childTask.timeout = self.timeout;
                 }
             });
 
@@ -579,9 +578,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             // Push any default sections of this task. Sections marked as default always get pushed automatically by pipeline
             // instead of the data source.
             Y.Object.each(task.specs.sections, function (config, sectionId) {
-                var section = config;
-                if (section && section['default']) {
-                    section.id = sectionId;
+                var section = config || {};
+                section.id = sectionId;
+                if (section['default']) {
                     pipeline.push(section);
                 }
             });
@@ -706,7 +705,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             // Set the parameters of this task. As is normally done in Mojito,
             // if no custom parameters exist, the dispatcher's parameters are used.
-            task.params = task.params || Y.clone(pipeline._frame.params);
+            task.params = task.specs.params || Y.clone(pipeline._frame.params);
 
             // All children tasks are made available to a task's mojit through params.body.children.
             task.params.body = task.params.body || {};
@@ -747,7 +746,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     instance: {
                         base: task.specs.base,
                         type: task.specs.type,
-                        action: task.action,
+                        action: task.specs.action,
                         config: task.specs.config
                     },
                     context: pipeline._frame.context,
