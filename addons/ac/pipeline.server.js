@@ -579,10 +579,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             // Subscribe to any event specified in the task's config, which the task is interested about itself.
             Y.Array.each(EVENT_TYPES, function (event) {
                 var targets;
-                if (task[event]) {
+                if (task.specs[event]) {
                     targets = {};
                     targets[task.id] = [event];
-                    pipeline._events.subscribe(targets, task[event]);
+                    pipeline._events.subscribe(targets, task.specs[event]);
                 }
             });
 
