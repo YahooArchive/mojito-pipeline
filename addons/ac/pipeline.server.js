@@ -146,7 +146,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         /**
          * Initializes this task by determining subscription targets
          * and merging default tests with user rules.
-         * @param {Object} config The configuration for this task.
+         * @param {Object} specs The configuration for this task = the specs of the mojit instance associated
          * @param {Object} pipeline Pipeline reference.
          * @param {boolean} Whether this task initialized successfully.
          */
