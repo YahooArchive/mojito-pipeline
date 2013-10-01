@@ -26,7 +26,8 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
                     config = ac.config;
 
                 Y.Object.each(pushGroups, function (pushGroup, time) {
-                    setTimeout(function () {
+                    time = Number(time);
+                    var pushTasks = function () {
                         Y.Array.each(pushGroup, function (task) {
                             if (task === 'close') {
                                 return ac.pipeline.close();
@@ -34,7 +35,12 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
                             var taskConfig = task === '' ? {} : Y.mix({id: task}, ac.pipeline.sections[task] || {});
                             ac.pipeline.push(taskConfig);
                         });
-                    }, Number(time));
+                    };
+                    if (time === 0) {
+                        pushTasks();
+                    } else {
+                        setTimeout(pushTasks, time);
+                    }
                 });
             },
             Noop: NOOP

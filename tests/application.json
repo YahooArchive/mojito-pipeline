@@ -71,7 +71,7 @@
                     "rendered": ["root", "a", "b", "Noop@1", "c", "e"],
                     "flushed": ["root", "a", "b", "c", "e"],
                     "acDispatchCount": 6,
-                    "acFlushCount": 2
+                    "acFlushCount": 1
                 }
             },
             "config": {
@@ -114,7 +114,7 @@
                     "rendered": ["root", "a1", "b", "a2", "a"],
                     "flushed": ["root", "b", "a"],
                     "acDispatchCount": 5,
-                    "acFlushCount": 1
+                    "acFlushCount": 0
                 }
             },
             "config": {
