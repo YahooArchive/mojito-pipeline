@@ -55,7 +55,7 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
                     routeConfig = Y.clone(appConfig.specs[route]),
                     ac = new Y.mojito.MockActionContext({
                         addons: ['jscheck']
-                    }), //{},
+                    }),
                     results = {
                         pushed: [],
                         dispatched: [],
