@@ -4,7 +4,8 @@
  * See the accompanying LICENSE file for terms.
  */
 
-/*jslint nomen:true, plusplus:true*/
+/*jslint nomen:true, plusplus:true */
+/*global YUI */
 
 YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
     'use strict';
@@ -14,6 +15,7 @@ YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
     // Inherit methods from the PipelineFrameMojit and override
     // to add Shaker specific functionality.
     Y.mojito.controllers[NAME] = Y.merge(PipelineFrameMojit, {
+
         _init: function (ac) {
             // Serves as a queue, to delay the rendering of postfetch assets
             // until the last flush.
@@ -102,14 +104,16 @@ YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
         }
     });
 
-}, '0.1.0', {requires: [
-    'mojito',
-    'mojito-util',
-    'mojito-assets-addon',
-    'mojito-http-addon',
-    'mojito-deploy-addon',
-    'mojito-config-addon',
-    'mojito-shaker-addon',
-    'mojito-pipeline-addon',
-    'PipelineFrameMojit'
-]});
+}, '0.1.0', {
+    requires: [
+        'mojito',
+        'mojito-util',
+        'mojito-assets-addon',
+        'mojito-http-addon',
+        'mojito-deploy-addon',
+        'mojito-config-addon',
+        'mojito-shaker-addon',
+        'mojito-pipeline-addon',
+        'PipelineFrameMojit'
+    ]
+});
