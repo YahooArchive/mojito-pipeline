@@ -4,7 +4,8 @@
  * See the accompanying LICENSE file for terms.
  */
 
-/*jslint nomen:true, plusplus:true*/
+/*jslint nomen:true, plusplus:true, continue: true */
+/*global YUI */
 
 YUI.add('PipelineFrameMojit', function (Y, NAME) {
     'use strict';
@@ -20,13 +21,27 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
 
         _init: function (ac) {
             this.ac = ac;
+
             this.flushedAssets = {
                 css: [],
                 js: [],
                 blob: []
             };
+
             this.view = {};
+
             this.binders = {};
+
+            // Ensure that the gzip buffer is flushed immediately...
+            var response = ac.http.getResponse(), fn;
+
+            if (response.gzip && response.gzip.flush) {
+                fn = ac.flush;
+                ac.flush = function () {
+                    fn.apply(ac, arguments);
+                    response.gzip.flush();
+                };
+            }
         },
 
         /**
@@ -45,7 +60,7 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
                 // and any placeholder div's.
                 beforeFlush: function (event, done, root) {
                     self.view.child = root.data;
-                    self._render.call(self, self.view, root.meta, function (data, meta) {
+                    self._render(self.view, root.meta, function (data, meta) {
                         root.data = data;
                         root.meta = meta;
                         done();
@@ -127,8 +142,7 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
          * @param {Object} meta The meta data to be processed.
          */
         _processMeta: function (meta) {
-            var self = this,
-                flushedAssets = this.flushedAssets,
+            var flushedAssets = this.flushedAssets,
                 binders = this.binders,
                 ac = this.ac;
 
@@ -164,8 +178,7 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
          */
         _addMojitoClient: function (meta) {
             var ac = this.ac,
-                binders = this.binders,
-                bottom = this.bottom;
+                binders = this.binders;
 
             // Construct the Mojito client runtime if this it the last flush and the Mojito client should be deployed.
             if (ac.pipeline.closed && ac.config.get('deploy') === true) {
@@ -214,6 +227,7 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
                     });
                 });
             });
+
             flushData.data = renderedAssets.top + flushData.data + renderedAssets.bottom;
 
             // merge any consecutive script
@@ -238,12 +252,14 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
         }
     };
 
-}, '0.1.0', {requires: [
-    'mojito',
-    'mojito-util',
-    'mojito-assets-addon',
-    'mojito-http-addon', // Gives access to the HTTP object, to any controller using the pipeline add-on.
-    'mojito-deploy-addon',
-    'mojito-config-addon',
-    'mojito-pipeline-addon'
-]});
+}, '0.1.0', {
+    requires: [
+        'mojito',
+        'mojito-util',
+        'mojito-assets-addon',
+        'mojito-http-addon',
+        'mojito-deploy-addon',
+        'mojito-config-addon',
+        'mojito-pipeline-addon'
+    ]
+});
