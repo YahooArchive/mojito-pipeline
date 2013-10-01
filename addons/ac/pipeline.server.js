@@ -146,7 +146,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         /**
          * Initializes this task by determining subscription targets
          * and merging default tests with user rules.
-         * @param {Object} specs The configuration for this task = the specs of the mojit instance associated
+         * @param {Object} specs the configuration for this task.
          * @param {Object} pipeline Pipeline reference.
          * @param {boolean} Whether this task initialized successfully.
          */
@@ -157,7 +157,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             // Merge this task's specs with any section specs that was provided to Pipeline.
             if (pipeline.sections[specs.id]) {
                 self.isSection = true;
-                Y.mix(specs, pipeline.sections[specs.id], true);
+                Y.mix(specs, pipeline.sections[specs.id]);
             }
 
             self.specs = specs;
