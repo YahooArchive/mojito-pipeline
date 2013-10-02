@@ -34,10 +34,12 @@ YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
             this.view = ac.shaker.data.htmlData;
         },
 
-        _render: function (data, meta, callback) {
-            var ac = this.ac;
+        _render: function (callback) {
+            var ac = this.ac,
+                meta = this.meta;
 
             // Add top rollups, app resources, and filter assets.
+            meta.assets = meta.assets || {};
             ac.shaker._addRouteRollups(meta.assets, ['top', 'shakerTop']);
             ac.shaker._addAppResources(meta.assets);
             ac.shaker._filterAndUpdate(meta.assets);
@@ -51,14 +53,12 @@ YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
 
             PipelineFrameMojit._processMeta.apply(this, arguments);
 
-            if (!ac.pipeline.closed) {
-                // Queue up postfetch assets such that the are added only on the last flush.
-                Y.Object.each(meta.assets.postfetch, function (typeAssets, type) {
-                    Array.prototype.push.apply(postfetch[type], typeAssets);
-                });
+            // Queue up postfetch assets such that the are added only on the last flush.
+            Y.Object.each(meta.assets.postfetch, function (typeAssets, type) {
+                Array.prototype.push.apply(postfetch[type], typeAssets);
+            });
 
-                delete meta.assets.postfetch;
-            }
+            delete meta.assets.postfetch;
         },
 
         _addMojitoClient: function (meta) {

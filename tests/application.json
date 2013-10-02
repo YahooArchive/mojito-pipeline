@@ -14,7 +14,7 @@
                 "nojs": {
                     "dispatched": ["root", "a", "b", "c", "d"],
                     "rendered": ["d", "c", "b", "a", "root"],
-                    "flushed": ["root"],
+                    "flushed": [],
                     "acDispatchCount": 5,
                     "acFlushCount": 0
                 }
