@@ -67,7 +67,7 @@ var pipeline = (function () {
                 n.innerHTML = unescape(self.markup);
 
                 for (i = 0; i < n.children.length; i++) {
-                    // insert content just before the stub inside the parent node
+                    // Insert content just before the stub inside the parent node
                     // e.g.:
                     // <div id="parent">
                     //  <!-- the content will be inserted here -->

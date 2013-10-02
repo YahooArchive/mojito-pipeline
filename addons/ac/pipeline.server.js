@@ -144,49 +144,35 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         this.meta = {};
     }
 
-    // These are the properties that are accepted from a Task's configuration.
-    // TODO Revisit this
-    Task.ACCEPTED_CONFIG_PROPERTIES = Array.prototype.concat(EVENT_TYPES, ACTIONS,
-        ['id', 'sections', 'group', 'default', 'dependencies', 'sectionName', 'parentSectionName'],
-        ['type', 'action', 'base', 'params', 'config']);
-
     Task.prototype = {
 
         /**
-         * Initializes this task by merging it with its config, determining subscription targets
+         * Initializes this task by determining subscription targets
          * and merging default tests with user rules.
-         * @param {Object} config The configuration for this task.
+         * @param {Object} specs the configuration for this task.
          * @param {Object} pipeline Pipeline reference.
          * @param {boolean} Whether this task initialized successfully.
          */
-        initialize: function (config, pipeline) {
+        initialize: function (specs, pipeline) {
             var self = this,
                 type;
 
-            // Merge this task's config with any section config that was provided to Pipeline.
-            if (pipeline.sections[config.id]) {
+            // Merge this task's specs with any section specs that was provided to Pipeline.
+            if (pipeline.sections[specs.id]) {
                 self.isSection = true;
-                Y.mix(config, pipeline.sections[config.id], true);
+                Y.mix(specs, pipeline.sections[specs.id]);
             }
 
-            // Merge this task with its configuration.
-            // TODO Revisit this, what if the user needs a value from the original config
-            Y.mix(this, config, true);
-            /*
-            Y.Object.each(config, function (value, property) {
-                if (Task.ACCEPTED_CONFIG_PROPERTIES.indexOf(property) !== -1) {
-                    self[property] = value;
-                }
-            });*/
+            self.specs = specs;
 
-            if (!self.type && !self.base) {
+            if (!self.specs.type && !self.specs.base) {
                 Y.log('Tasks must have a type or a base.', 'error', NAME);
                 return false;
             }
 
             // Generate an id consisting of this task's base or type and the next available number for that base/type.
             if (self.id === undefined || self.id === null) {
-                type = self.base || self.type;
+                type = self.specs.base || self.specs.type;
                 pipeline._typeCount[type] = pipeline._typeCount[type] || 0;
                 pipeline._typeCount[type]++;
                 self.id = type + '@' + pipeline._typeCount[type];
@@ -194,14 +180,14 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 pipeline._tasks[self.id] = self;
             }
 
-            Y.Array.each(self.dependencies, function (dependency) {
+            Y.Array.each(self.specs.dependencies, function (dependency) {
                 self.dependencyTasks[dependency] = pipeline._getTask(dependency);
                 // This task can only be dispatched after all dependencies have been rendered since this
                 // task's controller depends on these tasks.
                 self.dispatchTargets[dependency] = ['afterRender'];
             });
 
-            Y.Object.each(self.sections, function (section, sectionId) {
+            Y.Object.each(self.specs.sections, function (section, sectionId) {
                 self.sectionTasks[sectionId] = pipeline._getTask(sectionId);
                 // If JS is disabled, this task should only render after each child section has rendered.
                 // This ensures that the children sections become embedded in this section, without being stubbed with empty div's.
@@ -212,6 +198,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             Y.mix(self.childrenTasks, self.dependencyTasks);
             Y.mix(self.childrenTasks, self.sectionTasks);
+
+            self.timeout = self.specs.timeout;
+
             Y.Object.each(self.childrenTasks, function (childTask) {
                 childTask.parent = self;
                 // Children sections without a specified timeout inherit this task's timeout.
@@ -235,14 +224,14 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             // Combine default tests with user rules.
             Y.Array.each(ACTIONS, function (action) {
-                if (self[action]) {
+
+                if (self.specs[action]) {
 
                     var defaultTest = self[action + 'Test'],
-                        parsedRule = RuleParser.getParsedRule(self[action], pipeline),
+                        parsedRule = RuleParser.getParsedRule(self.specs[action], pipeline),
                         ruleTest = function () {
                             return eval(parsedRule.rule);
                         };
-
 
                     // Replace the action test with a combined test containing the default test and the rule test.
                     self[action + 'Test'] = function () {
@@ -328,7 +317,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
          * @returns {boolean} Whether to error out this task
          */
         errorTest: function (pipeline) {
-            return !!this.error;
+            return !!this.specs.error;
         },
 
         /**
@@ -373,7 +362,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 case 'displayTest':
                     serialized += ',\n' + propertyName + ': function (pipeline) {' +
                             'return eval(\'' +
-                                RuleParser.getParsedRule(self.display).rule + '\');}';
+                                RuleParser.getParsedRule(self.specs.display).rule + '\');}';
                     break;
                 case 'timedOut':
                 case 'errored':
@@ -531,12 +520,12 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         /**
          * Pushes a new task into the Pipeline. The processing is done asynchronously,
-         * i.e upon return a task with the id given in @taskConfig will exist and be scheduled for later dispatch.
-         * @param {Object} taskConfig The task's configuration object.
+         * i.e upon return a task with the id given in @taskSpecs will exist and be scheduled for later dispatch.
+         * @param {Object} taskSpecs The task's configuration object.
          * @returns {String} The task's id if specified, else its generated id. null if there was an error.
          */
-        push: function (taskConfig) {
-            var task = taskConfig.id ? this._getTask(taskConfig.id) : new Task();
+        push: function (taskSpecs) {
+            var task = taskSpecs.id ? this._getTask(taskSpecs.id) : new Task();
 
             // A task should not be pushed multiple times as this can result in duplicate dispatching/rendering/flushing
             // and can cause unexpected behavior since events might be fired multiple times for this task.
@@ -545,7 +534,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 return null;
             }
 
-            if (!task.initialize(taskConfig, this)) {
+            if (!task.initialize(taskSpecs, this)) {
                 Y.log('Error initializing task ' + task.id + '.', 'error', NAME);
                 return null;
             }
@@ -561,7 +550,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             // Push any default sections of this task. Sections marked as default always get pushed automatically by pipeline
             // instead of the data source.
-            Y.Object.each(task.sections, function (config, sectionId) {
+            Y.Object.each(task.specs.sections, function (config, sectionId) {
                 var section = config || {};
                 section.id = sectionId;
                 if (section['default']) {
@@ -592,12 +581,22 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             // Subscribe to any event specified in the task's config, which the task is interested about itself.
             Y.Array.each(EVENT_TYPES, function (event) {
-                if (!task[event]) {
-                    return;
+                var targets;
+                if (task.specs[event]) {
+                    targets = {};
+                    targets[task.id] = [event];
+                    pipeline._events.subscribe(targets, task.specs[event]);
                 }
-                var targets = {};
-                targets[task.id] = [event];
-                pipeline._events.subscribe(targets, task[event]);
+            });
+
+            // Push any default sections of this task. Sections marked as default always get pushed automatically by pipeline
+            // instead of the data source.
+            Y.Object.each(task.specs.sections, function (config, sectionId) {
+                var section = config || {};
+                section.id = sectionId;
+                if (section['default']) {
+                    pipeline.push(section);
+                }
             });
 
             // Test this task's error condition; error out and return if it passes.
@@ -720,7 +719,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             // Set the parameters of this task. As is normally done in Mojito,
             // if no custom parameters exist, the dispatcher's parameters are used.
-            task.params = task.params || Y.clone(pipeline._frame.params);
+            task.params = task.specs.params || Y.clone(pipeline._frame.params);
 
             // All children tasks are made available to a task's mojit through params.body.children.
             task.params.body = task.params.body || {};
@@ -762,10 +761,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
                 command = {
                     instance: {
-                        base: task.base,
-                        type: task.type,
-                        action: task.action,
-                        config: task.config
+                        base: task.specs.base,
+                        type: task.specs.type,
+                        action: task.specs.action,
+                        config: task.specs.config
                     },
                     context: pipeline._frame.context,
                     params: task.params,
@@ -946,7 +945,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                         // Report any task that hasn't been flushed.
                         Y.Object.each(pipeline._tasks, function (task) {
                             if (!task.flushed && task.pushed) {
-                                Y.log(task.id + '(' + task.type + ') remained unflushed.', 'error', NAME);
+                                Y.log(task.id + '(' + task.specs.type + ') remained unflushed.', 'error', NAME);
                             }
                         });
                     });
