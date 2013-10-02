@@ -172,7 +172,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             // Generate an id consisting of this task's base or type and the next available number for that base/type.
             if (self.id === undefined || self.id === null) {
-                type = self.base || self.type;
+                type = self.specs.base || self.specs.type;
                 pipeline._typeCount[type] = pipeline._typeCount[type] || 0;
                 pipeline._typeCount[type]++;
                 self.id = type + '@' + pipeline._typeCount[type];
@@ -317,7 +317,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
          * @returns {boolean} Whether to error out this task
          */
         errorTest: function (pipeline) {
-            return !!this.error;
+            return !!this.specs.error;
         },
 
         /**
@@ -362,7 +362,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 case 'displayTest':
                     serialized += ',\n' + propertyName + ': function (pipeline) {' +
                             'return eval(\'' +
-                                RuleParser.getParsedRule(self.display).rule + '\');}';
+                                RuleParser.getParsedRule(self.specs.display).rule + '\');}';
                     break;
                 case 'timedOut':
                 case 'errored':
@@ -550,7 +550,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             // Push any default sections of this task. Sections marked as default always get pushed automatically by pipeline
             // instead of the data source.
-            Y.Object.each(task.sections, function (config, sectionId) {
+            Y.Object.each(task.specs.sections, function (config, sectionId) {
                 var section = config || {};
                 section.id = sectionId;
                 if (section['default']) {
