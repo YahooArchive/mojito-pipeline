@@ -61,12 +61,12 @@ var pipeline = (function () {
                 stub = document.getElementById(this.id + '-section');
 
             events.fire(this.id, 'beforeDisplay', function () {
-                var i, n, child;
+                var i = 0, n, child, script;
 
                 n = document.createElement('div');
                 n.innerHTML = unescape(self.markup);
 
-                for (i = 0; i < n.children.length; i++) {
+                while (i < n.children.length) {
                     // insert content just before the stub inside the parent node
                     // e.g.:
                     // <div id="parent">
@@ -75,7 +75,17 @@ var pipeline = (function () {
                     //  <span> some normal content</span>
                     //  <!-- this is where stub.parentNode.appendChild would insert the node, which is incorrect -->
                     // </div>
-                    stub.parentNode.insertBefore(n.children[i], stub);
+                    if (n.children[0].tagName === 'SCRIPT') {
+                        // If the child is a script, it must first be created using createElement,
+                        // in order to ensure that the script is executed.
+                        script = document.createElement('script');
+                        script.innerHTML = n.children[i].innerHTML;
+                        stub.parentNode.insertBefore(script, stub);
+                        i++;
+                    } else {
+                        stub.parentNode.insertBefore(n.children[i], stub);
+                    }
+
                 }
 
                 self.displayed = true;
