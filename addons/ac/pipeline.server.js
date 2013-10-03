@@ -47,6 +47,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         if (!pipeline) {
             return MojitoActionContextDone.apply(this, doneArgs);
         }
+
+        pipeline._events.fire(task.id, 'dispatchEnd', null, task);
+
         // TODO find a better way to keep track of actionContext and done arguments.
         task.actionContext = this;
         task.doneArgs = doneArgs;
@@ -765,6 +768,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                             return (task.renderCallback || task.dispatchCallback)();
                         }
 
+                        pipeline._events.fire(task.id, 'renderEnd', null, task);
+
                         task.data = data;
 
                         // TODO lets see if we can reduce the number of times we call metaMerge
@@ -804,6 +809,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 // TODO try finding a better way to keep track of the callback.
                 task.dispatchCallback = callback;
                 // Dispatch will call the controller, which in turn calls ac.done, which calls @_afterDispatch.
+                pipeline._events.fire(task.id, 'dispatchStart', null, task);
                 pipeline._frame.ac._dispatch(command, adapter);
             }, task);
         },
@@ -887,6 +893,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             // TODO try finding a better way to keep track of the callback.
             task.renderCallback = callback;
             // Call the original ac.done
+            pipeline._events.fire(task.id, 'renderStart', null, task);
             MojitoActionContextDone.apply(task.actionContext, task.doneArgs);
         },
 
