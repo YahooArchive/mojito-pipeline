@@ -61,12 +61,31 @@ var pipeline = (function () {
                 stub = document.getElementById(this.id + '-section');
 
             events.fire(this.id, 'beforeDisplay', function () {
-                var i = 0, n, child, script;
+                var i, n, child, script,
+                    replaceScripts = function (node) {
+                        var i,
+                            child,
+                            script;
+                        for (i = 0; i < node.children.length; i++) {
+                            child = node.children[i];
+                            if (child.tagName === 'SCRIPT') {
+                                script = document.createElement('script');
+                                script.innerHTML = child.innerHTML;
+                                node.replaceChild(script, child);
+                            } else {
+                                replaceScripts(child);
+                            }
+                        }
+                    };
 
                 n = document.createElement('div');
                 n.innerHTML = unescape(self.markup);
 
-                while (i < n.children.length) {
+                // Replace any scripts with a newly created element using document.creteElement.
+                // This ensures that the script is executed.
+                replaceScripts(n);
+
+                while (n.children.length > 0) {
                     // insert content just before the stub inside the parent node
                     // e.g.:
                     // <div id="parent">
@@ -75,17 +94,8 @@ var pipeline = (function () {
                     //  <span> some normal content</span>
                     //  <!-- this is where stub.parentNode.appendChild would insert the node, which is incorrect -->
                     // </div>
-                    if (n.children[0].tagName === 'SCRIPT') {
-                        // If the child is a script, it must first be created using createElement,
-                        // in order to ensure that the script is executed.
-                        script = document.createElement('script');
-                        script.innerHTML = n.children[i].innerHTML;
-                        stub.parentNode.insertBefore(script, stub);
-                        i++;
-                    } else {
-                        stub.parentNode.insertBefore(n.children[i], stub);
-                    }
-
+                    child = n.children[0];
+                    stub.parentNode.insertBefore(child, stub);
                 }
 
                 self.displayed = true;
