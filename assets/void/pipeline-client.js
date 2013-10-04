@@ -171,7 +171,7 @@ var pipeline = (function () {
             events.fire('pipeline', 'onClose', function () {
                 var id,
                     task;
-                if (typeof console === 'undefined' || typeof console.error !== 'function') {
+                if (typeof console !== 'undefined' && typeof console.error === 'function') {
                     for (id in this.tasks) {
                         if (this.tasks.hasOwnProperty(id)) {
                             task = this.tasks[id];
