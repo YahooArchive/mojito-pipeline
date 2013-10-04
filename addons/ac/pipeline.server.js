@@ -603,8 +603,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             // Push any default sections of this task. Sections marked as default always get pushed automatically by pipeline
             // instead of the data source.
-            Y.Object.each(task.specs.sections, function (config, sectionId) {
-                var section = config || {};
+            Y.Object.each(task.specs.sections, function (sectionSpec, sectionId) {
+                var section = sectionSpec || {};
                 section.id = sectionId;
                 if (section['default']) {
                     this.push(section);
