@@ -524,7 +524,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             var syncCallback = function (event, done) {
                 var optionalArgs = Array.prototype.slice.call(arguments, 0).slice(2),
                     syncArgs = [event].concat(optionalArgs);
-                callback.apply(this, syncArgs);
+                callback.apply(null, syncArgs);
                 done();
             };
 
@@ -964,7 +964,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                         // Report an error for tasks that have been pushed but never reached their end state,
                         // i.e., flushed in the JS enabled case, and rendered in the JS disabled case.
                         Y.Object.each(pipeline._tasks, function (task) {
-                            if (!task.flushed && task.pushed) {
+                            if (task.pushed && (pipeline.client.jsEnabled ? !task.flushed : !task.rendered)) {
                                 var type = task.specs.base || task.specs.type;
                                 Y.log(task.id + ' (' + type + ') remained unflushed.', 'error', NAME);
                             }
