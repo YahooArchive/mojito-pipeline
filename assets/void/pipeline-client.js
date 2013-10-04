@@ -61,13 +61,33 @@ var pipeline = (function () {
                 stub = document.getElementById(this.id + '-section');
 
             events.fire(this.id, 'beforeDisplay', function () {
-                var i, n, child;
+                var i, n, child, script,
+                    replaceScripts = function (node) {
+                        var i,
+                            child,
+                            script;
+                        for (i = 0; i < node.children.length; i++) {
+                            child = node.children[i];
+                            if (child.tagName === 'SCRIPT') {
+                                script = document.createElement('script');
+                                script.innerHTML = child.innerHTML;
+                                node.replaceChild(script, child);
+                            } else {
+                                replaceScripts(child);
+                            }
+                        }
+                    };
 
                 n = document.createElement('div');
                 n.innerHTML = unescape(self.markup);
 
-                for (i = 0; i < n.children.length; i++) {
+                // Replace any scripts with a newly created element using document.creteElement.
+                // This ensures that the script is executed.
+                replaceScripts(n);
+
+                while (n.children.length > 0) {
                     // Insert content just before the stub inside the parent node
+
                     // e.g.:
                     // <div id="parent">
                     //  <!-- the content will be inserted here -->
@@ -75,7 +95,8 @@ var pipeline = (function () {
                     //  <span> some normal content</span>
                     //  <!-- this is where stub.parentNode.appendChild would insert the node, which is incorrect -->
                     // </div>
-                    stub.parentNode.insertBefore(n.children[i], stub);
+                    child = n.children[0];
+                    stub.parentNode.insertBefore(child, stub);
                 }
 
                 self.displayed = true;
