@@ -172,12 +172,13 @@ var pipeline = (function () {
                 var id,
                     task;
                 if (typeof console === 'undefined' || typeof console.error !== 'function') {
-                    return;
-                }
-                for (id in this.tasks) {
-                    task = this.tasks[id];
-                    if (task.pushed && !task.displayed) {
-                        console.error(task.id + ' remained undisplayed.');
+                    for (id in this.tasks) {
+                        if (this.tasks.hasOwnProperty(id)) {
+                            task = this.tasks[id];
+                            if (task.pushed && !task.displayed) {
+                                console.error(task.id + ' remained undisplayed.');
+                            }
+                        }
                     }
                 }
             }.bind(this));
