@@ -168,7 +168,7 @@ var pipeline = (function () {
         },
 
         close: function () {
-            events.fire('pipeline', 'close', function () {
+            events.fire('pipeline', 'onClose', function () {
                 var id,
                     task;
                 if (typeof console === 'undefined' || typeof console.error !== 'function') {
