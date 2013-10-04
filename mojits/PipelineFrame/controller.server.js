@@ -67,21 +67,27 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
                 // If JS is enabled process the meta data, add the mojito client and wrap the serialized tasks
                 // with their assets. If this is the first flush, prepend the rendered frame to the flush data.
                 ac.pipeline.onAsync('pipeline', 'beforeFlush', function (event, done, flushData) {
-                    self._processMeta(flushData.meta);
-                    self._addMojitoClient(flushData.meta);
-                    self._wrapFlushData(flushData);
+                    var processFlushData = function () {
+                        flushData.meta.assets = flushData.meta.assets || {};
+                        self._processMeta(flushData.meta);
+                        self._addMojitoClient(flushData.meta);
+                        self._wrapFlushData(flushData);
+                    };
 
-                    if (!renderedFrame) {
+                    if (renderedFrame === undefined) {
                         // Stub the root tasks position since the root section will be pushed in the client-side.
                         self.view.child = '<div id="root-section"></div>';
-                        return self._render(function (data, meta) {
+                        self._render(function (data, meta) {
+                            processFlushData();
                             renderedFrame = data;
                             flushData.data = renderedFrame + flushData.data;
                             flushData.meta = meta;
                             done();
                         });
-
+                        return;
                     }
+
+                    processFlushData();
                     done();
                 });
             } else {
@@ -127,7 +133,6 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
             }
 
             // Pass the assets to this frame's asset, such that they appear in the rendered view.
-            ac.assets.assets = {}; // Make sure assets are empty in order to add this frame's assets.
             ac.assets.addAssets(meta.assets);
 
             // Merge the rendered assets with the view data.
@@ -201,7 +206,6 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
 
                 // Make sure that meta data assets have a bottom with js and blob
                 // in order to receive the Mojito client runtime.
-                meta.assets = meta.assets || {};
                 meta.assets.bottom = meta.assets.bottom || {};
                 meta.assets.bottom.js = meta.assets.bottom.js || [];
                 meta.assets.bottom.blob = meta.assets.bottom.blob || [];
