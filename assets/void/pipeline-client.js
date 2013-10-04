@@ -86,7 +86,8 @@ var pipeline = (function () {
                 replaceScripts(n);
 
                 while (n.children.length > 0) {
-                    // insert content just before the stub inside the parent node
+                    // Insert content just before the stub inside the parent node
+
                     // e.g.:
                     // <div id="parent">
                     //  <!-- the content will be inserted here -->
