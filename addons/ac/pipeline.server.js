@@ -157,6 +157,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             var self = this,
                 type;
 
+            this.pipeline = pipeline;
+
             // Merge this task's specs with any section specs that was provided to Pipeline.
             if (pipeline.sections[specs.id]) {
                 self.isSection = true;
@@ -202,7 +204,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             self.timeout = self.specs.timeout;
 
             Y.Object.each(self.childrenTasks, function (childTask) {
-                childTask.parent = self;
+                childTask.parentTask = self;
                 // Children sections without a specified timeout inherit this task's timeout.
                 if (childTask.timeout === undefined) {
                     childTask.timeout = self.timeout;
@@ -211,8 +213,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             // In the client-side, if this task has a parent section, it should be displayed after its parent has been displayed.
             // This ensure that this task has a container where it can be embedded.
-            if (self.parentSectionName) {
-                self.displayTargets[self.parentSectionName] = ['afterDisplay'];
+            if (self.specs.parentSectionName) {
+                self.displayTargets[self.specs.parentSectionName] = ['afterDisplay'];
             }
 
             if (!pipeline.client.jsEnabled) {
@@ -331,6 +333,34 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             if (!this.rendered) {
                 return '<div id="' + this.id + '-section"></div>';
             }
+
+            if (this.embedded) {
+                return this.data;
+            }
+
+            // If this task has a parent that hasn't been rendered,
+            // then it will be embedded inside its parent with its rendered data.
+            if (this.parentTask && !this.parentTask.rendered) {
+                this.embedded = true;
+                this.parentTask.embeddedChildren.push(this);
+
+                // Include this task's meta data in its parent since it is now embedded.
+                Y.mojito.util.metaMerge(this.parentTask.meta, this.meta);
+
+                if (this.isSection) {
+                    // If this embedded child is in the flush queue, remove it.
+                    var index = this.pipeline._flushQueue.indexOf(this);
+                    if (index !== -1) {
+                        this.pipeline._flushQueue.splice(index, 1);
+                    }
+                    // Make sure the flushSubscription is unsubscribed
+                    // because it will get flushed automatically with the parent.
+                    if (this.flushSubscription) {
+                        this.flushSubscription.unsubscribe();
+                    }
+                }
+            }
+
             return this.data;
         },
 
@@ -859,32 +889,14 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
          */
         _render: function (task, callback) {
             var pipeline = this;
-            Y.Object.each(task.childrenTasks, function (childTask) {
-                if (childTask.rendered) {
-                    childTask.embedded = true;
-                    task.embeddedChildren.push(childTask);
-
-                    // include child's meta in parent since it is now embedded
-                    Y.mojito.util.metaMerge(task.meta, childTask.meta);
-
-                    if (childTask.isSection) {
-                        // if this embedded child is in the flush queue, remove it
-                        var index = pipeline._flushQueue.indexOf(childTask);
-                        if (index !== -1) {
-                            pipeline._flushQueue.splice(index, 1);
-                        }
-                        // make sure the flushSubscription is unsubscribed
-                        // because it will get flushed automatically with the parent
-                        return childTask.flushSubscription && childTask.flushSubscription.unsubscribe();
-                    }
-                }
-            });
 
             // Keep track of this method's callback, since this callback should be passed to Pipeline._afterRender after rendering.
             // TODO try finding a better way to keep track of the callback.
             task.renderCallback = callback;
-            // Call the original ac.done
+
             pipeline._events.fire(task.id, 'renderStart', null, task);
+
+            // Call the original ac.done
             MojitoActionContextDone.apply(task.actionContext, task.doneArgs);
         },
 
