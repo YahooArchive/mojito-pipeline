@@ -684,7 +684,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     task.closeSubscription.unsubscribe();
                     task.dispatchSubscription.unsubscribe();
                     // Fire timeout and then dispatch.
-                    pipeline._timeout(task, 'data still missing after ' + task.timeout + 'ms.', function () {
+                    pipeline._timeout(task, 'dispatch dependencies still unsatisfied after ' + task.timeout + 'ms.', function () {
                         // In case a task has a timeout that is triggered after pipeline closing,
                         // we want to block the closing until all dispatchings are finished. The events module
                         // resumes the closing after ALL the onClose of the subscribers have been called;
@@ -720,7 +720,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     clearTimeout(task.timeoutSubscription);
                     task.timeoutSubscription = null;
 
-                    pipeline._timeout(task, 'data still missing after pipeline closed.', function () {
+                    pipeline._timeout(task, 'dispatch dependencies still unsatisfied after pipeline closed.', function () {
                         pipeline._dispatch(task, function () {
                             done();
                         });
@@ -1131,6 +1131,36 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
          * @param {Object} callback
          */
         _timeout: function (task, message, callback) {
+            var pipeline = this;
+
+            // Augment timeout message with the dispatch rule and the last state of all of this task's dependencies.
+            message += '\nDispatch rule: dispatch after dependencies have been rendered' +
+                       (task.specs && task.specs.dispatch ? ' and (' + task.specs.dispatch + ')' : '') +
+                       '\nDependencies\' last states:';
+
+            Y.Object.each(task.dispatchTargets, function (events, dependencyId) {
+                Y.Array.each(events, function (event) {
+                    var dependency,
+                        specs,
+                        lastState = 'unpushed';
+                    if (dependencyId === 'pipeline') {
+                        lastState = 'closed';
+                    } else {
+                        dependency = pipeline._getTask(dependencyId);
+                        Y.Array.some(['errored', 'timedOut', 'flushed', 'rendered', 'dispatched', 'pushed'], function (state) {
+                            if (dependency[state]) {
+                                lastState = state;
+                                return true;
+                            }
+                        });
+                        specs = dependency.specs;
+                        dependencyId += ' (' + (specs ? (specs.type || specs.base) : 'Unknown') + ')';
+                    }
+
+                    message += '\n- ' + dependencyId + ': ' + lastState;
+                });
+            });
+
             Y.log(task.id + ' timedout: ' + message, 'error', NAME);
             task.timedOut = true;
             task.data = '<span>TIMEOUT</span>';
