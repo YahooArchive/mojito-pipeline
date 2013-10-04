@@ -1043,6 +1043,11 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         _flushQueuedTasks: function (flushData) {
             var pipeline = this;
 
+            // If Pipeline is closed, let the Pipeline client know.
+            if (pipeline.closed) {
+                flushData.data += 'pipeline.close()';
+            }
+
             flushData.data = flushData.data && this.client.jsEnabled ? '<script>' + flushData.data + '</script>' : '';
 
             this._events.fire('pipeline', 'beforeFlush', function () {
