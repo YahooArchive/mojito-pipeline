@@ -62,6 +62,7 @@ var pipeline = (function () {
 
             events.fire(this.id, 'beforeDisplay', function () {
                 var i, n, child, script,
+                    displayedNodes = [],
                     replaceScripts = function (node) {
                         var i,
                             child,
@@ -97,19 +98,20 @@ var pipeline = (function () {
                     // </div>
                     child = n.children[0];
                     stub.parentNode.insertBefore(child, stub);
+                    displayedNodes.push(child);
                 }
 
                 self.displayed = true;
 
-                if (callback) {
-                    callback();
-                }
-
-                events.fire(self.id, 'afterDisplay');
+                events.fire(self.id, 'afterDisplay', null, displayedNodes);
 
                 for (i = 0; i < self.embeddedChildren.length; i++) {
                     child = self.embeddedChildren[i];
                     events.fire(child, 'afterDisplay');
+                }
+
+                if (callback) {
+                    callback();
                 }
             });
         }
@@ -140,6 +142,8 @@ var pipeline = (function () {
             // TODO: fire an 'onPush' event
             this.tasks[taskConfig.id] = task;
 
+            task.pushed = true;
+
             // Merge default displayTest with user provided test
             if (taskConfig.displayTest) {
                 task.displayTest = function () {
@@ -161,6 +165,23 @@ var pipeline = (function () {
                     }
                 });
             }
+        },
+
+        close: function () {
+            events.fire('pipeline', 'onClose', function () {
+                var id,
+                    task;
+                if (typeof console === 'undefined' || typeof console.error !== 'function') {
+                    for (id in this.tasks) {
+                        if (this.tasks.hasOwnProperty(id)) {
+                            task = this.tasks[id];
+                            if (task.pushed && !task.displayed) {
+                                console.error(task.id + ' remained undisplayed.');
+                            }
+                        }
+                    }
+                }
+            }.bind(this));
         },
 
         _getTask: function (id) {
