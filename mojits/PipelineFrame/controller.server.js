@@ -127,6 +127,7 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
             }
 
             // Pass the assets to this frame's asset, such that they appear in the rendered view.
+            ac.assets.assets = {}; // Make sure assets are empty in order to add this frame's assets.
             ac.assets.addAssets(meta.assets);
 
             // Merge the rendered assets with the view data.
