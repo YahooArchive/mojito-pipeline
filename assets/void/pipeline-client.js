@@ -67,24 +67,22 @@ var pipeline = (function () {
                         var i,
                             child,
                             script;
+
+                        if (node.tagName === 'SCRIPT') {
+                            script = document.createElement('script');
+                            script.text = node.text;
+                            node.parentNode.replaceChild(script, node);
+                            return;
+                        }
+
                         for (i = 0; i < node.children.length; i++) {
                             child = node.children[i];
-                            if (child.tagName === 'SCRIPT') {
-                                script = document.createElement('script');
-                                script.innerHTML = child.innerHTML;
-                                node.replaceChild(script, child);
-                            } else {
-                                replaceScripts(child);
-                            }
+                            replaceScripts(child);
                         }
                     };
 
                 n = document.createElement('div');
                 n.innerHTML = unescape(self.markup);
-
-                // Replace any scripts with a newly created element using document.creteElement.
-                // This ensures that the script is executed.
-                replaceScripts(n);
 
                 while (n.children.length > 0) {
                     // Insert content just before the stub inside the parent node
@@ -98,6 +96,14 @@ var pipeline = (function () {
                     // </div>
                     child = n.children[0];
                     stub.parentNode.insertBefore(child, stub);
+
+                    // Replace any scripts with a newly created element using document.creteElement.
+                    // This ensures that the script is executed.
+                    // In IE the created script gets executed immediately after creation so the script must be
+                    // replaced after any markup has been inserted onto the page, in case the script refers to
+                    // the markup.
+                    replaceScripts(child);
+
                     displayedNodes.push(child);
                 }
 
@@ -168,20 +174,21 @@ var pipeline = (function () {
         },
 
         close: function () {
+            var self = this;
             events.fire('pipeline', 'onClose', function () {
                 var id,
                     task;
                 if (typeof console !== 'undefined' && typeof console.error === 'function') {
-                    for (id in this.tasks) {
-                        if (this.tasks.hasOwnProperty(id)) {
-                            task = this.tasks[id];
+                    for (id in self.tasks) {
+                        if (self.tasks.hasOwnProperty(id)) {
+                            task = self.tasks[id];
                             if (task.pushed && !task.displayed) {
                                 console.error(task.id + ' remained undisplayed.');
                             }
                         }
                     }
                 }
-            }.bind(this));
+            });
         },
 
         _getTask: function (id) {
