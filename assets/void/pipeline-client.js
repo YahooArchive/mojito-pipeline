@@ -183,7 +183,9 @@ var pipeline = (function () {
                         if (self.tasks.hasOwnProperty(id)) {
                             task = self.tasks[id];
                             if (task.pushed && !task.displayed) {
-                                console.error(task.id + ' remained undisplayed.');
+                                console.error(task.id + ' remained undisplayed. ' +
+                                    'Make sure that its display dependencies are satisfied ' +
+                                    'and that a stub exists for it to be displayed.');
                             }
                         }
                     }
