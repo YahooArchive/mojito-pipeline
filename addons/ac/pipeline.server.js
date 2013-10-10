@@ -151,7 +151,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
          * and merging default tests with user rules.
          * @param {Object} specs the configuration for this task.
          * @param {Object} pipeline Pipeline reference.
-         * @param {String} An error message if an error occurred.
+         * @param {Boolean} Whether this task initialized successfully.
          */
         initialize: function (specs, pipeline) {
             var self = this,
@@ -168,7 +168,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             self.specs = specs;
 
             if (!self.specs.type && !self.specs.base) {
-                return 'tasks must have a base or a type.';
+                Y.log('Error initializing task ' + self.id + ': tasks must have a base or a type.', 'error', NAME);
+                return false;
             }
 
             // Generate an id consisting of this task's base or type and the next available number for that base/type.
@@ -243,6 +244,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     self[action + 'Targets'] = Y.mojito.util.blend(self[action + 'Targets'], parsedRule.targets);
                 }
             });
+
+            return true;
         },
 
         /**
@@ -662,8 +665,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
          * @returns {String} The task's id if specified, else its generated id. null if there was an error.
          */
         push: function (taskSpecs) {
-            var task = taskSpecs.id ? this._getTask(taskSpecs.id) : new Task(),
-                initializationError;
+            var task = taskSpecs.id ? this._getTask(taskSpecs.id) : new Task();
 
             // A task should not be pushed multiple times as this can result in duplicate dispatching/rendering/flushing
             // and can cause unexpected behavior since events might be fired multiple times for this task.
@@ -672,10 +674,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 return null;
             }
 
-            initializationError = task.initialize(taskSpecs, this);
-
-            if (initializationError) {
-                Y.log('Error initializing task ' + task.id + ': ' + initializationError, 'error', NAME);
+            if (!task.initialize(taskSpecs, this)) {
                 return null;
             }
 
