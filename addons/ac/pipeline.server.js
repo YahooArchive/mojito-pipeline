@@ -452,6 +452,20 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         /**
+         * Stringifies this task's markup by escaping various characters
+         * and placing the markup in single quotes.
+         * @return {String} The stringified markup.
+         */
+        stringify: function () {
+            return '\'' + this.data.replace(/\\/g, '\\\\')   // Escape the escape character.
+                                   .replace(/\r?\n/g, '\\n') // Remove carriage returns and escape new lines.
+                                   .replace(/\'/g, '\\\'')   // Escape single quotes.
+                                   // Make sure ending script tags are escaped to prevent HTML parsing errors
+                                   // in old browsers.
+                                   .replace(/<\/script\s*>/g, '<\\/script>') + '\'';
+        },
+
+        /**
          * Serializes the task into a JS statement that calls the Pipeline client push method once the task is flushed
          * to the client. The push method tasks an object with several properties including 'markup', which is an
          * escaped string representation of the task's html.
@@ -461,7 +475,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         serialize: function () {
             var self = this,
                 serialized = 'pipeline.push({' +
-                    'markup: "' + escape(self.data) + '"';
+                    'markup: ' + self.stringify();
 
             Y.Object.each(self, function (property, propertyName) {
                 var embeddedChildren = [];

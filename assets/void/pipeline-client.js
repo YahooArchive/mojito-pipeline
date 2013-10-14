@@ -82,7 +82,7 @@ var pipeline = (function () {
                     };
 
                 n = document.createElement('div');
-                n.innerHTML = unescape(self.markup);
+                n.innerHTML = self.markup;
 
                 while (n.children.length > 0) {
                     // Insert content just before the stub inside the parent node
