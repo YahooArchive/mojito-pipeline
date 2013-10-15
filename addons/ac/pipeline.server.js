@@ -1178,9 +1178,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             this._events.fire('pipeline', 'beforeFlush', function () {
                 if (pipeline.closed) {
-                    pipeline._frame.ac.done('<!-- Flush Start -->\n' + flushData.data + '</body></html>' + '\n<!-- Flush End -->\n\n', flushData.meta);
+                    pipeline._frame.ac.done(flushData.data + '</body></html>', flushData.meta);
                 } else {
-                    pipeline._frame.ac.flush('<!-- Flush Start -->\n' + flushData.data + '\n<!-- Flush End -->\n\n', flushData.meta);
+                    pipeline._frame.ac.flush(flushData.data, flushData.meta);
                 }
                 pipeline._flushQueue = [];
             }, flushData);
