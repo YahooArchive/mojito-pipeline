@@ -162,8 +162,7 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
          */
         _processMeta: function (meta) {
             var flushedAssets = this.flushedAssets,
-                binders = this.binders,
-                ac = this.ac;
+                binders = this.binders;
 
             // Keep track of all the binders associated with each flush, so that they can be used to
             // construct the Mojito client on the last flush.
@@ -240,15 +239,12 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
                         var renderedAsset = type === 'js' ? '<script type="text/javascript" src="' + asset + '"></script>' :
                                         type === 'css' ? '<link type="text/css" rel="stylesheet" href="' + asset + '"></link>' : asset;
                         // Concatenates the rendered assets to the renderedAssets.top/bottom buffers.
-                        self._concatRenderdAssets(renderedAsset, renderedAssets, location, type);
+                        self._concatRenderedAssets(renderedAsset, renderedAssets, location, type);
                     });
                 });
             });
 
             flushData.data = renderedAssets.top + flushData.data + renderedAssets.bottom;
-
-            // merge any consecutive script
-            flushData.data = flushData.data.replace(/<\/script><script>/g, '');
         },
 
         /**
@@ -260,7 +256,7 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
          * @param {String} location The location of the rendered asset.
          * @param {String} type The type of the rendered asset.
          */
-        _concatRenderdAssets: function (renderedAsset, renderedAssets, location, type) {
+        _concatRenderedAssets: function (renderedAsset, renderedAssets, location, type) {
             if (location === 'top') {
                 renderedAssets.top += renderedAsset;
             } else {

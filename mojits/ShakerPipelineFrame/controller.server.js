@@ -50,8 +50,7 @@ YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
         },
 
         _processMeta: function (meta) {
-            var ac = this.ac,
-                postfetch = this.postfetch;
+            var postfetch = this.postfetch;
 
             PipelineFrameMojit._processMeta.apply(this, arguments);
 
@@ -92,7 +91,7 @@ YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
             PipelineFrameMojit._wrapFlushData.apply(this, arguments);
         },
 
-        _concatRenderdAssets: function (renderedAsset, renderedAssets, location, type) {
+        _concatRenderedAssets: function (renderedAsset, renderedAssets, location, type) {
             var ac = this.ac;
 
             // Add postfetch and assets below shakerTop to the bottom, and the rest to the top
