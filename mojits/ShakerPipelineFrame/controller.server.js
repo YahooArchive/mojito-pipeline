@@ -50,8 +50,7 @@ YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
         },
 
         _processMeta: function (meta) {
-            var ac = this.ac,
-                postfetch = this.postfetch;
+            var postfetch = this.postfetch;
 
             PipelineFrameMojit._processMeta.apply(this, arguments);
 
@@ -69,11 +68,6 @@ YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
                 postfetch = this.postfetch;
 
             if (ac.pipeline.closed) {
-                // Add any postfetch assets that has been queued.
-                Y.mojito.util.metaMerge(meta.assets, {
-                    'postfetch': postfetch
-                });
-
                 // Force the mojito client to be place on the bottom.
                 ac.shaker.set('serveJs', {
                     position: 'bottom'
@@ -83,6 +77,11 @@ YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
                 ac.shaker._addRouteRollups(meta.assets, ['bottom']);
                 ac.shaker._addYUILoader(meta.assets, binders);
                 ac.shaker._addBootstrap(meta.assets);
+
+                // Add any postfetch assets that has been queued.
+                Y.mojito.util.metaMerge(meta.assets, {
+                    'postfetch': postfetch
+                });
             }
         },
 
@@ -92,7 +91,7 @@ YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
             PipelineFrameMojit._wrapFlushData.apply(this, arguments);
         },
 
-        _concatRenderdAssets: function (renderedAsset, renderedAssets, location, type) {
+        _concatRenderedAssets: function (renderedAsset, renderedAssets, location, type) {
             var ac = this.ac;
 
             // Add postfetch and assets below shakerTop to the bottom, and the rest to the top
