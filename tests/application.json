@@ -1,0 +1,144 @@
+[{
+    "settings": [ "master" ],
+    "specs": {
+        "Route 1": {
+            "type": "PipelineFrame",
+            "expected": {
+                "js": {
+                    "dispatched": ["root", "a", "b", "c", "d"],
+                    "rendered": ["root", "d", "c", "b", "a"],
+                    "flushed": ["root", "c", "d", "b", "a", "e", "f"],
+                    "acDispatchCount": 5,
+                    "acFlushCount": 2
+                },
+                "nojs": {
+                    "dispatched": ["root", "a", "b", "c", "d"],
+                    "rendered": ["d", "c", "b", "a", "root"],
+                    "flushed": [],
+                    "acDispatchCount": 5,
+                    "acFlushCount": 0
+                }
+            },
+            "config": {
+                "child": {
+                    "type": "Pusher",
+                    "config": {
+                        "push": {
+                            "0": ["c", "b"],
+                            "1": ["a", "d"],
+                            "10": ["e", "f", "close"]
+                        }
+                    },
+                    "sections": {
+                        "a": {
+                            "dispatch": "root.dispatched",
+                            "render": "b.rendered",
+                            "flush": "b.flushed"
+                        },
+                        "b": {
+                            "dispatch": "a.dispatched",
+                            "render": "c.rendered",
+                            "flush": "d.flushed"
+                        },
+                        "c": {
+                            "dispatch": "b.dispatched",
+                            "render": "d.rendered",
+                            "flush": "root.flushed"
+                        },
+                        "d": {
+                            "dispatch": "c.dispatched",
+                            "render": "!pipeline.client.jsEnabled || root.rendered",
+                            "flush": "c.flushed",
+                            "display": "c.displayed"
+                        },
+                        "e": {
+                            "error": "f.errored",
+                            "dispatch": "f.dispatched"
+                        },
+                        "f": {
+                            "error": "true"
+                        }
+                    }
+                }
+            }
+        },
+
+        "Route 2": {
+            "type": "PipelineFrame",
+            "expected": {
+                "js": {
+                    "dispatched": ["root", "a", "b", "Noop@1", "c", "e"],
+                    "rendered": ["root", "a", "b", "Noop@1", "c", "e"],
+                    "flushed": ["root", "a", "b", "c", "e"],
+                    "acDispatchCount": 6,
+                    "acFlushCount": 1
+                }
+            },
+            "config": {
+                "child": {
+                    "type": "Pusher",
+                    "config": {
+                        "push": {
+                            "0": ["a", "a", "b", "c", "d", ""],
+                            "10": ["e", "close", "f"]
+                        }
+                    },
+                    "sections": {
+                        "a": null,
+                        "b": {
+                            "config": {
+                                "error": true
+                            }
+                        },
+                        "c": {
+                            "timeout": 1,
+                            "dispatch": "neverPushed.dispatched"
+                        },
+                        "d": {
+                            "type": null
+                        },
+                        "e": {
+                            "timeout": 1,
+                            "dispatch": "neverPushed.dispatched"
+                        }
+                    }
+                }
+            }
+        },
+
+        "Route 3": {
+            "type": "PipelineFrame",
+            "expected": {
+                "js": {
+                    "dispatched": ["root", "a1", "b", "a2", "a"],
+                    "rendered": ["root", "a1", "b", "a2", "a"],
+                    "flushed": ["root", "b", "a"],
+                    "acDispatchCount": 5,
+                    "acFlushCount": 0
+                }
+            },
+            "config": {
+                "child": {
+                    "type": "Pusher",
+                    "config": {
+                        "push": {
+                            "0": ["a1", "a", "a2", "close"]
+                        }
+                    },
+                    "sections": {
+                        "a": {
+                            "dependencies":  ["a1", "a2"],
+                            "sections": {
+                                "b": {
+                                    "default": true,
+                                    "group": "bGroup",
+                                    "onTimeout": true
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}]

@@ -18,7 +18,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         MojitoActionContextDone = Y.mojito.ActionContext.prototype.done,
 
         // Events that tasks may experience throughout their lifecycles.
-        EVENT_TYPES = ['beforeDispatch', 'afterDisptach', 'beforeRender', 'afterRender', 'beforeFlush', 'afterFlush', 'onError', 'onTimeout'],
+        EVENT_TYPES = ['beforeDispatch', 'afterDispatch', 'beforeRender', 'afterRender', 'beforeFlush', 'afterFlush', 'onError', 'onTimeout'],
 
         // Actions that Pipeline executes on tasks throughout their lifecycles.
         ACTIONS = ['dispatch', 'render', 'flush', 'display', 'error'],
@@ -31,7 +31,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             'flushed'    : 'afterFlush',
             'displayed'  : 'afterDisplay',
             'errored'    : 'onError',
-            'timedOut'   : 'onTimeout'
+            'timedout'   : 'onTimeout'
         },
 
         // Default timeout in ms for dispatching a task.
@@ -47,6 +47,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         if (!pipeline) {
             return MojitoActionContextDone.apply(this, doneArgs);
         }
+
+        pipeline._events.fire(task.id, 'dispatchEnd', null, task);
+
         // TODO find a better way to keep track of actionContext and done arguments.
         task.actionContext = this;
         task.doneArgs = doneArgs;
@@ -63,10 +66,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         /**
          * Returns the parsed rule, getting it from cache if available.
-         * @param {String} rule The user specified rule
-         * @returns {Object} pipeline Pipeline reference.
+         * @param {String} rule The user specified rule.
          */
-        getParsedRule: function (rule, pipeline) {
+        getParsedRule: function (rule) {
 
             var parseRule = function () {
                     var targets = {},
@@ -88,10 +90,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
                     return {
                         rule: parsedRule,
-                        targets: targets,
-                        test: function () {
-                            return eval(parsedRule);
-                        }
+                        targets: targets
                     };
                 };
 
@@ -118,7 +117,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         this.rendered   = false;
         this.flushed    = false;
         this.errored    = false;
-        this.timedOut   = false;
+        this.timedout   = false;
 
         // Mappings of targets to which this task needs to subscribe.
         this.dispatchTargets = {};
@@ -145,49 +144,37 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         this.meta = {};
     }
 
-    // These are the properties that are accepted from a Task's configuration.
-    // TODO Revisit this
-    Task.ACCEPTED_CONFIG_PROPERTIES = Array.prototype.concat(EVENT_TYPES, ACTIONS,
-        ['id', 'sections', 'group', 'default', 'dependencies', 'sectionName', 'parentSectionName'],
-        ['type', 'action', 'base', 'params', 'config']);
-
     Task.prototype = {
 
         /**
-         * Initializes this task by merging it with its config, determining subscription targets
+         * Initializes this task by determining subscription targets
          * and merging default tests with user rules.
-         * @param {Object} config The configuration for this task.
+         * @param {Object} specs the configuration for this task.
          * @param {Object} pipeline Pipeline reference.
-         * @param {boolean} Whether this task initialized successfully.
+         * @param {Boolean} Whether this task initialized successfully.
          */
-        initialize: function (config, pipeline) {
+        initialize: function (specs, pipeline) {
             var self = this,
                 type;
 
-            // Merge this task's config with any section config that was provided to Pipeline.
-            if (pipeline.sections[config.id]) {
+            this.pipeline = pipeline;
+
+            // Merge this task's specs with any section specs that was provided to Pipeline.
+            if (pipeline.sections[specs.id]) {
                 self.isSection = true;
-                Y.mix(config, pipeline.sections[config.id], true);
+                Y.mix(specs, pipeline.sections[specs.id]);
             }
 
-            // Merge this task with its configuration.
-            // TODO Revisit this, what if the user needs a value from the original config
-            Y.mix(this, config, true);
-            /*
-            Y.Object.each(config, function (value, property) {
-                if (Task.ACCEPTED_CONFIG_PROPERTIES.indexOf(property) !== -1) {
-                    self[property] = value;
-                }
-            });*/
+            self.specs = specs;
 
-            if (!self.type && !self.base) {
-                Y.log('Tasks must have a type or a base.', 'error', NAME);
+            if (!self.specs.type && !self.specs.base) {
+                Y.log('Error initializing task ' + self.id + ': tasks must have a base or a type.', 'error', NAME);
                 return false;
             }
 
             // Generate an id consisting of this task's base or type and the next available number for that base/type.
             if (self.id === undefined || self.id === null) {
-                type = self.base || self.type;
+                type = self.specs.base || self.specs.type;
                 pipeline._typeCount[type] = pipeline._typeCount[type] || 0;
                 pipeline._typeCount[type]++;
                 self.id = type + '@' + pipeline._typeCount[type];
@@ -195,14 +182,14 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 pipeline._tasks[self.id] = self;
             }
 
-            Y.Array.each(self.dependencies, function (dependency) {
+            Y.Array.each(self.specs.dependencies, function (dependency) {
                 self.dependencyTasks[dependency] = pipeline._getTask(dependency);
                 // This task can only be dispatched after all dependencies have been rendered since this
                 // task's controller depends on these tasks.
                 self.dispatchTargets[dependency] = ['afterRender'];
             });
 
-            Y.Object.each(self.sections, function (section, sectionId) {
+            Y.Object.each(self.specs.sections, function (section, sectionId) {
                 self.sectionTasks[sectionId] = pipeline._getTask(sectionId);
                 // If JS is disabled, this task should only render after each child section has rendered.
                 // This ensures that the children sections become embedded in this section, without being stubbed with empty div's.
@@ -213,8 +200,11 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             Y.mix(self.childrenTasks, self.dependencyTasks);
             Y.mix(self.childrenTasks, self.sectionTasks);
+
+            self.timeout = self.specs.timeout;
+
             Y.Object.each(self.childrenTasks, function (childTask) {
-                childTask.parent = self;
+                childTask.parentTask = self;
                 // Children sections without a specified timeout inherit this task's timeout.
                 if (childTask.timeout === undefined) {
                     childTask.timeout = self.timeout;
@@ -223,8 +213,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             // In the client-side, if this task has a parent section, it should be displayed after its parent has been displayed.
             // This ensure that this task has a container where it can be embedded.
-            if (self.parentSectionName) {
-                self.displayTargets[self.parentSectionName] = ['afterDisplay'];
+            if (self.specs.parentSectionName) {
+                self.displayTargets[self.specs.parentSectionName] = ['afterDisplay'];
             }
 
             if (!pipeline.client.jsEnabled) {
@@ -236,17 +226,22 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             // Combine default tests with user rules.
             Y.Array.each(ACTIONS, function (action) {
-                if (self[action]) {
-                    var ruleTest = RuleParser.getParsedRule(self[action], pipeline),
-                        defaultTest = self[action + 'Test'];
+
+                if (self.specs[action]) {
+
+                    var defaultTest = self[action + 'Test'],
+                        parsedRule = RuleParser.getParsedRule(self.specs[action], pipeline),
+                        ruleTest = function () {
+                            return eval(parsedRule.rule);
+                        };
 
                     // Replace the action test with a combined test containing the default test and the rule test.
                     self[action + 'Test'] = function () {
-                        return defaultTest.call(self, pipeline) && ruleTest.test();
+                        return defaultTest.call(self, pipeline) && ruleTest();
                     };
 
                     // Combine the rule targets with any existing targets for this action.
-                    self[action + 'Targets'] = Y.mojito.util.blend(self[action + 'Targets'], ruleTest.targets);
+                    self[action + 'Targets'] = Y.mojito.util.blend(self[action + 'Targets'], parsedRule.targets);
                 }
             });
 
@@ -256,8 +251,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         /**
          * This task may be dispatched if there are no dependencies or all have been rendered.
          * This function will be combined with a corresponding, user-defined rule if it exists.
-         * @param {Object} pipeline Pipeline reference
-         * @returns {boolean} Whether to dispatch this task
+         * @param {Object} pipeline Pipeline reference.
+         * @returns {boolean} Whether to dispatch this task.
          */
         dispatchTest: function (pipeline) {
             return !Y.Object.some(this.dependencyTasks, function (dependencyTask) {
@@ -269,8 +264,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
          * By default this method always returns true since a task should render immediately after dispatch
          * unless it has rendering dependencies.
          * This function will be combined with a corresponding, user-defined rule if it exists.
-         * @param {Object} pipeline Pipeline reference
-         * @returns {boolean} Whether to render this task
+         * @param {Object} pipeline Pipeline reference.
+         * @returns {boolean} Whether to render this task.
          */
         renderTest: function (pipeline) {
             return true;
@@ -279,8 +274,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         /**
          * When JS is disabled, this task may be rendered only after either all children sections have been rendered or
          * Pipeline is closed and all pushed children sections have been rendered.
-         * @param {Object} pipeline Pipeline reference
-         * @returns {boolean} Whether to render this task
+         * @param {Object} pipeline Pipeline reference.
+         * @returns {boolean} Whether to render this task.
          */
         noJSRenderTest: function (pipeline) {
             if (pipeline.closed) {
@@ -298,33 +293,34 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         /**
-         * This task may be flushed only if it is not already embedded in another task.
-         * This function will be combined with a corresponding, user-defined rule if it exists.
-         * @param {Object} pipeline Pipeline reference
-         * @returns {boolean} Whether to flush this task
+         * By default this method always returns true since a task should be flushed immediately after rendering
+         * unless it has flush dependencies. Tasks that are not sections or are already embedded are never considered
+         * for flushing. This function will be combined with a corresponding, user-defined rule if it exists.
+         * @param {Object} pipeline Pipeline reference.
+         * @returns {boolean} Whether to flush this task.
          */
         flushTest: function (pipeline) {
-            return !this.embedded;
+            return true;
         },
 
         /**
-         * When JS is disabled, only the root should be flushed with all sections embedded within it.
-         * @param {Object} pipeline Pipeline reference
-         * @returns {boolean} Whether to flush this task
+         * When JS is disabled, no task should be flushed since the client side cannot process serialized tasks.
+         * @param {Object} pipeline Pipeline reference.
+         * @returns {boolean} Whether to flush this task.
          */
         noJSFlushTest: function (pipeline) {
-            return this.id === 'root';
+            return false;
         },
 
         /**
          * If there is a user error rule, then the default test should return true so that when it is and'ed with
          * the user rule, the user rule is the determining condition. Otherwise return false.
          * This function will be combined with a corresponding, user-defined rule if it exists.
-         * @param {Object} pipeline Pipeline reference
-         * @returns {boolean} Whether to error out this task
+         * @param {Object} pipeline Pipeline reference.
+         * @returns {boolean} Whether to error out this task.
          */
         errorTest: function (pipeline) {
-            return !!this.error;
+            return !!this.specs.error;
         },
 
         /**
@@ -332,26 +328,154 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
          * the Pipeline client side in order to place the rendered html on the page when ready. Otherwise this
          * returns the actual rendered html. This method can be used by a parent controller to access the content
          * of its dependent children, or by the view renderer.
-         * @returns {boolean} The rendered html if available, otherwise a placeholder div,
+         * @returns {boolean} The rendered html if available, otherwise a placeholder div.
          */
         toString: function () {
             if (!this.rendered) {
                 return '<div id="' + this.id + '-section"></div>';
             }
+
+            if (this.embedded) {
+                return this.data;
+            }
+
+            // If this task has a parent that hasn't been rendered,
+            // then it will be embedded inside its parent with its rendered data.
+            if (this.parentTask && !this.parentTask.rendered) {
+                this.embedded = true;
+                this.parentTask.embeddedChildren.push(this);
+
+                // Include this task's meta data in its parent since it is now embedded.
+                Y.mojito.util.metaMerge(this.parentTask.meta, this.meta);
+
+                if (this.isSection) {
+                    // If this embedded child is in the flush queue, remove it.
+                    var index = this.pipeline._flushQueue.indexOf(this);
+                    if (index !== -1) {
+                        this.pipeline._flushQueue.splice(index, 1);
+                    }
+                    // Make sure the flushSubscription is unsubscribed
+                    // because it will get flushed automatically with the parent.
+                    if (this.flushSubscription) {
+                        this.flushSubscription.unsubscribe();
+                    }
+                }
+            }
+
             return this.data;
+        },
+
+        /**
+         * Returns the id of this task followed by its base or type.
+         * @return {String}
+         */
+        getName: function () {
+            return this.id + ' (' + ((this.specs && (this.specs.base || this.specs.type)) || 'Unknown type') + ')';
+        },
+
+        /**
+         * Returns this task's current state. The errored and timedout states take precedence
+         * over the non-error rendered and pushed states, respectively.
+         * @returns {String} This task's current state.
+         */
+        getState: function () {
+            var currentState = 'unpushed',
+                self = this;
+            Y.Array.some(['flushed', 'errored', 'rendered', 'dispatched', 'timedout', 'pushed'], function (state) {
+                if (self[state]) {
+                    currentState = state;
+                    return true;
+                }
+            });
+            return currentState;
+        },
+
+        /**
+         * Returns a detailed description of this task. Includes key properties such as current state, its parent,
+         * and the rule and dependencies for its next state.
+         * @return {String} A detailed description of this task.
+         */
+        getDetails: function () {
+            var details,
+                pipeline = this.pipeline,
+                state = this.getState(),
+                nextAction;
+
+            details = '- Properties: ' + ['state=' + state, 'embedded=' + this.embedded, 'isSection=' + !!this.isSection, 'timeout=' + this.timeout].join(', ');
+            details += this.parentTask ? '\n- Parent: ' + this.parentTask.getName() : '';
+
+            // Determine the next action for this task and append the corresponding rule to the details.
+            switch (state) {
+            case 'pushed':
+            case 'timedout':
+                details += '\n- Dispatch rule: dispatch after dependencies have rendered' +
+                    (this.specs.dispatch ? ' and (' + this.specs.dispatch + ')' : '');
+                nextAction = 'dispatch';
+                break;
+            case 'dispatched':
+                details += '\n- Render rule: render after dispatch'  +
+                    (this.specs.render ? ' and (' + this.specs.render + ')' : '');
+                nextAction = 'render';
+                break;
+            case 'rendered':
+            case 'errored':
+                // The flush rule only applies to non-embedded sections.
+                if (this.isSection && !this.embedded) {
+                    details += '\n- Flush rule: flush after rendering'  +
+                        (this.specs.flush ? ' and (' + this.specs.flush + ')' : '');
+                    nextAction = 'flush';
+                }
+                break;
+            default:
+            }
+
+            if (!nextAction) {
+                return details;
+            }
+
+            // List the dependencies for the next action.
+            details += '\n- ' + nextAction.charAt(0).toUpperCase() + nextAction.substring(1) + ' dependencies:';
+            if (Y.Object.isEmpty(this[nextAction + 'Targets'])) {
+                details += ' no dependencies';
+                return details;
+            }
+            Y.Object.each(this[nextAction + 'Targets'], function (events, dependencyId) {
+                if (dependencyId === 'pipeline') {
+                    details += '\n  - pipeline: state=' + (pipeline.closed ? 'closed' : 'open') + ', jsEnabled=' + pipeline.client.jsEnabled;
+                    return;
+                }
+                var dependency = pipeline._getTask(dependencyId);
+                details += '\n  - ' + dependency.getName() + ': state=' + dependency.getState();
+            });
+
+            return details;
+        },
+
+        /**
+         * Stringifies this task's markup by escaping various characters
+         * and placing the markup in single quotes.
+         * @return {String} The stringified markup.
+         */
+        stringify: function () {
+            return '\'' + this.data.replace(/\\/g, '\\\\')   // Escape the escape character.
+                                   .replace(/\r?\n/g, '\\n') // Remove carriage returns and escape new lines.
+                                   .replace(/\'/g, '\\\'')   // Escape single quotes.
+                                   // Make sure ending script tags are escaped to prevent HTML parsing errors
+                                   // in old browsers.
+                                   .replace(/<\/script\s*>/g, '<\\/script>') + '\'';
         },
 
         /**
          * Serializes the task into a JS statement that calls the Pipeline client push method once the task is flushed
          * to the client. The push method tasks an object with several properties including 'markup', which is an
          * escaped string representation of the task's html.
-         * @param {Object} task The task to serialize
-         * @return {String} The serialized task
+         * @param {Object} task The task to serialize.
+         * @return {String} The serialized task.
          */
-        _serialize: function () {
+        serialize: function () {
             var self = this,
                 serialized = 'pipeline.push({' +
-                    'markup: "' + escape(self.data) + '"';
+                    'markup: ' + self.stringify();
 
             Y.Object.each(self, function (property, propertyName) {
                 var embeddedChildren = [];
@@ -360,6 +484,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     serialized += ',\n' + propertyName + ': "' + property + '"';
                     break;
                 case 'displayTargets':
+                    serialized += ',\n' + propertyName + ": " + JSON.stringify(property);
+                    break;
                 case 'embeddedChildren':
                     Y.Array.each(property, function (section, index) {
                         embeddedChildren.push(section.id);
@@ -369,9 +495,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 case 'displayTest':
                     serialized += ',\n' + propertyName + ': function (pipeline) {' +
                             'return eval(\'' +
-                                RuleParser.getParsedRule(self.display).rule + '\');}';
+                                RuleParser.getParsedRule(self.specs.display).rule + '\');}';
                     break;
-                case 'timedOut':
+                case 'timedout':
                 case 'errored':
                     serialized += ',\n' + propertyName + ': ' + property;
                     break;
@@ -388,7 +514,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
     /**
      * @class mojito.addons.ac.pipeline
      * @constructor
-     * @param {object} command
      */
     function Pipeline(command, adapter, ac) {
         var req = adapter.req;
@@ -461,7 +586,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         /**
          * Called by Mojito during initialization in order to share the resource store with this add-on.
-         * @param {ResourceStore} rs The runtime ResourceStore
+         * @param {ResourceStore} rs The runtime ResourceStore.
          */
         setStore: function (rs) {
             if (!this.client.script) {
@@ -504,7 +629,22 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         /**
-         * Uses Pipeline events object to subscribe to a target and its event, and pass a callback.
+         * Asynchronous version of @on. Uses the Pipeline events object to subscribe to a target and its event,
+         * and pass an asynchronous callback.
+         * @param {String} target A task id or 'pipeline', whose event is of interest.
+         * @param {String} event The target's event to subscribe to.
+         * @param {Function} callback The callback function to call once the event is fired for the target.
+         * @returns {Object} The subscription, whose unsubscribe method can be called to prevent the callback
+         * from executing on subsequent events
+         */
+        onAsync: function (target, event, callback) {
+            var targets = {};
+            targets[target] = [event];
+            return this._events.subscribe(targets, callback);
+        },
+
+        /**
+         * Uses the Pipeline events object to subscribe to a target and its event, and pass a synchronous callback.
          * @param {String} target A task id or 'pipeline', whose event is of interest.
          * @param {String} event The target's event to subscribe to.
          * @param {Function} callback The callback function to call once the event is fired for the target.
@@ -512,41 +652,45 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
          * from executing on subsequent events
          */
         on: function (target, event, callback) {
-            var targets = {};
-            targets[target] = [event];
-            return this._events.subscribe(targets, callback);
+            var syncCallback = function (event, done) {
+                var optionalArgs = Array.prototype.slice.call(arguments, 0).slice(2),
+                    syncArgs = [event].concat(optionalArgs);
+                callback.apply(null, syncArgs);
+                done();
+            };
+
+            return this.onAsync(target, event, syncCallback);
         },
 
         /**
          * Indicates to Pipeline that no more tasks will be pushed.
          */
         close: function () {
-            this._closeCalled = true;
-            this._flushIfReady();
+            if (!this._closeCalled) {
+                this._closeCalled = true;
+                this._flushIfReady();
+            }
         },
 
         /**
          * Pushes a new task into the Pipeline. The processing is done asynchronously,
-         * i.e upon return a task with the id given in @taskConfig will exist and be scheduled for later dispatch.
-         * @param {Object} taskConfig The task's configuration object.
+         * i.e upon return a task with the id given in @taskSpecs will exist and be scheduled for later dispatch.
+         * @param {Object} taskSpecs The task's configuration object.
          * @returns {String} The task's id if specified, else its generated id. null if there was an error.
          */
-        push: function (taskConfig) {
-            var task = taskConfig.id ? this._getTask(taskConfig.id) : new Task();
+        push: function (taskSpecs) {
+            var task = taskSpecs.id ? this._getTask(taskSpecs.id) : new Task();
 
             // A task should not be pushed multiple times as this can result in duplicate dispatching/rendering/flushing
             // and can cause unexpected behavior since events might be fired multiple times for this task.
             if (task.pushed) {
-                Y.log('Task ' + task.id + ' was pushed after closing the Pipeline.', 'error', NAME);
+                Y.log('Task ' + task.id + ' was pushed multiple times.', 'error', NAME);
                 return null;
             }
 
-            if (!task.initialize(taskConfig, this)) {
-                Y.log('Error initializing task ' + task.id + '.', 'error', NAME);
+            if (!task.initialize(taskSpecs, this)) {
                 return null;
             }
-
-            task.pushed = true;
 
             // Tasks should not be pushed after closing the Pipeline as this can result in
             // unexpected behavior such as the task not getting flushed.
@@ -554,6 +698,18 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 Y.log('Task ' + task.id + ' was pushed after closing the Pipeline.', 'error', NAME);
                 return null;
             }
+
+            task.pushed = true;
+
+            // Push any default sections of this task. Sections marked as default always get pushed automatically by pipeline
+            // instead of the data source.
+            Y.Object.each(task.specs.sections, function (sectionSpec, sectionId) {
+                var section = sectionSpec || {};
+                section.id = sectionId;
+                if (section['default']) {
+                    this.push(section);
+                }
+            }, this);
 
             // Keeps track of how many pushed tasks are pending since they haven't been processed yet.
             // A task is considered processed when it has finally been pushed to the flush queue or
@@ -578,21 +734,11 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             // Subscribe to any event specified in the task's config, which the task is interested about itself.
             Y.Array.each(EVENT_TYPES, function (event) {
-                if (!task[event]) {
-                    return;
-                }
-                var targets = {};
-                targets[task.id] = [event];
-                pipeline._events.subscribe(targets, task[event]);
-            });
-
-            // Push any default sections of this task. Sections marked as default always get pushed automatically by pipeline
-            // instead of the data source.
-            Y.Object.each(task.sections, function (config, sectionId) {
-                var section = config || {};
-                section.id = sectionId;
-                if (section['default']) {
-                    pipeline.push(section);
+                var targets;
+                if (task.specs[event]) {
+                    targets = {};
+                    targets[task.id] = [event];
+                    pipeline._events.subscribe(targets, task.specs[event]);
                 }
             });
 
@@ -659,14 +805,14 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     task.closeSubscription.unsubscribe();
                     task.dispatchSubscription.unsubscribe();
                     // Fire timeout and then dispatch.
-                    pipeline._timeout(task, 'data still missing after ' + task.timeout + 'ms.', function () {
+                    pipeline._timeout(task, 'dispatch dependencies remained unsatisfied after ' + task.timeout + 'ms.', function () {
                         // In case a task has a timeout that is triggered after pipeline closing,
                         // we want to block the closing until all dispatchings are finished. The events module
                         // resumes the closing after ALL the onClose of the subscribers have been called;
                         var onCloseDone,
                             dispatched = false;
 
-                        pipeline.on('pipeline', 'onClose', function (event, done) {
+                        pipeline.onAsync('pipeline', 'onClose', function (event, done) {
                             if (dispatched) {
                                 done();
                             } else {
@@ -685,7 +831,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
                 // Handles the case where the pipeline is closed but a task still has missing dependencies
                 // and so, even though the timeout hasn't been reached yet, it is imminent.
-                task.closeSubscription = this.on('pipeline', 'onClose', function (event, done) {
+                task.closeSubscription = this.onAsync('pipeline', 'onClose', function (event, done) {
 
                     if (!task.timeoutSubscription) {
                         return done();
@@ -695,7 +841,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     clearTimeout(task.timeoutSubscription);
                     task.timeoutSubscription = null;
 
-                    pipeline._timeout(task, 'data still missing after pipeline closed.', function () {
+                    pipeline._timeout(task, 'dispatch dependencies still unsatisfied after pipeline closed.', function () {
                         pipeline._dispatch(task, function () {
                             done();
                         });
@@ -716,7 +862,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             // Set the parameters of this task. As is normally done in Mojito,
             // if no custom parameters exist, the dispatcher's parameters are used.
-            task.params = task.params || Y.clone(pipeline._frame.params);
+            task.params = task.specs.params || Y.clone(pipeline._frame.params);
 
             // All children tasks are made available to a task's mojit through params.body.children.
             task.params.body = task.params.body || {};
@@ -738,11 +884,22 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             pipeline._events.fire(task.id, 'beforeDispatch', function () {
                 var command,
                     afterRenderCallback = function (error, data, meta) {
+                        // Do not continue lifecycle if this task has already errored out.
+                        if (task.errored) {
+                            return (task.renderCallback || task.dispatchCallback)();
+                        }
+
+                        pipeline._events.fire(task.id, 'renderEnd', null, task);
+
                         task.data = data;
+
                         // TODO lets see if we can reduce the number of times we call metaMerge
                         Y.mojito.util.metaMerge(task.meta, meta);
 
                         if (error) {
+                            // The callback passed to @_error is the renderCallback if available else the dispatchCallback.
+                            // The only time the renderCallback does not exist is if there was an error during dispatching, and
+                            // so the dispatchCallback should be called.
                             return pipeline._error(task, 'Error after dispatching.', task.renderCallback || task.dispatchCallback);
                         }
 
@@ -770,6 +927,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 // TODO try finding a better way to keep track of the callback.
                 task.dispatchCallback = callback;
                 // Dispatch will call the controller, which in turn calls ac.done, which calls @_afterDispatch.
+                pipeline._events.fire(task.id, 'dispatchStart', null, task);
                 pipeline._frame.ac._dispatch(command, adapter);
             }, task);
         },
@@ -828,30 +986,13 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
          */
         _render: function (task, callback) {
             var pipeline = this;
-            Y.Object.each(task.childrenTasks, function (childTask) {
-                if (childTask.rendered) {
-                    childTask.embedded = true;
-                    task.embeddedChildren.push(childTask);
-
-                    // include child's meta in parent since it is now embedded
-                    Y.mojito.util.metaMerge(task.meta, childTask.meta);
-
-                    if (childTask.isSection) {
-                        // if this embedded child is in the flush queue, remove it
-                        var index = pipeline._flushQueue.indexOf(childTask);
-                        if (index !== -1) {
-                            pipeline._flushQueue.splice(index, 1);
-                        }
-                        // make sure the flushSubscription is unsubscribed
-                        // because it will get flushed automatically with the parent
-                        return childTask.flushSubscription && childTask.flushSubscription.unsubscribe();
-                    }
-                }
-            });
 
             // Keep track of this method's callback, since this callback should be passed to Pipeline._afterRender after rendering.
             // TODO try finding a better way to keep track of the callback.
             task.renderCallback = callback;
+
+            pipeline._events.fire(task.id, 'renderStart', null, task);
+
             // Call the original ac.done
             MojitoActionContextDone.apply(task.actionContext, task.doneArgs);
         },
@@ -909,6 +1050,11 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
          * @param {Function} callback The callback passed to maintain synchronous flow throughout events.
          */
         _flushEnqueue: function (task, callback) {
+            // Remove any error subscription since this task has already reached the flushed state.
+            if (task.errorSubscription) {
+                task.errorSubscription.unsubscribe();
+            }
+
             this._flushQueue.push(task);
             return callback && callback();
         },
@@ -926,10 +1072,26 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 this.closed = true;
                 this._events.fire('pipeline', 'onClose', function () {
                     pipeline._fireTasksFlushEvents(function () {
-                        // Report any task that hasn't been flushed.
+                        // Report any task that ended in an erroneous state after pipeline closed.
                         Y.Object.each(pipeline._tasks, function (task) {
-                            if (!task.flushed && task.pushed) {
-                                Y.log(task.id + '(' + task.type + ') remained unflushed.', 'error', NAME);
+                            var endState = pipeline.client.jsEnabled ? 'flushed' : 'rendered',
+                                errorMessage;
+
+                            if (pipeline.client.jsEnabled && task.id !== 'root' && task.flushed && !task.parentTask) {
+                                errorMessage = task.getName() + ' was flushed but its parent section, \'' +
+                                    task.specs.parentSectionName + '\', was never pushed, so it has no place to be displayed. ' +
+                                    'Make sure that \'' + task.specs.parentSectionName + '\' is pushed.';
+                            } else if (!task.isSection && !task.flushed && task.rendered && !task.embedded) {
+                                errorMessage = task.getName() + ' was rendered but no task ever listed it as a dependency ' +
+                                    'nor is it a section. Make sure to either list this task as a dependency of another task, ' +
+                                    'or if this task is a section, specify it as such in the configuration.';
+                            } else if (task.pushed && !task[endState]) {
+                                errorMessage = task.getName() + ' was never ' + endState + '. ' +
+                                    'Make sure dependencies are satisfied in order for this task to reach the ' + endState + ' state.';
+                            }
+
+                            if (errorMessage) {
+                                Y.log(errorMessage + '\n' + task.getDetails(), 'error', NAME);
                             }
                         });
                     });
@@ -946,10 +1108,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         _fireTasksFlushEvents: function (callback) {
             var pipeline = this,
                 i,
-                rootData = {
-                    meta: {},
-                    data: ''
-                },
                 flushData = {
                     meta: {},
                     data: ''
@@ -960,28 +1118,18 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     pipeline._events.fire(task.id, 'beforeFlush', function () {
                         task.flushed = true;
 
-                        // remove any error subscription
-                        if (task.errorSubscription) {
-                            task.errorSubscription.unsubscribe();
-                        }
-
                         pipeline._events.fire(task.id, 'afterFlush', function () {
                             if (task.embedded) {
                                 return;
                             }
 
-                            if (task.id === 'root') {
-                                rootData.data = task.data;
-                                rootData.meta = task.meta;
-                            } else {
-                                flushData.data += task._serialize();
-                                Y.mojito.util.metaMerge(flushData.meta, task.meta);
-                            }
+                            Y.mojito.util.metaMerge(flushData.meta, task.meta);
+                            flushData.data += task.serialize();
 
                             ++numFlushedTasks;
 
                             if (numFlushedTasks === pipeline._flushQueue.length) {
-                                pipeline._flushQueuedTasks(rootData, flushData);
+                                pipeline._flushQueuedTasks(flushData);
                                 return callback && callback();
                             }
                         }, task);
@@ -999,7 +1147,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             // if the pipeline is closed but there is no data pipeline still has to flush the closing tags
             if (this.closed && this._flushQueue.length === 0) {
-                pipeline._flushQueuedTasks(rootData, flushData);
+                pipeline._flushQueuedTasks(flushData);
                 return callback && callback();
             }
 
@@ -1013,19 +1161,23 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         /**
-         * Flushes the root task (if this is the first flush) followed by the serialized tasks that were queued.
+         * Flushes the serialized tasks that were queued.
          */
-        _flushQueuedTasks: function (rootData, flushData) {
+        _flushQueuedTasks: function (flushData) {
             var pipeline = this;
 
-            flushData.data = flushData.data ? '<script>' + flushData.data + '</script>' : '';
+            // If Pipeline is closed, let the Pipeline client know.
+            if (pipeline.closed) {
+                flushData.data += 'pipeline.close();';
+            }
 
-            Y.mojito.util.metaMerge(flushData.meta, rootData.meta);
+            flushData.data = flushData.data && this.client.jsEnabled ? '<script>' + flushData.data + '</script>' : '';
+
             this._events.fire('pipeline', 'beforeFlush', function () {
                 if (pipeline.closed) {
-                    pipeline._frame.ac.done('<!-- Flush Start -->\n' + rootData.data + flushData.data + '</body></html>' + '\n<!-- Flush End -->\n\n', flushData.meta);
+                    pipeline._frame.ac.done(flushData.data + '</body></html>', flushData.meta);
                 } else {
-                    pipeline._frame.ac.flush('<!-- Flush Start -->\n' + rootData.data + flushData.data + '\n<!-- Flush End -->\n\n', flushData.meta);
+                    pipeline._frame.ac.flush(flushData.data, flushData.meta);
                 }
                 pipeline._flushQueue = [];
             }, flushData);
@@ -1066,6 +1218,15 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             task.errored = true;
             task.data = '<span>ERROR</span>';
 
+            // Unsubscribe from any dispatch/render subscriptions since the onError event
+            // will move this task along the dispatch and render states
+            if (task.dispatchSubscription) {
+                task.dispatchSubscription.unsubscribe();
+            }
+            if (task.renderSubscription) {
+                task.renderSubscription.unsubscribe();
+            }
+
             this._events.fire(task.id, 'onError', function () {
                 var done = function () {
                     pipeline._prepareToFlushEnqueue(task, callback);
@@ -1087,11 +1248,38 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
          * Processes a task after a timeout by setting a timeout error and firing a timeout event.
          * @param {Object} task
          * @param {String} message
-         * @param {Object} done
+         * @param {Object} callback
          */
         _timeout: function (task, message, callback) {
-            Y.log(task.id + ' timedout: ' + message, 'error', NAME);
-            task.timedOut = true;
+            var pipeline = this,
+                hint = '',
+                dispatchTest;
+
+            if (task.specs.dispatch) {
+                dispatchTest = function () {
+                    return eval(RuleParser.getParsedRule(task.specs.dispatch, pipeline).rule);
+                };
+            }
+
+            // Find any dependency that was not rendered, thus preventing the task from dispatching.
+            Y.Object.some(task.dependencyTasks, function (dependency, dependencyId) {
+                if (!dependency.rendered) {
+                    hint = ' Dependency \'' + dependency.getName() + '\' was never rendered, which prevented this task from dispatching.';
+                    return true;
+                }
+            });
+
+            // Determine if the user-defined dispatch rule returns false.
+            if (dispatchTest && !task.dispatchTest()) {
+                hint += hint ? ' Also, the' : ' The';
+                hint += ' user-defined dispatch rule (' + task.specs.dispatch + ') returned false.';
+            }
+
+            message += hint + ' Make sure dispatch dependencies are satisfied.\n';
+            message += task.getDetails();
+
+            Y.log(task.getName() + ' timedout: ' + message, 'error', NAME);
+            task.timedout = true;
             task.data = '<span>TIMEOUT</span>';
             this._events.fire(task.id, 'onTimeout', callback, task, message);
         }

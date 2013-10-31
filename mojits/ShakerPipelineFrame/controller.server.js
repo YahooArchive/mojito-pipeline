@@ -4,7 +4,8 @@
  * See the accompanying LICENSE file for terms.
  */
 
-/*jslint nomen:true, plusplus:true*/
+/*jslint nomen:true, plusplus:true */
+/*global YUI */
 
 YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
     'use strict';
@@ -14,6 +15,7 @@ YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
     // Inherit methods from the PipelineFrameMojit and override
     // to add Shaker specific functionality.
     Y.mojito.controllers[NAME] = Y.merge(PipelineFrameMojit, {
+
         _init: function (ac) {
             // Serves as a queue, to delay the rendering of postfetch assets
             // until the last flush.
@@ -34,10 +36,12 @@ YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
             this.view = ac.shaker.data.htmlData;
         },
 
-        _render: function (data, meta, callback) {
-            var ac = this.ac;
+        _render: function (callback) {
+            var ac = this.ac,
+                meta = this.meta;
 
             // Add top rollups, app resources, and filter assets.
+            meta.assets = meta.assets || {};
             ac.shaker._addRouteRollups(meta.assets, ['top', 'shakerTop']);
             ac.shaker._addAppResources(meta.assets);
             ac.shaker._filterAndUpdate(meta.assets);
@@ -46,19 +50,16 @@ YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
         },
 
         _processMeta: function (meta) {
-            var ac = this.ac,
-                postfetch = this.postfetch;
+            var postfetch = this.postfetch;
 
             PipelineFrameMojit._processMeta.apply(this, arguments);
 
-            if (!ac.pipeline.closed) {
-                // Queue up postfetch assets such that the are added only on the last flush.
-                Y.Object.each(meta.assets.postfetch, function (typeAssets, type) {
-                    Array.prototype.push.apply(postfetch[type], typeAssets);
-                });
+            // Queue up postfetch assets such that the are added only on the last flush.
+            Y.Object.each(meta.assets.postfetch, function (typeAssets, type) {
+                Array.prototype.push.apply(postfetch[type], typeAssets);
+            });
 
-                delete meta.assets.postfetch;
-            }
+            delete meta.assets.postfetch;
         },
 
         _addMojitoClient: function (meta) {
@@ -67,11 +68,6 @@ YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
                 postfetch = this.postfetch;
 
             if (ac.pipeline.closed) {
-                // Add any postfetch assets that has been queued.
-                Y.mojito.util.metaMerge(meta.assets, {
-                    'postfetch': postfetch
-                });
-
                 // Force the mojito client to be place on the bottom.
                 ac.shaker.set('serveJs', {
                     position: 'bottom'
@@ -81,6 +77,11 @@ YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
                 ac.shaker._addRouteRollups(meta.assets, ['bottom']);
                 ac.shaker._addYUILoader(meta.assets, binders);
                 ac.shaker._addBootstrap(meta.assets);
+
+                // Add any postfetch assets that has been queued.
+                Y.mojito.util.metaMerge(meta.assets, {
+                    'postfetch': postfetch
+                });
             }
         },
 
@@ -90,7 +91,7 @@ YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
             PipelineFrameMojit._wrapFlushData.apply(this, arguments);
         },
 
-        _concatRenderdAssets: function (renderedAsset, renderedAssets, location, type) {
+        _concatRenderedAssets: function (renderedAsset, renderedAssets, location, type) {
             var ac = this.ac;
 
             // Add postfetch and assets below shakerTop to the bottom, and the rest to the top
@@ -102,14 +103,16 @@ YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
         }
     });
 
-}, '0.1.0', {requires: [
-    'mojito',
-    'mojito-util',
-    'mojito-assets-addon',
-    'mojito-http-addon',
-    'mojito-deploy-addon',
-    'mojito-config-addon',
-    'mojito-shaker-addon',
-    'mojito-pipeline-addon',
-    'PipelineFrameMojit'
-]});
+}, '0.1.0', {
+    requires: [
+        'mojito',
+        'mojito-util',
+        'mojito-assets-addon',
+        'mojito-http-addon',
+        'mojito-deploy-addon',
+        'mojito-config-addon',
+        'mojito-shaker-addon',
+        'mojito-pipeline-addon',
+        'PipelineFrameMojit'
+    ]
+});

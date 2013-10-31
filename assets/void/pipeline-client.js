@@ -61,13 +61,32 @@ var pipeline = (function () {
                 stub = document.getElementById(this.id + '-section');
 
             events.fire(this.id, 'beforeDisplay', function () {
-                var i, n, child;
+                var i, n, child, script,
+                    displayedNodes = [],
+                    replaceScripts = function (node) {
+                        var i,
+                            child,
+                            script;
+
+                        if (node.tagName === 'SCRIPT') {
+                            script = document.createElement('script');
+                            script.text = node.text;
+                            node.parentNode.replaceChild(script, node);
+                            return;
+                        }
+
+                        for (i = 0; i < node.children.length; i++) {
+                            child = node.children[i];
+                            replaceScripts(child);
+                        }
+                    };
 
                 n = document.createElement('div');
-                n.innerHTML = unescape(self.markup);
+                n.innerHTML = self.markup;
 
-                for (i = 0; i < n.children.length; i++) {
-                    // insert content just before the stub inside the parent node
+                while (n.children.length > 0) {
+                    // Insert content just before the stub inside the parent node
+
                     // e.g.:
                     // <div id="parent">
                     //  <!-- the content will be inserted here -->
@@ -75,20 +94,30 @@ var pipeline = (function () {
                     //  <span> some normal content</span>
                     //  <!-- this is where stub.parentNode.appendChild would insert the node, which is incorrect -->
                     // </div>
-                    stub.parentNode.insertBefore(n.children[i], stub);
+                    child = n.children[0];
+                    stub.parentNode.insertBefore(child, stub);
+
+                    // Replace any scripts with a newly created element using document.creteElement.
+                    // This ensures that the script is executed.
+                    // In IE the created script gets executed immediately after creation so the script must be
+                    // replaced after any markup has been inserted onto the page, in case the script refers to
+                    // the markup.
+                    replaceScripts(child);
+
+                    displayedNodes.push(child);
                 }
 
                 self.displayed = true;
 
-                if (callback) {
-                    callback();
-                }
-
-                events.fire(self.id, 'afterDisplay');
+                events.fire(self.id, 'afterDisplay', null, displayedNodes);
 
                 for (i = 0; i < self.embeddedChildren.length; i++) {
                     child = self.embeddedChildren[i];
                     events.fire(child, 'afterDisplay');
+                }
+
+                if (callback) {
+                    callback();
                 }
             });
         }
@@ -119,6 +148,8 @@ var pipeline = (function () {
             // TODO: fire an 'onPush' event
             this.tasks[taskConfig.id] = task;
 
+            task.pushed = true;
+
             // Merge default displayTest with user provided test
             if (taskConfig.displayTest) {
                 task.displayTest = function () {
@@ -140,6 +171,26 @@ var pipeline = (function () {
                     }
                 });
             }
+        },
+
+        close: function () {
+            var self = this;
+            events.fire('pipeline', 'onClose', function () {
+                var id,
+                    task;
+                if (typeof console !== 'undefined' && typeof console.error === 'function') {
+                    for (id in self.tasks) {
+                        if (self.tasks.hasOwnProperty(id)) {
+                            task = self.tasks[id];
+                            if (task.pushed && !task.displayed) {
+                                console.error(task.id + ' remained undisplayed. ' +
+                                    'Make sure that its display dependencies are satisfied ' +
+                                    'and that a stub exists for it to be displayed.');
+                            }
+                        }
+                    }
+                }
+            });
         },
 
         _getTask: function (id) {

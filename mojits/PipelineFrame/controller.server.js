@@ -4,7 +4,8 @@
  * See the accompanying LICENSE file for terms.
  */
 
-/*jslint nomen:true, plusplus:true*/
+/*jslint nomen:true, plusplus:true, continue: true */
+/*global YUI */
 
 YUI.add('PipelineFrameMojit', function (Y, NAME) {
     'use strict';
@@ -20,13 +21,27 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
 
         _init: function (ac) {
             this.ac = ac;
+
             this.flushedAssets = {
                 css: [],
                 js: [],
                 blob: []
             };
+
             this.view = {};
+            this.meta = {};
             this.binders = {};
+
+            // Ensure that the gzip buffer is flushed immediately...
+            var response = ac.http.getResponse(), fn;
+
+            if (response.gzip && response.gzip.flush) {
+                fn = ac.flush;
+                ac.flush = function () {
+                    fn.apply(ac, arguments);
+                    response.gzip.flush();
+                };
+            }
         },
 
         /**
@@ -36,23 +51,10 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
          */
         _pipelineRoot: function (rootConfig) {
             var self = this,
-                ac = this.ac;
+                ac = this.ac,
+                renderedFrame;
 
-            Y.mix(rootConfig, {
-                id: 'root',
-                // Before the root is flushed to the client it needs to be embedded into
-                // this frame, such that this frame is flushed with the root mojit
-                // and any placeholder div's.
-                beforeFlush: function (event, done, root) {
-                    self.view.child = root.data;
-                    self._render.call(self, self.view, root.meta, function (data, meta) {
-                        root.data = data;
-                        root.meta = meta;
-                        done();
-                    });
-                }
-            }, true);
-
+            rootConfig.id = 'root';
             ac.pipeline.initialize({
                 sections: {
                     root: rootConfig
@@ -61,14 +63,49 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
 
             ac.pipeline.push(rootConfig);
 
-            // If JS is enabled, before pipeline flushes serialized sections, the meta data is
-            // processed in order to wrap the serialized sections with any assets.
             if (ac.pipeline.client.jsEnabled) {
-                ac.pipeline.on('pipeline', 'beforeFlush', function (event, done, flushData) {
-                    self._processMeta(flushData.meta);
-                    self._addMojitoClient(flushData.meta);
-                    self._wrapFlushData(flushData);
+                // If JS is enabled process the meta data, add the mojito client and wrap the serialized tasks
+                // with their assets. If this is the first flush, prepend the rendered frame to the flush data.
+                ac.pipeline.onAsync('pipeline', 'beforeFlush', function (event, done, flushData) {
+                    var processFlushData = function () {
+                        flushData.meta.assets = flushData.meta.assets || {};
+                        self._processMeta(flushData.meta);
+                        self._addMojitoClient(flushData.meta);
+                        self._wrapFlushData(flushData);
+                    };
+
+                    if (renderedFrame === undefined) {
+                        // Stub the root tasks position since the root section will be pushed in the client-side.
+                        self.view.child = '<div id="root-section"></div>';
+                        self._render(function (data, meta) {
+                            processFlushData();
+                            renderedFrame = data;
+                            flushData.data = renderedFrame + flushData.data;
+                            flushData.meta = meta;
+                            done();
+                        });
+                        return;
+                    }
+
+                    processFlushData();
                     done();
+                });
+            } else {
+                // If JS is disabled, render the frame with the rendered root section.
+                ac.pipeline.onAsync('root', 'afterRender', function (event, done, root) {
+                    self.view.child = root.data;
+                    self.meta = root.meta;
+                    self._processMeta(self.meta);
+                    self._render(function (data, meta) {
+                        renderedFrame = data;
+                        done();
+                    });
+                });
+
+                // Prepend the flush data with the rendered frame.
+                ac.pipeline.on('pipeline', 'beforeFlush', function (event, flushData) {
+                    flushData.data = renderedFrame + flushData.data;
+                    flushData.meta = self.meta;
                 });
             }
         },
@@ -79,8 +116,10 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
          * @param {Object} meta The meta data currently available.
          * @param {Function} callback The function to call after rendering.
          */
-        _render: function (view, meta, callback) {
-            var ac = this.ac,
+        _render: function (callback) {
+            var view = this.view,
+                meta = this.meta,
+                ac = this.ac,
                 renderer = new Y.mojito.ViewRenderer(ac.instance.views.index.engine,
                     ac._adapter.page.staticAppConfig.viewEngine);
 
@@ -92,10 +131,6 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
             if (ac.pipeline.client.jsEnabled) {
                 view.pipelineClient = '<script>' + ac.pipeline.client.script + '</script>';
             }
-
-            // Process the meta data. The second arguments indicates that meta is associated with
-            // the root mojit.
-            this._processMeta(meta);
 
             // Pass the assets to this frame's asset, such that they appear in the rendered view.
             ac.assets.addAssets(meta.assets);
@@ -122,15 +157,12 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
         },
 
         /**
-         * Process the meta data by filtering out any asset that has already been flushed,
-         * and queuing up bottom assets so that they get flushed at the end.
+         * Process the meta data by filtering out any asset that has already been flushed.
          * @param {Object} meta The meta data to be processed.
          */
         _processMeta: function (meta) {
-            var self = this,
-                flushedAssets = this.flushedAssets,
-                binders = this.binders,
-                ac = this.ac;
+            var flushedAssets = this.flushedAssets,
+                binders = this.binders;
 
             // Keep track of all the binders associated with each flush, so that they can be used to
             // construct the Mojito client on the last flush.
@@ -154,8 +186,6 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
                     }
                 });
             });
-
-            meta.assets = meta.assets || {};
         },
 
         /**
@@ -164,8 +194,7 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
          */
         _addMojitoClient: function (meta) {
             var ac = this.ac,
-                binders = this.binders,
-                bottom = this.bottom;
+                binders = this.binders;
 
             // Construct the Mojito client runtime if this it the last flush and the Mojito client should be deployed.
             if (ac.pipeline.closed && ac.config.get('deploy') === true) {
@@ -210,14 +239,12 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
                         var renderedAsset = type === 'js' ? '<script type="text/javascript" src="' + asset + '"></script>' :
                                         type === 'css' ? '<link type="text/css" rel="stylesheet" href="' + asset + '"></link>' : asset;
                         // Concatenates the rendered assets to the renderedAssets.top/bottom buffers.
-                        self._concatRenderdAssets(renderedAsset, renderedAssets, location, type);
+                        self._concatRenderedAssets(renderedAsset, renderedAssets, location, type);
                     });
                 });
             });
-            flushData.data = renderedAssets.top + flushData.data + renderedAssets.bottom;
 
-            // merge any consecutive script
-            flushData.data = flushData.data.replace(/<\/script><script>/g, '');
+            flushData.data = renderedAssets.top + flushData.data + renderedAssets.bottom;
         },
 
         /**
@@ -229,7 +256,7 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
          * @param {String} location The location of the rendered asset.
          * @param {String} type The type of the rendered asset.
          */
-        _concatRenderdAssets: function (renderedAsset, renderedAssets, location, type) {
+        _concatRenderedAssets: function (renderedAsset, renderedAssets, location, type) {
             if (location === 'top') {
                 renderedAssets.top += renderedAsset;
             } else {
@@ -238,12 +265,14 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
         }
     };
 
-}, '0.1.0', {requires: [
-    'mojito',
-    'mojito-util',
-    'mojito-assets-addon',
-    'mojito-http-addon', // Gives access to the HTTP object, to any controller using the pipeline add-on.
-    'mojito-deploy-addon',
-    'mojito-config-addon',
-    'mojito-pipeline-addon'
-]});
+}, '0.1.0', {
+    requires: [
+        'mojito',
+        'mojito-util',
+        'mojito-assets-addon',
+        'mojito-http-addon',
+        'mojito-deploy-addon',
+        'mojito-config-addon',
+        'mojito-pipeline-addon'
+    ]
+});
