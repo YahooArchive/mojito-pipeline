@@ -60,35 +60,43 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
                     root: rootConfig
                 }
             }, self.view);
-
             ac.pipeline.push(rootConfig);
 
             if (ac.pipeline.client.jsEnabled) {
-                // If JS is enabled process the meta data, add the mojito client and wrap the serialized tasks
-                // with their assets. If this is the first flush, prepend the rendered frame to the flush data.
-                ac.pipeline.onAsync('pipeline', 'beforeFlush', function (event, done, flushData) {
-                    var processFlushData = function () {
-                        flushData.meta.assets = flushData.meta.assets || {};
-                        self._processMeta(flushData.meta);
-                        self._addMojitoClient(flushData.meta);
-                        self._wrapFlushData(flushData);
-                    };
 
-                    if (renderedFrame === undefined) {
-                        // Stub the root tasks position since the root section will be pushed in the client-side.
-                        self.view.child = '<div id="root-section"></div>';
-                        self._render(function (data, meta) {
-                            processFlushData();
-                            renderedFrame = data;
-                            flushData.data = renderedFrame + flushData.data;
-                            flushData.meta = meta;
-                            done();
-                        });
-                        return;
-                    }
+                ac.pipeline.on('root', 'afterRender', function (event, root) {
 
-                    processFlushData();
-                    done();
+                    self._processMeta(root.meta);
+                    self.view.child = root.data;
+                    self.meta = root.meta;
+
+                    // If JS is enabled process the meta data, add the mojito client and wrap the serialized tasks
+                    // with their assets. If this is the first flush, prepend the rendered frame to the flush data.
+                    ac.pipeline.onAsync('pipeline', 'beforeFlush', function (event, beforeFlushDone, flushData) {
+
+                        var processFlushData = function () {
+                            flushData.meta.assets = flushData.meta.assets || {};
+                            self._processMeta(flushData.meta);
+                            self._addMojitoClient(flushData.meta);
+                            self._wrapFlushData(flushData);
+                        };
+
+                        if (renderedFrame === undefined) {
+                            // Stub the root tasks position since the root section will be pushed in the client-side.
+                            // self.view.child = '<div id="root-section"></div>';
+                            self._render(function (data, meta) {
+                                processFlushData();
+                                renderedFrame = data;
+                                flushData.data = renderedFrame + flushData.data;
+                                flushData.meta = meta;
+                                beforeFlushDone();
+                            });
+                            return;
+                        }
+
+                        processFlushData();
+                        beforeFlushDone();
+                    });
                 });
             } else {
                 // If JS is disabled, render the frame with the rendered root section.
@@ -100,12 +108,12 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
                         renderedFrame = data;
                         done();
                     });
-                });
 
-                // Prepend the flush data with the rendered frame.
-                ac.pipeline.on('pipeline', 'beforeFlush', function (event, flushData) {
-                    flushData.data = renderedFrame + flushData.data;
-                    flushData.meta = self.meta;
+                    // Prepend the flush data with the rendered frame.
+                    ac.pipeline.on('pipeline', 'beforeFlush', function (event, flushData) {
+                        flushData.data = renderedFrame + flushData.data;
+                        flushData.meta = self.meta;
+                    });
                 });
             }
         },
