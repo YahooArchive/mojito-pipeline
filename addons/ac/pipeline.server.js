@@ -921,7 +921,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     task: task
                 };
 
-                Y.mix(command.instance, task.specs, ['base', 'type', 'action', 'config']);
+                Y.mix(command.instance, task.specs, true, ['base', 'type', 'action', 'config']);
 
                 // Keep track of this method's callback, since this callback should be passed to Pipeline._afterDispatch after dispatching.
                 // TODO try finding a better way to keep track of the callback.
