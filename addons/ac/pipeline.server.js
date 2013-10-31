@@ -754,12 +754,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 Y.mix(adapter, pipeline._frame.adapter);
 
                 command = {
-                    instance: {
-                        base: task.base,
-                        type: task.type,
-                        action: task.action,
-                        config: task.config
-                    },
+                    instance: {},
                     context: pipeline._frame.context,
                     params: task.params,
                     // Pipeline and task are added to the command since the modified ActionContext.done method
@@ -768,6 +763,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     pipeline: pipeline,
                     task: task
                 };
+
+                Y.mix(command.instance, task.specs, ['base', 'type', 'action', 'config']);
 
                 // Keep track of this method's callback, since this callback should be passed to Pipeline._afterDispatch after dispatching.
                 // TODO try finding a better way to keep track of the callback.
