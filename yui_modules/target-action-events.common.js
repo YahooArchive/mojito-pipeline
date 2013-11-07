@@ -61,9 +61,7 @@
                 this.fire.apply(this, [
                     '*',
                     action,
-                    function (wildcardSubscribers) {
-                        return callback && callback(wildcardSubscribers);
-                    }
+                    callback
                 ].concat(optionalArgs));
                 return;
             }
