@@ -14,10 +14,6 @@
 (function () {
     'use strict';
 
-    function ASYNC_NOOP(event, callback) {
-        callback();
-    }
-
     /**
      * @class PipelineEvents
      * @constructor
@@ -105,7 +101,8 @@
                 if (subscriber.unsubscribed) {
                     // This subscriber is not interested in subscribing to that
                     // event, so we replace it with a 'noop' function...
-                    subscriber = ASYNC_NOOP;
+                    fn();
+                    continue;
                 }
 
                 subscriber.apply(this, args);
