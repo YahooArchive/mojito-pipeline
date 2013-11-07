@@ -52,20 +52,19 @@
                 i;
 
             subscribers = this.events[target] && this.events[target][action];
+
+            if (!subscribers && target === '*') {
+                return callback && callback(0);
+            }
+
             optionalArgs = Array.prototype.slice.call(arguments, 0).slice(3);
 
             if (!subscribers) {
-                if (target === '*') {
-                    return callback && callback(0);
-                }
-                this.fire.apply(this, [
+                return this.fire.apply(this, [
                     '*',
                     action,
-                    function (wildcardSubscribers) {
-                        return callback && callback(wildcardSubscribers);
-                    }
+                    callback
                 ].concat(optionalArgs));
-                return;
             }
 
             subscribersInvoked = 0;
