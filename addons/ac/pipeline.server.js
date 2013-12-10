@@ -1071,6 +1071,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             if (this._closeCalled) {
                 this.closed = true;
                 this._events.fire('pipeline', 'onClose', function () {
+                    var erroredTasks = {};
                     pipeline._fireTasksFlushEvents(function () {
                         // Report any task that ended in an erroneous state after pipeline closed.
                         Y.Object.each(pipeline._tasks, function (task) {
@@ -1091,9 +1092,19 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                             }
 
                             if (errorMessage) {
-                                Y.log(errorMessage + '\n' + task.getDetails(), 'error', NAME);
+                                errorMessage = errorMessage + '\n' + task.getDetails();
+                                erroredTasks[task.id] = {
+                                    task: task,
+                                    error: errorMessage
+                                };
+                                Y.log(errorMessage, 'error', NAME);
                             }
                         });
+                        if (!Y.Object.isEmpty(erroredTasks)) {
+                            pipeline._events.fire('pipeline', 'onError', null, erroredTasks);
+                        }
+
+                        pipeline._events.fire('pipeline', 'afterClose');
                     });
                 });
             } else {
