@@ -45,6 +45,7 @@
                 fn,
                 args,
                 optionalArgs,
+                originalTarget,
                 i;
 
             subscribers = this.events[target] && this.events[target][action];
@@ -55,7 +56,12 @@
 
             optionalArgs = Array.prototype.slice.call(arguments, 0).slice(3);
 
+            if (target === '*') {
+                originalTarget = optionalArgs.pop();
+            }
+
             if (!subscribers) {
+                optionalArgs.push(target);
                 return this.fire.apply(this, [
                     '*',
                     action,
@@ -68,7 +74,7 @@
 
             // The event object passed to the subscribers.
             evt = {
-                target: target,
+                target: originalTarget || target,
                 action: action
             };
 
@@ -82,6 +88,7 @@
                     if (target === '*') {
                         return callback && callback(subscribersInvoked);
                     }
+                    optionalArgs.push(target);
                     self.fire.apply(self, [
                         '*',
                         action,
