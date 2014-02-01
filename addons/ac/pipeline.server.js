@@ -952,7 +952,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     return callback && callback();
                 }
                 pipeline._prepareToRender(task, callback);
-            });
+            }, task);
         },
 
         /**
