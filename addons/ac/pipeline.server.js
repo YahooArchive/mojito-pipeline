@@ -141,6 +141,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         this.embedded = false; // This task is not considered embedded until its parent labels it as such.
 
+        this.specs = {};
         this.meta = {};
     }
 
@@ -331,7 +332,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
          * @returns {boolean} The rendered html if available, otherwise a placeholder div.
          */
         toString: function () {
-            if (!this.rendered) {
+            // If this task has not been rendered then a stub is created for it.
+            // If this task has already been flushed, then a stub is created instead of
+            // embedding the task since this task will be embedded in the client side.
+            if (!this.rendered || this.flushed) {
                 return '<div id="' + this.id + '-section"></div>';
             }
 
@@ -871,9 +875,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 if (!task.setParams) {
                     // Tasks can have a 'group' property such that they are group together in an array
                     // with other siblings of the same group.
-                    if (childTask.group) {
-                        task.params.body.children[childTask.group] = task.params.body.children[childTask.group] || [];
-                        task.params.body.children[childTask.group].push(childTask);
+                    if (childTask.specs.group) {
+                        task.params.body.children[childTask.specs.group] = task.params.body.children[childTask.specs.group] || [];
+                        task.params.body.children[childTask.specs.group].push(childTask);
                     } else {
                         task.params.body.children[childTask.id] = childTask;
                     }
