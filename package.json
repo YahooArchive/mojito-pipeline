@@ -1,6 +1,6 @@
 {
     "name": "mojito-pipeline",
-    "version": "0.0.18",
+    "version": "0.0.19",
     "description": "A pipelining processor to render asynchronous page models in mojito",
     "licenses": [
         {
@@ -15,7 +15,7 @@
     "dependencies": {
         "async": "0.2.x",
         "uglify-js": "1.3.x",
-        "mojito-jscheck": "0.0.x"
+        "mojito-jscheck": "0.1.x"
     },
     "devDependencies": {
         "mojito": "0.8.x",
