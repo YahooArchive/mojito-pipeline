@@ -12,8 +12,7 @@ YUI.add('BoxController', function (Y, NAME) {
             //ac.assets.addCss('./box.css');
             //ac.assets.addJs('./script.js');
             ac.data.set('sectionName', ac.config.get('title'));
-            ac.data.set('sectionType', ac.config.get('cssClass'));
-
+            ac.data.set('sectionType', ac.config.get('cssClass') || 'default');
 
             Y.mix(view, ac.params.body('children'));
 
