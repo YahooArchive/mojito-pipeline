@@ -46,7 +46,7 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
             Noop: NOOP
         },
         Mojito = {
-            route: function (route, jsEnabled, test, callback) {
+            route: function (route, js, test, callback) {
                 var adapter = {
                         req: {}
                     },
@@ -70,7 +70,8 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
                         flushes: 0,
                         closed: false
                     },
-                    expected = (routeConfig.expected && routeConfig.expected[jsEnabled ? 'js' : 'nojs']) || {};
+                    jsEnabled = js === 'js',
+                    expected = (routeConfig.expected && routeConfig.expected[js]) || {};
 
                 ac.jscheck.expect({
                     method: 'run',
@@ -111,6 +112,8 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
                         Y.mojito.ActionContext.prototype.done.apply(childAc, [{}]);
                     }
                 });
+                delete expected.acDispatchCount;
+                delete expected.acFlushCount;
 
                 ac.config = routeConfig.config;
 
@@ -141,6 +144,7 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
                     Pipeline.prototype._flushQueuedTasks.apply(this, arguments);
                     if (this._closeCalled) {
                         results.closed = true;
+                        results.tasks = ac.pipeline._tasks;
                         ac.pipeline._flushQueuedTasks = NOOP;
                         // If one of the mocks fail, resume will end up being called twice so we should ignore the first one
                         //YUITest.TestRunner._waiting = true;
@@ -152,7 +156,6 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
                     }
                 };
 
-
                 // Run Frame specified in the spec
                 mojits[routeConfig.type](ac);
 
@@ -161,32 +164,26 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
                     A.fail('Pipeline never closed.');
                 });
 
-
                 return ac.pipeline;
             },
 
             // TODO also compare the logs generated.
             _compareResults: function (expected, results, test) {
-                var compareArray = function (arr1, arr2, type) {
-                    A.areEqual(arr1.length, arr2.length, 'Unexpected ' + type + ' array length.');
-                    Y.Array.each(arr1, function (value, index) {
-                        if (value !== arr2[index]) {
-                            return test.fail('Unexpected ' + type + ' results.\nExpected ' + arr1 + '\nAcutal ' + arr2);
-                        }
-                    });
-                };
-
-                Y.Object.each(expected, function (expectedResult, expectedResultType) {
-                    var actualResult = results[expectedResultType];
-                    if (actualResult !== undefined && actualResult !== expectedResult) {
-                        A.areSame(typeof actualResult, typeof expectedResult, 'Unexpected type in ' + expectedResultType + ' results.');
-                        if (Y.Lang.isArray(expectedResult)) {
-                            compareArray(expectedResult, actualResult, expectedResultType);
-                        } else {
-                            A.areSame(expectedResult, actualResult, 'Unexpected ' + expectedResultType + ' results.');
-                        }
+                (function compare(expected, actual, path) {
+                    A.areSame(Y.Lang.type(expected), Y.Lang.type(actual), 'Unexpected type in ' + path);
+                    if (Y.Lang.isArray(actual)) {
+                        A.areEqual(expected.length, actual.length, 'Unexpected array length in ' + path);
+                        Y.Array.each(expected, function (expectedValue, index) {
+                            compare(expectedValue, actual[index], path + '[' + index + ']');
+                        });
+                    } else if (Y.Lang.isObject(expected)) {
+                        Y.Object.each(expected, function (expectedValue, type) {
+                            compare(expectedValue, actual[type], path + '->' + type);
+                        });
+                    } else {
+                        A.areSame(expected, actual, 'Unexpected result in ' + path);
                     }
-                });
+                }(expected, results, 'results'));
             }
         };
 
@@ -201,21 +198,21 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
         name: 'unit tests',
 
         'Test user rules (JS)': function () {
-            Mojito.route('Route 1', true, this, function (pipeline) {
-                A.areSame(pipeline._tasks.root.toString(), 'Rendered');
+            Mojito.route('Route 1', 'js', this, function (pipeline) {
+                A.areSame(pipeline._tasks.root.data, 'Rendered');
             });
         },
 
         'Test user rules (No JS)': function () {
-            Mojito.route('Route 1', false, this);
+            Mojito.route('Route 1', 'nojs', this);
         },
 
         'Test error conditions (JS)': function () {
-            Mojito.route('Route 2', true, this);
+            Mojito.route('Route 2', 'js', this);
         },
 
         'Test misc task config options (JS)': function () {
-            Mojito.route('Route 3', true, this);
+            Mojito.route('Route 3', 'js', this);
         }
     }));
 
