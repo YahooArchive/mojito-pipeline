@@ -9,14 +9,30 @@
                     "rendered": ["root", "d", "c", "b", "a"],
                     "flushed": ["root", "c", "d", "b", "a", "e", "f"],
                     "acDispatchCount": 5,
-                    "acFlushCount": 2
+                    "acFlushCount": 2,
+                    "tasks": {
+                        "e": {
+                            "data": "<span>ERROR</span>"
+                        },
+                        "f": {
+                            "data": "<span>ERROR</span>"
+                        }
+                    }
                 },
                 "nojs": {
                     "dispatched": ["root", "a", "b", "c", "d"],
                     "rendered": ["d", "c", "b", "a", "root"],
                     "flushed": [],
                     "acDispatchCount": 5,
-                    "acFlushCount": 0
+                    "acFlushCount": 0,
+                    "tasks": {
+                        "e": {
+                            "data": "<span>ERROR</span>"
+                        },
+                        "f": {
+                            "data": "<span>ERROR</span>"
+                        }
+                    }
                 }
             },
             "config": {
@@ -114,7 +130,19 @@
                     "rendered": ["root", "a1", "b", "a2", "a"],
                     "flushed": ["root", "b", "a"],
                     "acDispatchCount": 5,
-                    "acFlushCount": 0
+                    "acFlushCount": 0,
+                    "tasks": {
+                        "a": {
+                            "params": {
+                                "body": {
+                                    "children": {
+                                        "bGroup": [{
+                                        }]
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             },
             "config": {
