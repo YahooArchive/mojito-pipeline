@@ -10,28 +10,14 @@ YUI.add('MasterController', function (Y, NAME) {
                 id,
                 children,
                 pushedTasks = 0,
-                searchResultsDependencies = [],
+                searchResultsChildren = {},
                 closePipeline = function () {
                     if (--pushedTasks === 0) {
                         ac.pipeline.close();
                     }
                 },
-                randomPush = function () {
-                    var task = {
-                        id: 'search-result' + i,
-                        group: 'results',
-                        type: 'Box',
-                        errorContent: {
-                            "type": "Error",
-                            "config": {
-                                "errorTitle": "This is an error title"
-                            }
-                        },
-                        config: {
-                            title: 'search-result' + i,
-                            cssClass: 'dependency'
-                        }
-                    };
+                randomPush = function (task) {
+                    pushedTasks++;
 
                     setTimeout(function () {
                         ac.pipeline.push(task);
@@ -39,26 +25,38 @@ YUI.add('MasterController', function (Y, NAME) {
                     }, 2000 * Math.random());
                 };
 
-            // push search-results children
+            // push search-results
             for (i = 1; i <= 6; i++) {
-                searchResultsDependencies.push('search-result' + i);
-                pushedTasks++;
-                randomPush();
-
+                id = 'search-result' + i;
+                searchResultsChildren[id] = {
+                    id: id,
+                    group: 'results',
+                    type: 'Box',
+                    // display search results in order.
+                    display: i > 1 ? 'search-result' + (i - 1) + '.displayed' : undefined,
+                    // prevent search results from being embedded in search-results collection
+                    render: 'search-results.rendered',
+                    config: {
+                        title: 'search-result' + i,
+                        cssClass: 'section'
+                    }
+                };
+                randomPush(searchResultsChildren[id]);
             }
 
             // push sections
-            Y.Object.each(ac.pipeline.sections, function (section) {
-                if (section.sectionName === 'root' || section.sectionName === 'search-box' || section.sectionName === 'footer') {
+            Y.Object.each(ac.pipeline.specs, function (specs, id) {
+                if (id === 'root' || id === 'search-box' || id === 'footer') {
                     return;
                 }
                 pushedTasks++;
                 var task = {
-                    id: section.sectionName,
-                    dependencies: section.sectionName === 'search-results' ? searchResultsDependencies : [],
+                    id: id,
+                    block: specs.block,
+                    children: id === 'search-results' ? searchResultsChildren : undefined,
                     config: {
-                        title: section.sectionName,
-                        cssClass: section['default'] ? 'default section' : 'section'
+                        title: id,
+                        cssClass: specs.block ? 'dependency' : specs['default'] ? 'default section' : 'section'
                     }
                 };
 
