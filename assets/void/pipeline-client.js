@@ -113,6 +113,7 @@ var pipeline = (function () {
 
                 for (i = 0; i < self.embeddedChildren.length; i++) {
                     child = self.embeddedChildren[i];
+                    pipeline._getTask(child).displayed = true;
                     events.fire(child, 'afterDisplay');
                 }
 
@@ -194,9 +195,11 @@ var pipeline = (function () {
         },
 
         _getTask: function (id) {
-            return this.tasks[id] || {
+            var task = this.tasks[id] || {
                 id: id
             };
+            this.tasks[id] = task;
+            return task;
         }
     };
 
