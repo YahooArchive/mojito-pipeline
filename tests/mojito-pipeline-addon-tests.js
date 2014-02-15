@@ -195,7 +195,7 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
 
         name: 'unit tests',
 
-        /*'Test user rules (JS)': function () {
+        'Test user rules (JS)': function () {
             Mojito.route('Route 1', 'js', this, function (pipeline) {
                 A.areSame(pipeline._tasks.root.data, 'Rendered');
             });
@@ -203,15 +203,15 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
 
         'Test user rules (No JS)': function () {
             Mojito.route('Route 1', 'nojs', this);
-        },*/
+        },
 
         'Test error conditions (JS)': function () {
             Mojito.route('Route 2', 'js', this);
-        }/*,
+        },
 
         'Test misc task config options (JS)': function () {
             Mojito.route('Route 3', 'js', this);
-        }*/
+        }
     }));
 
     YUITest.TestRunner.add(suite);
