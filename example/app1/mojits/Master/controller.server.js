@@ -46,19 +46,19 @@ YUI.add('MasterController', function (Y, NAME) {
 
             // push sections
             Y.Object.each(ac.pipeline.specs, function (specs, id) {
-                if (id === 'root' || id === 'search-box' || id === 'footer') {
+                if (id === 'root' || specs.autoPush) {
                     return;
                 }
+
                 pushedTasks++;
-                var task = {
-                    id: id,
-                    block: specs.block,
-                    children: id === 'search-results' ? searchResultsChildren : undefined,
-                    config: {
-                        title: id,
-                        cssClass: specs.block ? 'dependency' : specs['default'] ? 'default section' : 'section'
-                    }
-                };
+                var task = specs;
+                if (id === "search-results") {
+                    task.children = searchResultsChildren;
+                }
+                task.config = Y.mix(task.config || {}, {
+                    title: id,
+                    cssClass: specs.blockParent ? 'dependency' : 'section'
+                });
 
                 setTimeout(function () {
                     ac.pipeline.push(task);

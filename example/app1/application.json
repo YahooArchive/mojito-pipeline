@@ -15,10 +15,10 @@
                         "children": {
                             "search-box": {
                                 "type": "Box",
-                                "default": true,
+                                "autoPush": true,
                                 "config": {
                                     "title": "search-box",
-                                    "taskType": "default section"
+                                    "cssClass": "default section"
                                 }
                             },
                             "search-results": {
@@ -30,7 +30,7 @@
                                 "children": {
                                     "north-ad": {
                                         "type": "Box",
-                                        "block": true
+                                        "blockParent": true
                                     },
                                     "south-ad": {
                                         "type": "Box"
@@ -40,10 +40,10 @@
                             "footer": {
                                 "type": "Box",
                                 "flush": "pipeline.closed",
-                                "default": true,
+                                "autoPush": true,
                                 "config": {
                                     "title": "footer",
-                                    "taskType": "default section"
+                                    "cssClass": "default section"
                                 }
                             }
                         }

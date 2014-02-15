@@ -85,7 +85,7 @@
                 "js": {
                     "dispatched": ["root", "a", "b", "Noop@1", "c", "e"],
                     "rendered": ["root", "a", "b", "Noop@1", "c", "e"],
-                    "flushed": ["root", "a", "b", "c", "e"],
+                    "flushed": ["root", "a", "b", "Noop@1", "c", "e"],
                     "acDispatchCount": 6,
                     "acFlushCount": 1
                 }
@@ -157,15 +157,15 @@
                         "a": {
                             "children": {
                                 "b": {
-                                    "default": true,
+                                    "autoPush": true,
                                     "group": "bGroup",
                                     "onTimeout": true
                                 },
                                 "a1": {
-                                    "block": true
+                                    "blockParent": true
                                 },
                                 "a2": {
-                                    "block": true
+                                    "blockParent": true
                                 }
                             }
                         }
