@@ -136,14 +136,12 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         this.timeoutSubscription  = null;
         this.closeSubscription    = null;
 
-        this.dependencyTasks  = {}; // Children that should block this task from dispatching since its controller depends on them.
-        this.sectionTasks     = {}; // Children that can be replaced by empty div's and flushed later.
         this.childrenTasks    = {}; // All children.
         this.embeddedChildren = []; // Children that were rendered before this task was rendered and so this task contains them.
 
         this.embedded = false; // This task is not considered embedded until its parent labels it as such.
 
-        this.isSection = true; // By default a task is a section unless it's specs indicate otherwise.
+        this.blockParent = false; // By default a task does not block its parent unless its specs indicates otherwise.
         this.parentId  = null; // A task has no parent unless a task specifies it as its child in its specs.
 
         this.specs = {}; // All the specs defined during initialization and by the parent.
@@ -165,8 +163,28 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 pipeline = self.pipeline,
                 type;
 
+            // Report a warning if a task specifies that is it blocking while its pushed parent is not aware that it is blocking.
+            // This can result in the parent dispatching before the blocking task, since it didn't know that it should be blocked.
+            if (self.parentTask && !self.specs.blockParent && specs.blockParent) {
+                Y.log('Task ' + self.id + ' has specified to block its parent but its parent, '
+                    + self.parentId + ' has been pushed without knowing that '
+                    + self.id + ' should block it. Make sure that blocking children specify blockParent '
+                    + 'before or when its parent is pushed', 'warn', NAME);
+            }
+
             // Merge the new specs. self.specs may already contain specs specified by this task's parent, added through addSpecs below.
             Y.mix(self.specs, specs);
+
+            // Report a warning if a task is blocking yet it specifies flush or display rules.
+            // These rules have no effect when a task blocks its parent because it ends up embedded and
+            // its flushing and displaying follows its parent.
+            if (self.blockParent && (self.specs.flush || self.specs.display)) {
+                Y.log('Task ' + self.id + ' blocks its parent but also specifies a flush or display rule. '
+                    + 'These rules are ignored since the task will end up embedded in its parent '
+                    + 'and will be flushed and displayed with its parent.', 'warn', NAME);
+                delete self.specs.flush;
+                delete self.specs.display;
+            }
 
             if (!self.specs.type && !self.specs.base) {
                 Y.log('Error initializing task ' + self.id + ': tasks must have a base or a type.', 'error', NAME);
@@ -191,16 +209,12 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 self.specs.children[childId] = child = Y.Lang.isObject(child) ? child : {};
 
                 if (child.blockParent) {
-                    self.dependencyTasks[childId] = childTask;
                     // This task can only be dispatched after all blocking children have been rendered.
                     self.dispatchTargets[childId] = ['afterRender'];
-                } else {
-                    self.sectionTasks[childId] = childTask;
-                    if (!pipeline.client.jsEnabled) {
-                        // If JS is disabled, this task should only render after each child section has rendered.
-                        // This ensures that the children sections become embedded in this task, without being stubbed with empty div's.
-                        self.renderTargets[childId] = ['afterRender'];
-                    }
+                } else if (!pipeline.client.jsEnabled) {
+                    // If JS is disabled, this task should only render after each child has rendered.
+                    // This ensures that the children become embedded in this task, without being stubbed with empty div's.
+                    self.renderTargets[childId] = ['afterRender'];
                 }
             });
 
@@ -222,11 +236,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
                     childSpecs.id = childId;
                     childTask.parentId = parentId;
-                    childTask.isSection = !childSpecs.blockParent;
-
-                    // In the client-side, the child task should be displayed after its parent has been displayed.
-                    // This ensure that this child has a container where it can be embedded.
-                    childTask.displayTargets[parentId] = ['afterDisplay'];
+                    childTask.blockParent = !!childSpecs.blockParent;
 
                     // Merge this child task's specs with any previously defined specs.
                     Y.mix(childTask.specs, childSpecs);
@@ -237,7 +247,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             Y.Object.each(self.childrenTasks, function (childTask) {
                 childTask.parentTask = self;
-                // Children sections without a specified timeout inherit this task's timeout.
+                // Children without a specified timeout inherit this task's timeout.
                 if (childTask.timeout === undefined) {
                     childTask.timeout = self.timeout;
                 }
@@ -274,14 +284,14 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         /**
-         * This task may be dispatched if there are no dependencies or all have been rendered.
+         * This task may be dispatched if there are no blocking children or all have been rendered.
          * This function will be combined with a corresponding, user-defined rule if it exists.
          * @param {Object} pipeline Pipeline reference.
          * @returns {boolean} Whether to dispatch this task.
          */
         dispatchTest: function (pipeline) {
-            return !Y.Object.some(this.dependencyTasks, function (dependencyTask) {
-                return !dependencyTask.rendered;
+            return !Y.Object.some(this.childrenTasks, function (childTask) {
+                return childTask.blockParent && !childTask.rendered;
             });
         },
 
@@ -297,29 +307,29 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         /**
-         * When JS is disabled, this task may be rendered only after either all children sections have been rendered or
-         * Pipeline is closed and all pushed children sections have been rendered.
+         * When JS is disabled, this task may be rendered only after either all children have been rendered or
+         * Pipeline is closed and all pushed children have been rendered.
          * @param {Object} pipeline Pipeline reference.
          * @returns {boolean} Whether to render this task.
          */
         noJSRenderTest: function (pipeline) {
             if (pipeline.closed) {
-                // if pipeline is closed return false if any child section has been pushed but not rendered
-                // this means that there is a child section that hasn't been rendered and this task should wait before rendering
-                return !Y.Object.some(this.sectionTasks, function (sectionTask) {
-                    return !sectionTask.rendered && sectionTask.pushed;
+                // If pipeline is closed return false if any child has been pushed but not rendered
+                // this means that there is a child that hasn't been rendered and this task should wait before rendering
+                return !Y.Object.some(this.childrenTasks, function (childTask) {
+                    return !childTask.rendered && childTask.pushed;
                 });
             }
 
-            // if pipeline is still open, return false if any child section has not been rendered
-            return !Y.Object.some(this.sectionTasks, function (sectionTask) {
-                return !sectionTask.rendered;
+            // If pipeline is still open, return false if any child has not been rendered.
+            return !Y.Object.some(this.childrenTasks, function (childTask) {
+                return !childTask.rendered;
             });
         },
 
         /**
          * By default this method always returns true since a task should be flushed immediately after rendering
-         * unless it has flush dependencies. Tasks that are not sections or are already embedded are never considered
+         * unless it has flush dependencies. Blocking tasks, and non-blocking tasks that are already embedded, are never considered
          * for flushing. This function will be combined with a corresponding, user-defined rule if it exists.
          * @param {Object} pipeline Pipeline reference.
          * @returns {boolean} Whether to flush this task.
@@ -356,7 +366,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
          * @returns {boolean} The rendered html if available, otherwise a placeholder div.
          */
         toString: function () {
-            if (this.embedded || !this.isSection || !this.pipeline.client.jsEnabled) {
+            if (this.embedded) {
                 return this.data;
             }
 
@@ -381,7 +391,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 // Include this task's meta data in its parent since it is now embedded.
                 Y.mojito.util.metaMerge(this.parentTask.meta, this.meta);
 
-                if (this.isSection) {
+                if (!this.blockParent) {
                     // If this embedded child is in the flush queue, remove it.
                     var index = this.pipeline._taskFlushQueue.indexOf(this);
                     if (index !== -1) {
@@ -434,14 +444,14 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 state = this.getState(),
                 nextAction;
 
-            details = '- Properties: ' + ['state=' + state, 'embedded=' + this.embedded, 'isSection=' + !!this.isSection, 'timeout=' + this.timeout].join(', ');
+            details = '- Properties: ' + ['state=' + state, 'embedded=' + this.embedded, 'blockParent=' + this.blockParent, 'timeout=' + this.timeout].join(', ');
             details += this.parentTask ? '\n- Parent: ' + this.parentTask.getName() : '';
 
             // Determine the next action for this task and append the corresponding rule to the details.
             switch (state) {
             case 'pushed':
             case 'timedout':
-                details += '\n- Dispatch rule: dispatch after dependencies have rendered' +
+                details += '\n- Dispatch rule: dispatch after blocking children have rendered' +
                     (this.specs.dispatch ? ' and (' + this.specs.dispatch + ')' : '');
                 nextAction = 'dispatch';
                 break;
@@ -452,8 +462,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 break;
             case 'rendered':
             case 'errored':
-                // The flush rule only applies to non-embedded sections.
-                if (this.isSection && !this.embedded) {
+                // The flush rule only applies to non-embedded, non-blocking children.
+                if (!this.embedded && !this.blockParent) {
                     details += '\n- Flush rule: flush after rendering'  +
                         (this.specs.flush ? ' and (' + this.specs.flush + ')' : '');
                     nextAction = 'flush';
@@ -520,8 +530,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     serialized += ',\n' + propertyName + ": " + JSON.stringify(property);
                     break;
                 case 'embeddedChildren':
-                    Y.Array.each(property, function (section, index) {
-                        embeddedChildren.push(section.id);
+                    Y.Array.each(property, function (child, index) {
+                        embeddedChildren.push(child.id);
                     });
                     serialized += ',\n' + propertyName + ": " + JSON.stringify(embeddedChildren);
                     break;
@@ -583,7 +593,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         /**
          * Mapping of task id to its specs. This is not needed internally but serves as a convenience for users.
-         * property sections
+         * property specs
          * @type Object
          */
         //
@@ -1047,8 +1057,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         _prepareToFlushEnqueue: function (task, callback) {
             var pipeline = this;
 
-            // If this task is a not a section or is embedded, then it does not need to be flushed.
-            if (!task.isSection || task.embedded) {
+            // If this task blocks its parent or is embedded, then it does not need to be flushed.
+            if (task.blockParent || task.embedded) {
                 return callback && callback();
             }
 
@@ -1105,12 +1115,12 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                                 errorMessage = task.getName() + ' was flushed but its parent, \'' +
                                     task.parentId + '\', was never pushed, so it has no place to be displayed. ' +
                                     'Make sure that \'' + task.specs.parentId + '\' is pushed.';
-                            } else if (!task.isSection && !task.flushed && task.rendered && !task.embedded) {
+                            } else if (task.blockParent && !task.flushed && task.rendered && !task.embedded) {
                                 if (task.parentId) {
                                     errorMessage = task.getName() + ' was rendered but its parent ' +  task.parentId +
-                                        ' did not embed it and it is not a section. Make sure that its parent places this task in its view.';
+                                        ' did not embed it and it is marked to block its parent. Make sure that its parent places this task in its view.';
                                 } else {
-                                    errorMessage = task.getName() + ' was rendered but it doesn\'t have a parent to embed it and it is not a section. ' +
+                                    errorMessage = task.getName() + ' was rendered but it doesn\'t have a parent to embed it. ' +
                                         'Make sure that this task is listed as a child of another task.';
                                 }
                             } else if (task.pushed && !task[endState]) {
@@ -1162,6 +1172,19 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                             }
 
                             Y.mojito.util.metaMerge(flushData.meta, task.meta);
+
+                            // Add this task's parent to the display targets such that on the client side it can
+                            // listen to its parent afterDisplay event in order to display itself.
+                            // If no parent has claimed this task yet, then this task should listen to all tasks' afterDisplay
+                            // event such that it can display itself once there is a stub for it.
+                            if (task.id !== 'root') {
+                                var parent = task.parentId || '*',
+                                    displayTargets = {};
+
+                                displayTargets[parent] = ['afterDisplay'];
+                                task.displayTargets = Y.mojito.util.blend(task.displayTargets, displayTargets);
+                            }
+
                             flushData.data += task.serialize();
 
                             ++numFlushedTasks;
@@ -1328,10 +1351,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 };
             }
 
-            // Find any dependency that was not rendered, thus preventing the task from dispatching.
-            Y.Object.some(task.dependencyTasks, function (dependency, dependencyId) {
-                if (!dependency.rendered) {
-                    hint = ' Dependency \'' + dependency.getName() + '\' was never rendered, which prevented this task from dispatching.';
+            // Find any blocking child that was not rendered, thus preventing the task from dispatching.
+            Y.Object.some(task.childrenTasks, function (childTask) {
+                if (childTask.blockParent && !childTask.rendered) {
+                    hint = ' Blocking child \'' + childTask.getName() + '\' was never rendered, which prevented this task from dispatching.';
                     return true;
                 }
             });
