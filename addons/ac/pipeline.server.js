@@ -1112,9 +1112,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                                 errorMessage;
 
                             if (pipeline.client.jsEnabled && task.id !== 'root' && task.flushed && !task.parentTask) {
-                                errorMessage = task.getName() + ' was flushed but its parent, \'' +
-                                    task.parentId + '\', was never pushed, so it has no place to be displayed. ' +
-                                    'Make sure that \'' + task.specs.parentId + '\' is pushed.';
+                                errorMessage = task.getName() + ' was flushed but no parent ever claimed it as a child, ' +
+                                    'so it has no place to be displayed. ' +
+                                    'Make sure that this task is specified as a child.';
                             } else if (task.blockParent && !task.flushed && task.rendered && !task.embedded) {
                                 if (task.parentId) {
                                     errorMessage = task.getName() + ' was rendered but its parent ' +  task.parentId +
