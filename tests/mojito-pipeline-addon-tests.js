@@ -14,11 +14,7 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
             PipelineFrame: function (ac) {
                 var child = ac.config.child;
                 child.id = 'root';
-                ac.pipeline.initialize({
-                    sections: {
-                        root: child
-                    }
-                });
+                ac.pipeline.initialize({});
                 ac.pipeline.push(child);
             },
             Pusher: function (ac) {
@@ -32,7 +28,7 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
                             if (task === 'close') {
                                 return ac.pipeline.close();
                             }
-                            var taskConfig = task === '' ? {} : Y.mix({id: task}, ac.pipeline.sections[task] || {});
+                            var taskConfig = task === '' ? {} : Y.mix({id: task}, ac.pipeline.specs[task] || {});
                             ac.pipeline.push(taskConfig);
                         });
                     };
@@ -122,8 +118,9 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
 
                 // Hook into pipeline methods to populate results
                 ac.pipeline.push = function (taskConfig) {
+                    taskConfig = Y.Lang.isString(taskConfig) ? {id: taskConfig} : taskConfig;
                     taskConfig.type = taskConfig.type === undefined ? 'Noop' : taskConfig.type;
-                    var id = Pipeline.prototype.push.apply(this, arguments);
+                    var id = Pipeline.prototype.push.call(this, taskConfig);
                     results.pushed.push(id);
                 };
                 ac.pipeline._dispatch = function (task) {
@@ -145,9 +142,10 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
                     if (this._closeCalled) {
                         results.closed = true;
                         results.tasks = ac.pipeline._tasks;
+
                         ac.pipeline._flushQueuedTasks = NOOP;
                         // If one of the mocks fail, resume will end up being called twice so we should ignore the first one
-                        //YUITest.TestRunner._waiting = true;
+                        YUITest.TestRunner._waiting = true;
                         test.resume(function () {
                             ac.verify();
                             Mojito._compareResults(expected, results, test);

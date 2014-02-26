@@ -1,7 +1,7 @@
 [
     {
         "settings": [ "master" ],
-        "actionTimeout": 3000,
+        "actionTimeout": 0,
         "staticHandling": {
             "appName": "app"
         },
@@ -12,13 +12,13 @@
                     "deploy": true,
                     "child": {
                         "type": "Master",
-                        "sections": {
+                        "children": {
                             "search-box": {
                                 "type": "Box",
-                                "default": true,
+                                "autoPush": true,
                                 "config": {
                                     "title": "search-box",
-                                    "taskType": "default section"
+                                    "cssClass": "default section"
                                 }
                             },
                             "search-results": {
@@ -27,9 +27,10 @@
                             "ads": {
                                 "type": "Box",
                                 "render": "search-results.rendered",
-                                "sections": {
+                                "children": {
                                     "north-ad": {
-                                        "type": "Box"
+                                        "type": "Box",
+                                        "blockParent": true
                                     },
                                     "south-ad": {
                                         "type": "Box"
@@ -39,10 +40,10 @@
                             "footer": {
                                 "type": "Box",
                                 "flush": "pipeline.closed",
-                                "default": true,
+                                "autoPush": true,
                                 "config": {
                                     "title": "footer",
-                                    "taskType": "default section"
+                                    "cssClass": "default section"
                                 }
                             }
                         }
