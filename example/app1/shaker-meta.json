@@ -1,0 +1,167 @@
+{
+    "app": {
+        "*": {
+            "app": {
+                "css": [
+                    "/static/app/assets/base.css"
+                ]
+            },
+            "mojits": {
+                "Box": {
+                    "index": {
+                        "css": [
+                            "/static/Box/assets/box.css"
+                        ],
+                        "js": [
+                            "/static/Box/assets/script.js"
+                        ]
+                    }
+                },
+                "Master": {
+                    "index": {
+                        "css": [
+                            "/static/Master/assets/master.css"
+                        ]
+                    }
+                }
+            },
+            "rollups": {
+                "root": {
+                    "js": {
+                        "rollups": [
+                            "rollup_root_js_*_0"
+                        ],
+                        "resources": {
+                            "yui-bootstrap--yui-bootstrap-override": true,
+                            "yui-module--yui-base": true,
+                            "yui-module--get": true,
+                            "yui-module--features": true,
+                            "yui-module--loader-base": true,
+                            "yui-module--loader-yui3": true,
+                            "yui-module--event-base": true,
+                            "yui-module--oop": true,
+                            "yui-module--dom-core": true,
+                            "yui-module--dom-base": true,
+                            "yui-module--selector-native": true,
+                            "yui-module--selector": true,
+                            "yui-module--node-core": true,
+                            "yui-module--node-base": true,
+                            "yui-module--event-delegate": true,
+                            "yui-module--node-event-delegate": true,
+                            "yui-module--pluginhost-base": true,
+                            "yui-module--pluginhost-config": true,
+                            "yui-module--node-pluginhost": true,
+                            "yui-module--color-base": true,
+                            "yui-module--dom-style": true,
+                            "yui-module--dom-screen": true,
+                            "yui-module--node-screen": true,
+                            "yui-module--node-style": true,
+                            "yui-module--yui-later": true,
+                            "yui-module--yui-log": true,
+                            "yui-module--loader-rollup": true,
+                            "yui-module--event-custom-base": true,
+                            "yui-module--array-extras": true,
+                            "yui-bootstrap--yui-bootstrap-core": true,
+                            "yui-module--querystring-stringify-simple": true,
+                            "yui-module--io-base": true,
+                            "/static/mojito.js": true,
+                            "yui-module--attribute-core": true,
+                            "yui-module--event-custom-complex": true,
+                            "yui-module--attribute-observable": true,
+                            "yui-module--attribute-extras": true,
+                            "yui-module--attribute-base": true,
+                            "yui-module--base-core": true,
+                            "yui-module--base-observable": true,
+                            "yui-module--base-base": true,
+                            "yui-module--base-build": true,
+                            "yui-module--escape": true,
+                            "yui-module--json-parse": true,
+                            "yui-module--model": true,
+                            "yui-module--json-stringify": true,
+                            "/static/mojito-hooks.js": true,
+                            "/static/mojito-view-renderer.js": true,
+                            "/static/mojito-util.js": true,
+                            "/static/mojito-action-context.js": true,
+                            "/static/mojito-dispatcher.js": true,
+                            "yui-module--querystring-parse": true,
+                            "/static/mojito-route-maker.js": true,
+                            "/static/mojito-client-store.js": true,
+                            "yui-module--querystring-stringify": true,
+                            "/static/mojito-mojit-proxy.js": true,
+                            "/static/mojito-tunnel-client.js": true,
+                            "/static/mojito-output-handler.js": true,
+                            "/static/mojito-client.js": true,
+                            "/static/MasterIndexBinder.js": true,
+                            "/static/target-action-events.js": true
+                        }
+                    },
+                    "css": {
+                        "rollups": [
+                            "rollup_root_css_*_0"
+                        ],
+                        "resources": {
+                            "/static/app/assets/base.css": true,
+                            "/static/Master/assets/master.css": true
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "locations": {
+        "local": {
+            "resources": {
+                "/static/Master/assets/master.css": "master_adca7dc20b0dcf7d87727cc256f91b4d.css",
+                "/static/Box/assets/box.css": "box_d0b51396ae5a5f0471bc4dc7af5c355a.css",
+                "/static/app/assets/base.css": "base_afc861ded4a94374373998cc9b4c9f2e.css",
+                "/static/target-action-events.js": "target-action-events_common_85edc0a25f14e8049774e426aa065ad9.js",
+                "/static/BoxIndexBinder.js": "index_a98ba58cac7c6ce3686c4b0e707c8eb5.js",
+                "/static/LazyLoad.js": "controller_common_df43500f4943f9ab2a0c74f31452717f.js",
+                "/static/mojito-util.js": "util_common_0d5a0ee554429ef861f7237aa8b1ad7f.js",
+                "/static/mojito.js": "mojito_common_a5ff47cbb26a748c644727e065679a93.js",
+                "/static/mojito-assets-addon.js": "assets_common_0003c5a01cfc66ec5978298a31ec839f.js",
+                "/static/mojito-params-addon.js": "params_common_c8f0277cc01bc392806f1905bb2fb8d0.js",
+                "/static/LazyLoadBinderIndex.js": "index_9980971a5659139449ac855042856254.js",
+                "/static/mojito-client.js": "mojito-client_client_ffb6002ff7626763041902ba4801de49.js",
+                "/static/mojito-composite-addon.js": "composite_common_a769c549bdefabeb1cd7af3da1c71a3c.js",
+                "/static/mojito-hooks.js": "hooks_common_5f9de4069acc010504fb91c9d98f8482.js",
+                "/static/mojito-output-buffer.js": "output-buffer_common_8ef8c476d6bf0b9fae4d68e6467d9983.js",
+                "/static/Box/assets/script.js": "script_75054dce15028a0494abc78439d444de.js",
+                "/static/mojito-dispatcher.js": "dispatch_client_4a97d686c244963362080b99c1079dcf.js",
+                "/static/mojito-action-context.js": "action-context_common_b71325722c087aa2c45990933e62426a.js",
+                "/static/mojito-view-renderer.js": "view-renderer_client_a7b73fd0fd7d8be172008823a1c7f9c9.js",
+                "/static/mojito-route-maker.js": "route-maker_common_5ad438066b0afea29e21a57ee6ec7797.js",
+                "/static/mojito-client-store.js": "store_client_befd789c577cd96a03d8256bb328da06.js",
+                "/static/mojito-mojit-proxy.js": "mojit-proxy_client_dffa1a65355f7145a41b6e61a46990bc.js",
+                "/static/mojito-tunnel-client.js": "tunnel-client_common_670601f54012026913e6ccee1b4aa513.js",
+                "/static/mojito-output-handler.js": "output-handler_client_8b11e0c862c8e9e210503a9a16cbb82c.js",
+                "/static/MasterIndexBinder.js": "index_e740a33ef09f13bf9454c1c48d2bf8a0.js",
+                "/static/loader-app.js": "loader-app_e8b5890e5b37fc9ef943497f34c8c9db.js",
+                "/static/loader-app-base.js": "loader-app-base_48e6065df65cbaa04fab0b661e7ae04a.js",
+                "/static/loader-app-resolved.js": "loader-app-resolved_0c1449ae58f7e8df06cf21c16e5f93c4.js",
+                "/static/loader-yui3-base.js": "loader-yui3-base_52f06c766f5b394d7ac426b5ca56d559.js",
+                "/static/loader-yui3-resolved.js": "loader-yui3-resolved_fd3d9f8d8c18c28dd54245d1dde7ee90.js",
+                "rollup_root_css_*_0": "rollup_root_css_*_0_33c6b3f7236259ed3c6ba8c5a1d496c0.css",
+                "rollup_root_js_*_0": "rollup_root_js_*_0_087ad5400a0c256e1d59934bee876c04.js"
+            },
+            "yuiConfig": {
+                "groups": {
+                    "app": {
+                        "base": "/",
+                        "comboBase": "/combo~",
+                        "comboSep": "~",
+                        "combine": true,
+                        "root": "/static/app/assets/compiled/"
+                    }
+                }
+            }
+        }
+    },
+    "inline": {
+        "/static/Box/assets/box.css": ".box{border:2px solid black;margin:10px;padding:3px 5px}",
+        "/static/Box/assets/script.js": "console.log(\"script.js executed.\");",
+        "/static/Master/assets/master.css": ".master{width:700px}.master .left{float:left;width:475px}.master .right{float:left;width:220px}.master .bottom,.master .middle{border-bottom:0;border-left:none;border-right:0}.master .top{border:0}.master .left{border-top:0;border-bottom:0;border-left:none}",
+        "/static/app/assets/base.css": "h1{font-size:18px;margin:0}.frameBorder{border-color:black;border-style:solid;border-width:3px}.default.section{color:#55a355}.section{color:#5757ad}.dependency{color:#c04f4f}.stub{color:gray;border:2px solid silver;padding:5px}",
+        "yui-bootstrap--yui-bootstrap-inline": "!function(){function n(n,e,t,o){n&&n.addEventListener?n.addEventListener(e,t,o):n&&n.attachEvent&&n.attachEvent(\"on\"+e,t)}function e(n,e,t,o){if(n&&n.removeEventListener)try{n.removeEventListener(e,t,o)}catch(a){}else n&&n.detachEvent&&n.detachEvent(\"on\"+e,t)}var t=window,o=document,a=function(){function o(){setTimeout(function(){var n,r;for(n=0,r=a.length;r>n;n++)a[n]();e(t,\"load\",o)},0)}var a=[];return n(t,\"load\",o),{add:function(n){a.push(n)}}}(),r=function(){function n(){function n(){var n,e,o,a,r;if(--f<=0&&t.YUI){for(t.YUI.applyConfig({bootstrap:!0}),n=0,e=t.YUI.Env.instances.length;e>n;n++)a=t.YUI.Env.instances[n],a.applyConfig({bootstrap:!0});for(n=0,e=t.YUI.Env.pendingUseCalls.length;e>n;n++)o=t.YUI.Env.pendingUseCalls.shift(),a=o.shift(),r=o.concat(),r.pop(),a.log('[YUI.add] Invoking Y.use(\"'+r.join('\",\"')+'\", function () {...}) ['+a.id+\"]\"),a.use.apply(a,o)}}function a(){/loaded|complete/.test(this.readyState)&&(this.onreadystatechange=null,n())}var c,s,d,l=o.getElementsByTagName(\"script\")[0],u=l.parentNode,f=e.length;for(c=0,s=e.length;s>c;c++)d=o.createElement(\"script\"),i?d.onreadystatechange=a:d.onload=d.onerror=n,d.type=\"text/javascript\",d.src=e[c],u.insertBefore(d,l);r=!0,e=[]}var e=[],r=!1,i=/MSIE/.test(navigator.userAgent);return a.add(n),{js:function(){var t=Array.prototype.slice.call(arguments,0);e=e.concat(t),r&&n()}}}();YUI=function(n){return{use:function(){var e=Array.prototype.slice.call(arguments);YUI.Env.pending.push([n].concat(e))}}},YUI.config={doc:document},YUI.Env={mods:{},pending:[],add:n,remove:e},YUI.add=function(n,e,t,o){YUI.Env.mods[n]={name:n,fn:e,version:t,details:o||{}}},YUI.applyConfig=function(n){YUI.pendingApplyConfig=n},YUI.OnloadHandlerQueue=a,YUI.SimpleLoader=r}();"
+    }
+}
