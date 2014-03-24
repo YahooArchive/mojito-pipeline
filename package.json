@@ -1,6 +1,6 @@
 {
     "name": "mojito-pipeline",
-    "version": "0.0.21",
+    "version": "0.0.22",
     "description": "A pipelining processor to render asynchronous page models in mojito",
     "licenses": [
         {
@@ -18,8 +18,8 @@
         "mojito-jscheck": "0.1.x"
     },
     "devDependencies": {
-        "mojito": "0.8.x",
-        "mojito-cli": "0.1.x",
+        "mojito": "0.9.x",
+        "mojito-cli": "0.2.x",
         "istanbul": "*"
     },
     "keywords": [
@@ -48,7 +48,7 @@
     "engines": {
         "node": "> 0.10",
         "npm": "> 1.2",
-        "mojito": "> 0.8"
+        "mojito": "> 0.9"
     },
     "scripts": {
         "pretest": "mojito jslint app",
