@@ -12,14 +12,14 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
         Pipeline,
         mojits = {
             PipelineFrame: function (ac) {
-                var child = ac.config.child;
+                var child = ac.command.instance.config.child;
                 child.id = 'root';
                 ac.pipeline.initialize({});
                 ac.pipeline.push(child);
             },
             Pusher: function (ac) {
-                var pushGroups = ac.config.push,
-                    config = ac.config;
+                var config = ac.command.instance.config,
+                    pushGroups = config.push;
 
                 Y.Object.each(pushGroups, function (pushGroup, time) {
                     time = Number(time);
@@ -42,7 +42,7 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
             Noop: NOOP
         },
         Mojito = {
-            route: function (route, js, test, callback) {
+            route: function (route, pipelineClient, js, test, callback) {
                 var adapter = {
                         req: {}
                     },
@@ -56,7 +56,7 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
                     },
                     routeConfig = Y.clone(appConfig.specs[route]),
                     ac = new Y.mojito.MockActionContext({
-                        addons: ['jscheck']
+                        addons: ['config', 'jscheck']
                     }),
                     results = {
                         pushed: [],
@@ -68,6 +68,25 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
                     },
                     jsEnabled = js === 'js',
                     expected = (routeConfig.expected && routeConfig.expected[js]) || {};
+
+                ac.command = {
+                    instance: {
+                        config: routeConfig.config || {}
+                    }
+                };
+
+                if (pipelineClient !== null) {
+                    ac.command.instance.config.pipelineClient = pipelineClient;
+                }
+
+                ac.config.expect({
+                    method: 'get',
+                    args: [Value.String],
+                    callCount: 1,
+                    run: function (name) {
+                        return ac.command.instance.config[name];
+                    }
+                });
 
                 ac.jscheck.expect({
                     method: 'run',
@@ -110,8 +129,6 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
                 });
                 delete expected.acDispatchCount;
                 delete expected.acFlushCount;
-
-                ac.config = routeConfig.config;
 
                 ac.pipeline = new Pipeline(command, adapter, ac);
                 ac.pipeline.setStore(rs);
@@ -195,22 +212,26 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
 
         name: 'unit tests',
 
-        'Test user rules (JS)': function () {
-            Mojito.route('Route 1', 'js', this, function (pipeline) {
+        'Test user rules (Client, JS)': function () {
+            Mojito.route('Route 1', null, 'js', this, function (pipeline) {
                 A.areSame(pipeline._tasks.root.data, 'Rendered');
             });
         },
 
-        'Test user rules (No JS)': function () {
-            Mojito.route('Route 1', 'nojs', this);
+        'Test user rules (Client, No JS)': function () {
+            Mojito.route('Route 1', null, 'nojs', this);
         },
 
-        'Test error conditions (JS)': function () {
-            Mojito.route('Route 2', 'js', this);
+        'Test user rules (No Client, No JS)': function () {
+            Mojito.route('Route 1', false, 'nojs', this);
         },
 
-        'Test misc task config options (JS)': function () {
-            Mojito.route('Route 3', 'js', this);
+        'Test error conditions (Client, JS)': function () {
+            Mojito.route('Route 2', null, 'js', this);
+        },
+
+        'Test misc task config options (Client, JS)': function () {
+            Mojito.route('Route 3', null, 'js', this);
         }
     }));
 
