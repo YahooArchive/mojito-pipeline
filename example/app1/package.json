@@ -3,8 +3,8 @@
     "version": "0.0.1",
     "description": "Test app 1",
     "dependencies": {
-        "mojito": "0.8.x",
-        "mojito-cli": "0.1.x",
+        "mojito": "0.9.x",
+        "mojito-cli": "0.2.x",
         "mojito-pipeline": "0.0.x",
         "mojito-shaker": "4.0.x"
     },
