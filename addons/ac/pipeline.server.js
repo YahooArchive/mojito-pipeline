@@ -211,8 +211,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 if (child.blockParent) {
                     // This task can only be dispatched after all blocking children have been rendered.
                     self.dispatchTargets[childId] = ['afterRender'];
-                } else if (!pipeline.client.jsEnabled) {
-                    // If JS is disabled, this task should only render after each child has rendered.
+                } else if (!pipeline.client.enabled) {
+                    // If Pipeline client is disabled, this task should only render after each child has rendered.
                     // This ensures that the children become embedded in this task, without being stubbed with empty div's.
                     self.renderTargets[childId] = ['afterRender'];
                 }
@@ -253,7 +253,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 }
             });
 
-            if (!pipeline.client.jsEnabled) {
+            if (!pipeline.client.enabled) {
                 self.renderTest = self.noJSRenderTest;
                 self.flushTest = self.noJSFlushTest;
                 // The noJSFlushTest tests the Pipeline.close state so it needs to subscribe to Pipeline's onClose event.
@@ -484,7 +484,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             }
             Y.Object.each(this[nextAction + 'Targets'], function (events, dependencyId) {
                 if (dependencyId === 'pipeline') {
-                    details += '\n  - pipeline: state=' + (pipeline.closed ? 'closed' : 'open') + ', jsEnabled=' + pipeline.client.jsEnabled;
+                    details += '\n  - pipeline: state=' + (pipeline.closed ? 'closed' : 'open') +
+                        ', jsEnabled=' + pipeline.client.jsEnabled + ', pipelineClient=' + pipeline.client.enabled;
                     return;
                 }
                 var dependency = pipeline._getTask(dependencyId);
@@ -559,7 +560,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
      * @constructor
      */
     function Pipeline(command, adapter, ac) {
-        var req = adapter.req;
+        var req = adapter.req,
+            jsEnabled;
 
         // Ensure pipeline is a singleton across requests.
         if (!req.globals) {
@@ -571,17 +573,22 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             return req.globals.pipeline;
         }
 
+        jsEnabled = ac.jscheck.status() === 'enabled';
+
         // The code below is only executed once, i.e., when this add-on is attached to the
         // frame mojit's action context.
 
         /**
-         * Representation of the Pipeline client. Includes property jsEnabled and script.
+         * Representation of the Pipeline client. Includes property enabled, jsEnabled, and script.
          * property client
          * @type Object
          */
         this.client = {
-            jsEnabled: ac.jscheck.status() === 'enabled',
-            script: null // String representation of the Pipeline client code, this is set in the setStore method
+            // The Pipeline client is flushed if the pipelineClient option is not set to false
+            // and JS is enabled; otherwise the page is flushed all at once without the Pipeline client.
+            enabled: ac.config.get('pipelineClient') !== false && jsEnabled,
+            jsEnabled: jsEnabled,
+            script: null // String representation of the Pipeline client code, this is set in the setStore method.
         };
 
         /**
@@ -1108,10 +1115,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     pipeline._fireTasksFlushEvents(function () {
                         // Report any task that ended in an erroneous state after pipeline closed.
                         Y.Object.each(pipeline._tasks, function (task) {
-                            var endState = pipeline.client.jsEnabled ? 'flushed' : 'rendered',
+                            var endState = pipeline.client.enabled ? 'flushed' : 'rendered',
                                 errorMessage;
 
-                            if (pipeline.client.jsEnabled && task.id !== 'root' && task.flushed && !task.parentTask) {
+                            if (pipeline.client.enabled && task.id !== 'root' && task.flushed && !task.parentTask) {
                                 errorMessage = task.getName() + ' was flushed but no parent ever claimed it as a child, ' +
                                     'so it has no place to be displayed. ' +
                                     'Make sure that this task is specified as a child.';
@@ -1244,11 +1251,11 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             pipeline._pipelineFlushQueue.push(flushHandler);
 
             // If Pipeline is closed, let the Pipeline client know.
-            if (pipeline.closed) {
+            if (pipeline.closed && pipeline.client.enabled) {
                 flushData.data += 'pipeline.close();';
             }
 
-            flushData.data = flushData.data && this.client.jsEnabled ? '<script>' + flushData.data + '</script>' : '';
+            flushData.data = flushData.data ? '<script>' + flushData.data + '</script>' : '';
 
             this._events.fire('pipeline', 'beforeFlush', function () {
                 var queuedFlushHandler;

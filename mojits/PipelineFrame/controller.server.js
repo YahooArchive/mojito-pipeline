@@ -59,8 +59,8 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
 
             ac.pipeline.push(rootConfig);
 
-            if (ac.pipeline.client.jsEnabled) {
-                // If JS is enabled process the meta data, add the mojito client and wrap the serialized tasks
+            if (ac.pipeline.client.enabled) {
+                // If the Pipeline client is enabled, process the meta data, add the mojito client and wrap the serialized tasks
                 // with their assets. If this is the first flush, prepend the rendered frame to the flush data.
                 ac.pipeline.onAsync('pipeline', 'beforeFlush', function (event, done, flushData) {
                     var processFlushData = function () {
@@ -87,7 +87,7 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
                     done();
                 });
             } else {
-                // If JS is disabled, render the frame with the rendered root section.
+                // If the Pipeline client is disabled, render the frame with the rendered root section.
                 ac.pipeline.onAsync('root', 'afterRender', function (event, done, root) {
                     self.view.child = root.data;
                     self.meta = root.meta;
@@ -124,7 +124,7 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
             };
 
             // Add pipeline client to the view data.
-            if (ac.pipeline.client.jsEnabled) {
+            if (ac.pipeline.client.enabled) {
                 view.pipelineClient = '<script>' + ac.pipeline.client.script + '</script>';
             }
 
