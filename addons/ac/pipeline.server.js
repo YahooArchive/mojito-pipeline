@@ -1162,75 +1162,81 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     meta: {},
                     data: ''
                 },
-                flush = function (task, tasksPendingFlush) {
-                    pipeline._events.fire(task.id, 'beforeFlush', function () {
-                        task.flushed = true;
+                flush,
+                flushEmbeddedDescendants,
+                flushQueue;
 
-                        pipeline._events.fire(task.id, 'afterFlush', function () {
-                            if (task.embedded) {
-                                return;
-                            }
+            flush = function (task, tasksPendingFlush) {
+                pipeline._events.fire(task.id, 'beforeFlush', function () {
+                    task.flushed = true;
 
-                            Y.mojito.util.metaMerge(flushData.meta, task.meta);
-
-                            // Add this task's parent to the display targets such that on the client side it can
-                            // listen to its parent afterDisplay event in order to display itself.
-                            // If no parent has claimed this task yet, then this task should listen to all tasks' afterDisplay
-                            // event such that it can display itself once there is a stub for it.
-                            if (task.id !== 'root') {
-                                var parent = task.parentId || '*',
-                                    displayTargets = {};
-
-                                displayTargets[parent] = ['afterDisplay'];
-                                task.displayTargets = Y.mojito.util.blend(task.displayTargets, displayTargets);
-                            }
-
-                            flushData.data += task.serialize();
-
-                            if (tasksPendingFlush === 0) {
-                                if (pipeline._taskFlushQueue.length > 0) {
-                                    // More tasks may have been added to the queue since we first started flushing.
-                                    // Flush these new queued tasks.
-                                    flushQueue();
-                                } else {
-                                    pipeline._flushQueuedTasks(flushData);
-                                    return callback && callback();
-                                }
-                            }
-
-                        }, task);
-                    }, task);
-                },
-                flushEmbeddedDescendants = function (task) {
-                    var j,
-                        embeddedChild;
-                    for (j = 0; j < task.embeddedChildren.length; j++) {
-                        embeddedChild = task.embeddedChildren[j];
-                        flush(embeddedChild);
-                        flushEmbeddedDescendants(embeddedChild);
-                    }
-                },
-                flushQueue = function () {
-                    var task,
-                        tasksPendingFlush = pipeline._taskFlushQueue.length;
-
-                    while (tasksPendingFlush > 0) {
-                        task = pipeline._taskFlushQueue.shift();
-
-                        tasksPendingFlush--;
-
+                    pipeline._events.fire(task.id, 'afterFlush', function () {
                         if (task.embedded) {
-                            // This task happened to be embedded after being put on the flush queue but before being flushed.
-                            // Skip this task since its parent will flush it.
-                            continue;
+                            return;
                         }
 
-                        // flush any embedded descendants
-                        flushEmbeddedDescendants(task, flush);
+                        Y.mojito.util.metaMerge(flushData.meta, task.meta);
 
-                        flush(task, tasksPendingFlush);
+                        // Add this task's parent to the display targets such that on the client side it can
+                        // listen to its parent afterDisplay event in order to display itself.
+                        // If no parent has claimed this task yet, then this task should listen to all tasks' afterDisplay
+                        // event such that it can display itself once there is a stub for it.
+                        if (task.id !== 'root') {
+                            var parent = task.parentId || '*',
+                                displayTargets = {};
+
+                            displayTargets[parent] = ['afterDisplay'];
+                            task.displayTargets = Y.mojito.util.blend(task.displayTargets, displayTargets);
+                        }
+
+                        flushData.data += task.serialize();
+
+                        if (tasksPendingFlush === 0) {
+                            if (pipeline._taskFlushQueue.length > 0) {
+                                // More tasks may have been added to the queue since we first started flushing.
+                                // Flush these new queued tasks.
+                                flushQueue();
+                            } else {
+                                pipeline._flushQueuedTasks(flushData);
+                                return callback && callback();
+                            }
+                        }
+
+                    }, task);
+                }, task);
+            };
+
+            flushEmbeddedDescendants = function (task) {
+                var j,
+                    embeddedChild;
+                for (j = 0; j < task.embeddedChildren.length; j++) {
+                    embeddedChild = task.embeddedChildren[j];
+                    flush(embeddedChild);
+                    flushEmbeddedDescendants(embeddedChild);
+                }
+            };
+
+            flushQueue = function () {
+                var task,
+                    tasksPendingFlush = pipeline._taskFlushQueue.length;
+
+                while (tasksPendingFlush > 0) {
+                    task = pipeline._taskFlushQueue.shift();
+
+                    tasksPendingFlush--;
+
+                    if (task.embedded) {
+                        // This task happened to be embedded after being put on the flush queue but before being flushed.
+                        // Skip this task since its parent will flush it.
+                        continue;
                     }
-                };
+
+                    // flush any embedded descendants
+                    flushEmbeddedDescendants(task, flush);
+
+                    flush(task, tasksPendingFlush);
+                }
+            };
 
             // if the pipeline is closed but there is no data pipeline still has to flush the closing tags
             if (pipeline.closed && this._taskFlushQueue.length === 0) {
