@@ -1168,7 +1168,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     data: ''
                 },
                 task,
-                numFlushedTasks = 0,
+                tasksPendingFlush = this._taskFlushQueue.length,
                 flush = function (task) {
                     pipeline._events.fire(task.id, 'beforeFlush', function () {
                         task.flushed = true;
@@ -1194,9 +1194,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
                             flushData.data += task.serialize();
 
-                            ++numFlushedTasks;
+                            tasksPendingFlush--;
 
-                            if (numFlushedTasks === pipeline._taskFlushQueue.length) {
+                            if (tasksPendingFlush === 0) {
                                 pipeline._flushQueuedTasks(flushData);
                                 return callback && callback();
                             }
@@ -1221,6 +1221,14 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             for (i = 0; i < this._taskFlushQueue.length; i++) {
                 task = this._taskFlushQueue[i];
+
+                if (task.embedded) {
+                    // This task happened to be embedded after being put on the flush queue but before being flushed.
+                    // Skip this task since its parent will flush it.
+                    tasksPendingFlush--;
+                    continue;
+                }
+
                 // flush any embedded descendants
                 flushEmbeddedDescendants(task, flush);
 
