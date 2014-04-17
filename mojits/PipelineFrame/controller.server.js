@@ -33,13 +33,15 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
             this.binders = {};
 
             // Ensure that the gzip buffer is flushed immediately...
-            var response = ac.http.getResponse(), fn;
+            var res = ac.http.getResponse(),
+                req = ac.http.getRequest(),
+                fn;
 
-            if (response.gzip && response.gzip.flush) {
+            if (res.gzip && res.gzip.flush && req.headers['accept-encoding'].toLowerCase().indexOf('gzip') !== -1) {
                 fn = ac.flush;
                 ac.flush = function () {
                     fn.apply(ac, arguments);
-                    response.gzip.flush();
+                    res.gzip.flush();
                 };
             }
         },
