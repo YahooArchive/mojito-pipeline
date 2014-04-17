@@ -392,11 +392,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 Y.mojito.util.metaMerge(this.parentTask.meta, this.meta);
 
                 if (!this.blockParent) {
-                    // If this embedded child is in the flush queue, remove it.
-                    var index = this.pipeline._taskFlushQueue.indexOf(this);
-                    if (index !== -1) {
-                        this.pipeline._taskFlushQueue.splice(index, 1);
-                    }
                     // Make sure the flushSubscription is unsubscribed
                     // because it will get flushed automatically with the parent.
                     if (this.flushSubscription) {
@@ -1167,9 +1162,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     meta: {},
                     data: ''
                 },
-                task,
-                tasksPendingFlush = this._taskFlushQueue.length,
-                flush = function (task) {
+                flush = function (task, tasksPendingFlush) {
                     pipeline._events.fire(task.id, 'beforeFlush', function () {
                         task.flushed = true;
 
@@ -1194,12 +1187,17 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
                             flushData.data += task.serialize();
 
-                            tasksPendingFlush--;
-
                             if (tasksPendingFlush === 0) {
-                                pipeline._flushQueuedTasks(flushData);
-                                return callback && callback();
+                                if (pipeline._taskFlushQueue.length > 0) {
+                                    // More tasks may have been added to the queue since we first started flushing.
+                                    // Flush these new queued tasks.
+                                    flushQueue();
+                                } else {
+                                    pipeline._flushQueuedTasks(flushData);
+                                    return callback && callback();
+                                }
                             }
+
                         }, task);
                     }, task);
                 },
@@ -1211,29 +1209,36 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                         flush(embeddedChild);
                         flushEmbeddedDescendants(embeddedChild);
                     }
+                },
+                flushQueue = function () {
+                    var task,
+                        tasksPendingFlush = pipeline._taskFlushQueue.length;
+
+                    while (tasksPendingFlush > 0) {
+                        task = pipeline._taskFlushQueue.shift();
+
+                        tasksPendingFlush--;
+
+                        if (task.embedded) {
+                            // This task happened to be embedded after being put on the flush queue but before being flushed.
+                            // Skip this task since its parent will flush it.
+                            continue;
+                        }
+
+                        // flush any embedded descendants
+                        flushEmbeddedDescendants(task, flush);
+
+                        flush(task, tasksPendingFlush);
+                    }
                 };
 
             // if the pipeline is closed but there is no data pipeline still has to flush the closing tags
-            if (this.closed && this._taskFlushQueue.length === 0) {
+            if (pipeline.closed && this._taskFlushQueue.length === 0) {
                 pipeline._flushQueuedTasks(flushData);
                 return callback && callback();
             }
 
-            for (i = 0; i < this._taskFlushQueue.length; i++) {
-                task = this._taskFlushQueue[i];
-
-                if (task.embedded) {
-                    // This task happened to be embedded after being put on the flush queue but before being flushed.
-                    // Skip this task since its parent will flush it.
-                    tasksPendingFlush--;
-                    continue;
-                }
-
-                // flush any embedded descendants
-                flushEmbeddedDescendants(task, flush);
-
-                flush(task);
-            }
+            flushQueue();
         },
 
         /**
@@ -1248,9 +1253,6 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                         pipeline._frame.ac.flush(flushData.data, flushData.meta);
                     }
                 };
-
-            // Empty the task flush queue as all the task queued to be flushed have been processed.
-            pipeline._taskFlushQueue = [];
 
             // Queue this flush's handler to ensure that flushes occur in the same order that they were initiated.
             // Flushes can become out of order if subscribers of pipeline.beforeFlush are asynchronous and the callbacks
