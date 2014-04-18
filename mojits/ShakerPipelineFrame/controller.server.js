@@ -67,7 +67,7 @@ YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
                 binders = this.binders,
                 postfetch = this.postfetch;
 
-            if (ac.pipeline.closed) {
+            if (ac.pipeline.closed && ac.pipeline.client.jsEnabled) {
                 // Force the mojito client to be place on the bottom.
                 ac.shaker.set('serveJs', {
                     position: 'bottom'
