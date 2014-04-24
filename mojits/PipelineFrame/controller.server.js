@@ -37,7 +37,8 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
                 req = ac.http.getRequest(),
                 fn;
 
-            if (res.gzip && res.gzip.flush && req.headers['accept-encoding'].toLowerCase().indexOf('gzip') !== -1) {
+            if (res.gzip && res.gzip.flush && req.headers['accept-encoding'] &&
+                    req.headers['accept-encoding'].toLowerCase().indexOf('gzip') !== -1) {
                 fn = ac.flush;
                 ac.flush = function () {
                     fn.apply(ac, arguments);
