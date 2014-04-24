@@ -70,7 +70,10 @@ var pipeline = (function () {
 
                         if (node.tagName === 'SCRIPT') {
                             script = document.createElement('script');
-                            script.innerHTML = node.text;
+                            script.innerHTML = node.innerHTML;
+                            for (i = 0; i < node.attributes.length; i++) {
+                                script[node.attributes[i].name] = node.attributes[i].value;
+                            }
                             node.parentNode.replaceChild(script, node);
                             return;
                         }
