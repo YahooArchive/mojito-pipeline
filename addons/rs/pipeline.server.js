@@ -58,9 +58,11 @@ YUI.add('addon-rs-pipeline', function (Y, NAME) {
                     });
                 },
                 function (err) {
-                    // TODO: handle when unable to read one of the modules
+                    var yui = self.rs.getAppConfig({runtime: 'client'}).yui,
+                        filter = (yui && yui.config && yui.config.filter) || 'min';
+
                     self.unminifiedClient = eventsModule.content + pipelineClient.content;
-                    self.client = self.minify(self.unminifiedClient);
+                    self.client = filter === 'min' ? self.minify(self.unminifiedClient) : self.unminifiedClient;
                 });
         },
 
