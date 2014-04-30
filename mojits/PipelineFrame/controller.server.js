@@ -29,7 +29,9 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
             };
 
             this.view = {};
-            this.meta = {};
+            this.meta = {
+                assets: ac.assets.assets
+            };
             this.binders = {};
 
             // Ensure that the gzip buffer is flushed immediately...
@@ -131,9 +133,6 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
             if (ac.pipeline.client.enabled) {
                 view.pipelineClient = '<script>' + ac.pipeline.client.script + '</script>';
             }
-
-            // Pass the assets to this frame's asset, such that they appear in the rendered view.
-            ac.assets.addAssets(meta.assets);
 
             // Merge the rendered assets with the view data.
             view = Y.merge(view, ac.assets.renderLocations());

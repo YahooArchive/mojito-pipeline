@@ -52,7 +52,6 @@ YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
                 meta = this.meta;
 
             // Add top rollups, app resources, and filter assets.
-            meta.assets = meta.assets || {};
             ac.shaker._addRouteRollups(meta.assets, ['top', 'shakerTop']);
             ac.shaker._addAppResources(meta.assets);
             ac.shaker._filterAndUpdate(meta.assets);
