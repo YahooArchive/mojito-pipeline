@@ -95,7 +95,7 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
                 // If the Pipeline client is disabled, render the frame with the rendered root section.
                 ac.pipeline.onAsync('root', 'afterRender', function (event, done, root) {
                     self.view.child = root.data;
-                    self.meta = root.meta;
+                    Y.mojito.util.metaMerge(self.meta, root.meta);
                     self._processMeta(self.meta);
                     self._addMojitoClient(self.meta);
                     self._render(function (data, meta) {
