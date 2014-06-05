@@ -1,6 +1,8 @@
-# mojito-pipeline [![Build Status](https://travis-ci.org/yahoo/mojito-pipeline.png)](https://travis-ci.org/yahoo/mojito-pipeline)
+# mojito-pipeline [![Build Status](https://travis-ci.org/yahoo/mojito-pipeline.svg)](https://travis-ci.org/yahoo/mojito-pipeline)
 
-mojito-pipeline is a mojito extension that allows applications to render mojits as soon as their data is availble. It manages all the execution stages of a mojit and pregressively flushes and displays content to the user agent. This process siginificanlty improves front-end performance by immediately showing parts of the page while concurrently rendering mojits as data arives.
+mojito-pipeline is a [mojito](https://developer.yahoo.com/cocktails/mojito) extension that allows applications to render mojits as soon as their data is availble. It manages all the execution stages of a mojit and pregressively flushes and displays content to the user agent. This process siginificanlty improves front-end performance by immediately showing parts of the page while concurrently rendering mojits as data arrives.
+
+[![NPM](https://nodei.co/npm/mojito-pipeline.png)](https://nodei.co/npm/mojito-pipeline/)
 
 ## Table of contents
 * [Features](#features)
@@ -18,6 +20,23 @@ mojito-pipeline is a mojito extension that allows applications to render mojits 
 * Client/server side event subscription
 * Error/timeout handling and reporting
 * Easy to use, just requires simple [configuration](#configuration) and the use of [pipeline.push](#api-push) and [pipeline.close](#api-close)
+
+## Getting Started
+
+1. Install mojito-pipeline in the mojito application:
+
+	$ npm install mojito-pipeline
+
+2. Optional. Install mojito-shaker (it is recommended to use [Shaker](https://developer.yahoo.com/cocktails/shaker/) to automatically process assets):
+	$ npm install mojito-shaker
+
+3. Add or modify a route's configuration to use the PipelineHTMLFrame (see [Configuration](#configuration)).
+
+4. Push mojits into the pipeline using [ac.pipeline.push](#api-push).
+
+5. Close the pipeline using [ac.pipeline.close](#api-close), after all mojits have been pushed.
+
+Take a look at the [example application](https://github.com/yahoo/mojito-pipeline/tree/master/examples/search) and the wiki, which thoroughly walks through how to build this application.
 
 #API Doc.
 ##Static and runtime task configuration
