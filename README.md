@@ -43,6 +43,14 @@ Take a look at the [example application](https://github.com/yahoo/mojito-pipelin
 After being pushed into the pipeline, mojits undergo various stages before finally being displayed on the client. Pipeline is fully responsible for processing mojits along these stages, but also allows users to precisely control and hook into mojit execution through [execution rules](#configuration-rules) and [event subscription](#events-subscription);
 
 
+Stage Action | Resulting State | Description 
+-------------|-----------------|----------------------------------------------------------------------------------------------------
+push         | pushed          | The mojit has just been pushed using ac.pipeline.push(#api-push)
+dispatch     | dispatched      | The mojit's controller has been called
+render       | rendered        | The data passed to ac.done has been used to render the mojit's view
+flush        | flushed         | The mojit has been added to the flush queue and will be sent to the client, once pipeline is ready
+display      | displayed       | The mojit has been displayed on the client side
+
 
 #API Doc.
 ##Static and runtime task configuration
