@@ -38,6 +38,12 @@ mojito-pipeline is a [mojito](https://developer.yahoo.com/cocktails/mojito) exte
 
 Take a look at the [example application](https://github.com/yahoo/mojito-pipeline/tree/master/examples/search) and the wiki, which thoroughly walks through how to build this application.
 
+## Mojit Lifecycle
+
+After being pushed into the pipeline, mojits undergo various stages before finally being displayed on the client. Pipeline is fully responsible for processing mojits along these stages, but also allows users to precisely control and hook into mojit execution through [execution rules](#configuration-rules) and [event subscription](#events-subscription);
+
+
+
 #API Doc.
 ##Static and runtime task configuration
 ###what is `runtimeTaskConfig` in `ac.pipeline.push(runtimeTaskConfig);`?
