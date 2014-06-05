@@ -44,12 +44,17 @@ After being pushed into the pipeline, mojits undergo various stages before final
 
 
 Stage Action | Resulting State | Description 
--------------|-----------------|----------------------------------------------------------------------------------------------------
+-------------|-----------------|----------------------------------------------------------------------------
 push         | pushed          | The mojit has just been pushed using ac.pipeline.push(#api-push)
 dispatch     | dispatched      | The mojit's controller has been called
 render       | rendered        | The data passed to ac.done has been used to render the mojit's view
-flush        | flushed         | The mojit has been added to the flush queue and will be sent to the client, once pipeline is ready
+flush        | flushed         | The mojit has been added to the flush queue and will be sent to the client
 display      | displayed       | The mojit has been displayed on the client side
+
+Exception | Resulting State | Description
+----------|-----------------|-------------------------------------------------------------------------------
+timeout   | timedout        | The mojit timed out after dependencies prevented it from being dispatched
+error     | errored         | There was an error while dispatching the mojit or its error rule returned true
 
 
 #API Doc.
