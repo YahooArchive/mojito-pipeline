@@ -36,25 +36,61 @@ mojito-pipeline is a [mojito](https://developer.yahoo.com/cocktails/mojito) exte
 
 5. Close the pipeline using [ac.pipeline.close](#api-close), after all mojits have been pushed.
 
-Take a look at the [example application](https://github.com/yahoo/mojito-pipeline/tree/master/examples/search) and the wiki, which thoroughly walks through how to build this application.
+Take a look at the ["Hello World!" example](#hello-world!) below or follow the wiki's thorough explanation of a full [example application](https://github.com/yahoo/mojito-pipeline/tree/master/examples/search).
+
+## Hello World!
+
+1. Create two mojits, `Root` and `Hello`.
+
+2. The Hello mojit's controller simply passes the string "Hello world!" to its view.
+
+    **Hello/controller.server.js**
+	```js
+	YUI.add('HelloController', function (Y, NAME) {
+	    Y.namespace('mojito.controllers')[NAME] = {
+	        index: function () {
+	            ac.done({
+	                text: "Hello World!"
+	            });
+	        }
+        };
+	})
+	```
+	
+	**Hello/views/index.hb.html**
+	```html
+	<div>{{text}}</div>
+	```
+
+3. The Root mojit
+
+
+
 
 ## Mojit Lifecycle
 
 After being pushed into the pipeline, mojits undergo various stages before finally being displayed on the client. Pipeline is fully responsible for processing mojits along these stages, but also allows users to precisely control and hook into mojit execution through [execution rules](#configuration-rules) and [event subscription](#events-subscription);
 
 
-Stage Action | Resulting State | Description 
--------------|-----------------|----------------------------------------------------------------------------
-push         | pushed          | The mojit has just been pushed using ac.pipeline.push(#api-push)
-dispatch     | dispatched      | The mojit's controller has been called
-render       | rendered        | The data passed to ac.done has been used to render the mojit's view
-flush        | flushed         | The mojit has been added to the flush queue and will be sent to the client
-display      | displayed       | The mojit has been displayed on the client side
+Stage Action | Resulting State   | Description 
+-------------|-------------------|----------------------------------------------------------------------------
+push         | `pushed`          | The mojit has just been pushed using [ac.pipeline.push](#api-push)
+dispatch     | `dispatched`      | The mojit's controller has been called
+render       | `rendered`        | The data passed to ac.done has been used to render the mojit's view
+flush        | `flushed`         | The mojit has been added to the flush queue and will be sent to the client
+display      | `displayed`       | The mojit has been displayed on the client side
 
-Exception | Resulting State | Description
-----------|-----------------|-------------------------------------------------------------------------------
-timeout   | timedout        | The mojit timed out after dependencies prevented it from being dispatched
-error     | errored         | There was an error while dispatching the mojit or its error rule returned true
+Exception | Resulting State   | Description
+----------|-------------------|-------------------------------------------------------------------------------
+timeout   | `timedout`        | The mojit timed out after dependencies prevented it from being dispatched
+error     | `errored`         | There was an error while dispatching the mojit or its error rule returned true
+
+
+## Configuration
+
+
+
+
 
 
 #API Doc.
