@@ -1,108 +1,23 @@
-#mojito-pipeline
-Mojito-pipeline allows a mojito app to selectively schedule the rendering, the streaming, and the displaying of mojits (sections) of the page from the server to, and on, the client (browser). It leverages Node's event-oriented architecture to let you push those sections as their data comes from the backend; it handles structural dependencies, custom programmatic dependencies, errors and timeouts; and it gives you a lot of power to manage the lifecycle of your sections.
+# mojito-pipeline [![Build Status](https://travis-ci.org/yahoo/mojito-pipeline.png)](https://travis-ci.org/yahoo/mojito-pipeline)
 
-#Build Status
+mojito-pipeline is a mojito extension that allows applications to render mojits as soon as their data is availble. It manages all the execution stages of a mojit and pregressively flushes and displays content to the user agent. This process siginificanlty improves front-end performance by immediately showing parts of the page while concurrently rendering mojits as data arives.
 
-[![Build Status](https://travis-ci.org/yahoo/mojito-pipeline.png)](https://travis-ci.org/yahoo/mojito-pipeline)
+## Table of contents
+* [Features](#features)
+* [Getting Started](#getting-started)
+* [Mojit Lifecycle](#life-cycle)
+* [Configuration](#configuration)
+* [API](#api)
+* [Events](#events)
 
-#Table of contents
-* [Terminology](https://github.com/yahoo/mojito-pipeline#terminology)
-* [Example](https://github.com/yahoo/mojito-pipeline#example)
-* [API Doc](https://github.com/yahoo/mojito-pipeline#api-doc)
-* [Code Structure](https://github.com/yahoo/mojito-pipeline#code-structure)
-
-#Terminology
-###task
-a pipeline internal object that represents the scheduled runtime of a mojit instance and is created with a mojit configuration pushed in the pipeline by the user
-###section
-a child task that can be replaced by a stub and asynchronously streamed to the browser when it's available (in the example below, the ads are sections)
-###dependency
-a child task which needs to be blocking the parent task (often in order to be process by it, for example bolding or counting search results)
-###default section
-a child section that the parent should push automatically
-###`'rendered'`, `'flushed'`, `'displayed'`, `'errored'`, `'timedOut'`
-members of a task object that describe a task state and are modified throughout its lifecycle
-###`'render'`, `'flush'`, `'display'`, `'error'`, `'timeout'`
-task actions which can be triggered under certain conditions defined by a boolean expression of other task states
-
-#Example
-```yaml
-# application.yaml
-[
-    {
-        "settings": [ "master" ],
-        # ...
-        "specs": {
-            "rootframe": {
-                "type": "SearchHTMLFrame",
-                "config": {
-                    "deploy": true,
-                    "pipeline": true,
-                    "child": {
-                        "type": "Master",
-                        "sections": {
-                            "search-box": {
-                                "type": "Box",
-                                "default": true,
-                                "config": {
-                                    "title": "Search Box"
-                                }
-                            },
-                            "search-results": {
-                                "type": "SearchResults"
-                            },
-                            "ads": {
-                                "type": "Ads",
-                                "render": "search-results.rendered",
-                                "sections": {
-                                    "north-ad": {
-                                        "type": "Box"
-                                    },
-                                    "south-ad": {
-                                        "type": "Box"
-                                    }
-                                }
-                            },
-                            "footer": {
-                                "type": "Box",
-                                "flush": "pipeline.closed",
-                                "default": true,
-                                "config": {
-                                    "title": "footer"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        # ...
-    }
-]
-```
-```javascript
-// Master/Parent Controller
-Y.namespace('mojito.controllers')[NAME] = {
-
-    index: function (ac) {
-
-        backend.getData(function (dataBit) {
-            // this function is invoked for each data bit received
-            var runtimeTaskConfig;
-
-            if (!dataBit) {
-                return ac.pipeline.close();
-            }
-
-            runtimeTaskConfig = makeTaskConfig(dataBit);
-            ac.pipeline.push(runtimeTaskConfig);
-        });
-
-        ac.done(ac.params.body('children'));
-    }
-};
-```
-In the code above, you can see an number of arbitrary variables that are hopefully self-explanatory. One of them, `makeTaskConfig` represents a function that generates a task configuration with the data returned by the backend. This configuration and the one you can find in application.yaml are documented in the API Doc section below.
+## Features
+* Reduces time to first/last byte
+* Supports client-side disabled JavaScript
+* Supports [Shaker](https://developer.yahoo.com/cocktails/shaker/) (automatically minifies/combines css/js assets)
+* Allows full control of mojit execution stages
+* Client/server side event subscription
+* Error/timeout handling and reporting
+* Easy to use, just requires simple [configuration](#configuration) and the use of [pipeline.push](#api-push) and [pipeline.close](#api-close)
 
 #API Doc.
 ##Static and runtime task configuration
