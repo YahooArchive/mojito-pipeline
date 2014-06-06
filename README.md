@@ -168,14 +168,14 @@ error     | `errored`         | There was an error while dispatching the mojit o
 
 ### Application Specs
 
-A Mojito route that is handled by Pipeline requires an application specs entry that makes use of the `PipelineFrame` mojit, or its Shaker equivalent `ShakerPipelineFrame`. This entry is a regular mojit spec, requiring `type` to be either `PipelineFrame` or `ShakerPipelineFrame`, and a `config` object:
+A Mojito route that is handled by Pipeline requires an application specs entry that makes use of the `PipelineFrame` mojit, or its Shaker equivalent, `ShakerPipelineFrame`. This entry is a regular mojit spec, requiring `type` to be either `PipelineFrame` or `ShakerPipelineFrame`, and a `config` object:
 
 **Pipeline Frame Config Object**
 
 Property         | Requirement                   | Description
 -----------------|-------------------------------|------------------------------------------------------------------------
 `child`          | Required                      | The top level mojit, which Pipeline should automatically push
-`deploy`         | Optional. Defaults to false   | Whether to deploy the mojito client (see [Deploying to Client](https://developer.yahoo.com/cocktails/mojito/docs/topics/mojito_frame_mojits.html#deploying-to-client)
+`deploy`         | Optional. Defaults to false   | Whether to deploy the mojito client (see [Deploying to Client](https://developer.yahoo.com/cocktails/mojito/docs/topics/mojito_frame_mojits.html#deploying-to-client))
 `pipelineClient` | Optional. Defaults to true    | Whether to use the pipeline client, if false then the page is flushed all at once
 
 ### Mojit Specs
