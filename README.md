@@ -180,10 +180,11 @@ Property         | Requirement                   | Description
 
 ### Mojit Specs
 
-Mojit specs are defined either under Pipeline specs in application.json, or using [ac.pipeline.push](#api-push) at runtime. These specs are regular [Mojito mojit] specs(https://developer.yahoo.com/cocktails/mojito/docs/intro/mojito_configuring.html#specs-object) and can include the following optional Pipeline specific properties:
+Mojit specs are defined either under Pipeline specs in application.json, or using [ac.pipeline.push](#api-push) at runtime. These specs are regular [Mojito mojit specs](https://developer.yahoo.com/cocktails/mojito/docs/intro/mojito_configuring.html#specs-object) and can include the following optional Pipeline specific properties:
 
 Property      | Requirement                 | Description
 --------------|-----------------------------|------------------------------------------------------------------------------
+`id`          | Optional                    | Should only be used when pushing a mojit to pipeline; refers to a mojit id previously defined.
 `children`    | Optional                    | A recursive mapping of child id's to mojit specs. Note id's must be unique
 `autoPush`    | Optional. Defaults to false | Whether to push this mojit automatically after its parent has been pushed
 `blockParent` | Optional. Defaults to false | Whether to block the parent's dispatching until this mojit has been rendered
@@ -244,3 +245,20 @@ In this example the mojit will only be dispatched after `myparent` has been flus
 ```
 
 ## API
+
+<a name="api-push">**ac.pipeline.push**</a> (specs)
+Pushes a mojit into the pipeline.
+* **specs** `object` | `string` - A mojit specs object (see [mojit specs](#mojit-specs)); the `id` property should be specified when referring to a previously defined mojit specs, in which case the new specs will be mixed with the old specs, with the new specs taking precedence. This method also accepts a string, corresponding to the id of a previously defined mojit specs.
+* **returns** `string` - The pushed mojit's id. This id may be a generated id, if the mojit specs pushed did not specify one.
+
+**Example**
+```
+ac.pipeline.push({
+    id: 'mymojit',
+    config: {
+        runtimeConfig: runtimeConfig
+    }
+});
+```
+
+---
