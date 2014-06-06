@@ -5,14 +5,17 @@ mojito-pipeline is a [mojito](https://developer.yahoo.com/cocktails/mojito) exte
 [![NPM](https://nodei.co/npm/mojito-pipeline.png)](https://nodei.co/npm/mojito-pipeline/)
 
 ## Table of contents
-* [Features](#features)
+* [Overview](#overview)
 * [Getting Started](#getting-started)
+* [Hello World! Example](#hello-world!-example)
 * [Mojit Lifecycle](#life-cycle)
 * [Configuration](#configuration)
 * [API](#api)
 * [Events](#events)
 
-## Features
+## Overview
+
+### Features
 * Reduces time to first/last byte
 * Supports client-side disabled JavaScript
 * Supports [Shaker](https://developer.yahoo.com/cocktails/shaker/) (automatically minifies/combines css/js assets)
@@ -21,15 +24,29 @@ mojito-pipeline is a [mojito](https://developer.yahoo.com/cocktails/mojito) exte
 * Error/timeout handling and reporting
 * Easy to use, just requires simple [configuration](#configuration) and the use of [pipeline.push](#api-push) and [pipeline.close](#api-close)
 
+
+### How it works
+
+Pipeline consists of three components:
+
+* **PipelineFrame**: The PipelineFrame, or the Shaker equivalent ShakerPipelineFrame, is a frame mojit, similar to Mojito's [HTMLFrameMojit](https://developer.yahoo.com/cocktails/mojito/docs/topics/mojito_frame_mojits.html). It accepts one root level mojit, which it sorrounds with a full html page frame, including `html`, `head`, and `body` tags. It is responsible for embedding the PipelineClient (see [below](#pipeline-client)), and periodically flushing content to the client, including css/js assets. It accepts a configuration consisting of a tree of mojits that can appear on the page (see [configuration](#configuration)).
+
+* **Pipeline Addon**: The Pipeline addon implements [Pipeline's api](#api), which allows users to [push](#api-push) mojits and [close](#api-close) the pipeline, among other calls. It is responsible for processing mojits throughout their various stages (see [mojit lifecycle](#mojit-lifecycle)), while allowing concurrency between data retrieval, mojit execution, and the flushing of content.
+
+* **Pipeline Client**: The Pipeline client handles the displaying of mojits on the client side. It is minified and inline on the first flush to the client. The Pipeline client consist of a global `pipeline` object, which is used to deserialize flushed mojits and display them, observing any user defined displaying rules.
+
+
 ## Getting Started
 
-1. Install mojito-pipeline in the mojito application:
+mojito-pipeline requires a Mojito application (Take a look at the [Mojito Quickstart](https://developer.yahoo.com/cocktails/mojito/docs/getting_started/quickstart.html))
 
-	$ npm install mojito-pipeline
+1. Install mojito-pipeline in the Mojito application:
 
-2. Optional. Install mojito-shaker (it is recommended to use [Shaker](https://developer.yahoo.com/cocktails/shaker/) to automatically process assets):
+        $ npm install mojito-pipeline
 
-	$ npm install mojito-shaker
+2. Recommended. Install mojito-shaker ([Shaker](https://developer.yahoo.com/cocktails/shaker/) automatically processes assets):
+
+	    $ npm install mojito-shaker
 
 3. Add or modify a route's configuration to use the `PipelineFrame` or `ShakerPipelineFrame` (see [Configuration](#configuration)).
 
@@ -37,11 +54,11 @@ mojito-pipeline is a [mojito](https://developer.yahoo.com/cocktails/mojito) exte
 
 5. Close the pipeline using [ac.pipeline.close](#api-close), after all mojits have been pushed.
 
-Take a look at the ["Hello World!" example](#hello-world!) below or follow the wiki's thorough explanation of a full [example application](https://github.com/yahoo/mojito-pipeline/tree/master/examples/search).
+Take a look at the ["Hello World! example"](#hello-world!-example) below or follow the wiki's thorough explanation of a full [example application](https://github.com/yahoo/mojito-pipeline/tree/master/examples/search).
 
-## Hello World!
+## Hello World! Example
 
-1. Create a new 'hello' route and point that route to application specs that use the `PipelineFrame`:
+1. Create a new "hello-page" route and point that route to application specs that use the `PipelineFrame` mojit:
 
 	**routes.json**
 	```js
@@ -73,7 +90,7 @@ Take a look at the ["Hello World!" example](#hello-world!) below or follow the w
 	}
 	```
 
-The "hello" specs specify that the `PipelineFrame` mojit should be used for the "/hello" route. This mojit has one child of mojit type `Root`, which only specifies "hello" as a child under its `children` map (see [Configuration](#configuration)).
+The "hello-page" route specifies that the "hello" application specs should be used for the "/hello" path. The specs refer to the `PipelineFrame` mojit, which has one child of mojit type `Root`, which only specifies `hello` as a child under its `children` map (see [Configuration](#configuration)).
 
 2. Create two mojits, `Root` and `Hello`.
 
@@ -97,7 +114,7 @@ The "hello" specs specify that the `PipelineFrame` mojit should be used for the 
 	<div>{{text}}</div>
 	```
 
-4. The `Root` mojit has a single child, the `Hello` mojit, which it pushes to the pipeline:
+4. The `Root` mojit has a single child `hello`, which it pushes to the pipeline:
 
 	**mojits/Root/controller.server.js**
 	```js
@@ -115,6 +132,7 @@ The "hello" specs specify that the `PipelineFrame` mojit should be used for the 
 			'mojito-pipeline'
 		]
 	});
+	```
 	
 	**mojits/Root/views/index.hb.html**
 	```html
@@ -122,15 +140,13 @@ The "hello" specs specify that the `PipelineFrame` mojit should be used for the 
 		{{{hello}}}
 	</div>
 	```
-	```
 	
-	The `Root` controller simply pushes its only child mojit, reference by its "hello" id. It then closes the pipeline and passes its children data to its view. As specified in the configuration above, the top level mojit is of type `Root`, which automatically gets pushed to the pipeline. Pipeline always refers to the top level mojit as `root`. Before `root` is dispatched, Pipeline populates its params.body.children with the rendered data of its children. In this case "root" only has one child, `hello`, which hasn't been rendered so ac.params.body().children.hello is equal to '&lt;div id="hello-section"&gt;&lt;/div&gt;'. This is a placeholder for the `hello` child, which Pipeline will fill, whenever `hello` is fully rendered, either before rendering `root` or at the client side.
+	The `Root` controller simply pushes its only child mojit, reference by its `hello` id. It then closes the pipeline and passes its children data to its view. As specified in the configuration above, the top level mojit is of type `Root`, which automatically gets pushed to the pipeline. Pipeline always refers to the top level mojit as `root`. Before `root` is dispatched, Pipeline populates its `params.body.children` with the rendered data of its children. In this case `root` only has one child, `hello`, which hasn't been rendered so `ac.params.body().children.hello` is equal to `&lt;div id="hello-section"&gt;&lt;/div&gt;`. This is a placeholder for the `hello` child, which Pipeline will fill, whenever `hello` is fully rendered, either before rendering `root` or on the client side.
 
 
 ## Mojit Lifecycle
 
-After being pushed into the pipeline, mojits undergo various stages before finally being displayed on the client. Pipeline is fully responsible for processing mojits along these stages, but also allows users to precisely control and hook into mojit execution through [execution rules](#configuration-rules) and [event subscription](#events-subscription);
-
+After being pushed into the pipeline, mojits undergo various stages before finally being displayed on the client. Pipeline is fully responsible for processing mojits along these stages, but also allows users to precisely control and hook into mojit execution through [execution rules](#configuration-rules) and [event subscription](#events-subscription).
 
 Stage Action | Resulting State   | Description 
 -------------|-------------------|----------------------------------------------------------------------------
@@ -140,6 +156,9 @@ render       | `rendered`        | The data passed to ac.done has been used to r
 flush        | `flushed`         | The mojit has been added to the flush queue and will be sent to the client
 display      | `displayed`       | The mojit has been displayed on the client side
 
+
+**Exception States**
+
 Exception | Resulting State   | Description
 ----------|-------------------|-------------------------------------------------------------------------------
 timeout   | `timedout`        | The mojit timed out after dependencies prevented it from being dispatched
@@ -147,6 +166,8 @@ error     | `errored`         | There was an error while dispatching the mojit o
 
 
 ## Configuration
+
+### Application Specs
 
 
 
