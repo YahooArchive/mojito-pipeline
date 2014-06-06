@@ -246,8 +246,8 @@ In this example the mojit will only be dispatched after `myparent` has been flus
 
 ## API
 
-<a name="api-push">**ac.pipeline.push**</a> (specs)
-Pushes a mojit into the pipeline.
+<a name="api-push">**ac.pipeline.push**</a> (specs) `async`
+Pushes a mojit into the pipeline, allowing pipeline to process the mojit through its [execution stages](#mojit-lifecycle). Note that this method is asynchronous; this allows multiple consecutive calls to ac.pipeline.push, before Pipeline actually starts processing the mojits.
 * **specs** `object` | `string` - A mojit specs object (see [mojit specs](#mojit-specs)); the `id` property should be specified when referring to a previously defined mojit specs, in which case the new specs will be mixed with the old specs, with the new specs taking precedence. This method also accepts a string, corresponding to the id of a previously defined mojit specs.
 * **returns** `string` - The pushed mojit's id. This id may be a generated id, if the mojit specs pushed did not specify one.
 
@@ -262,3 +262,22 @@ ac.pipeline.push({
 ```
 
 ---
+
+<a name="api-close">**ac.pipeline.close**</a> (specs)
+Closes the pipeline, signaling that no more mojits will be pushed. Note that the pipeline `onClose` event is fired after Pipeline finishes processing all the mojits that have been pushed (see events[#events]).
+
+**Example**
+```
+ac.pipeline.close();
+```
+
+---
+
+<a name="api-on">**ac.pipeline.on**</a> ()
+
+
+**Example**
+```
+
+```
+
