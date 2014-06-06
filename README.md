@@ -1,14 +1,14 @@
 # mojito-pipeline [![Build Status](https://travis-ci.org/yahoo/mojito-pipeline.svg)](https://travis-ci.org/yahoo/mojito-pipeline)
 
-mojito-pipeline is a [mojito](https://developer.yahoo.com/cocktails/mojito) extension that allows applications to render mojits as soon as their data is availble. It manages all the execution stages of a mojit and pregressively flushes and displays content to the user agent. This process siginificanlty improves front-end performance by immediately showing parts of the page while concurrently rendering mojits as data arrives.
+mojito-pipeline is a [Mojito](https://developer.yahoo.com/cocktails/mojito) extension that allows applications to render [mojits](https://developer.yahoo.com/cocktails/mojito/docs/intro/mojito_apps.html#mojits) as soon as their data is availble. It manages all the [execution stages](#mojit-lifecycle) of a mojit and pregressively flushes and displays content to the user agent. This process siginificanlty improves front-end performance by immediately showing parts of the page while concurrently rendering mojits as data arrives.
 
 [![NPM](https://nodei.co/npm/mojito-pipeline.png)](https://nodei.co/npm/mojito-pipeline/)
 
 ## Table of contents
 * [Overview](#overview)
 * [Getting Started](#getting-started)
-* [Hello World! Example](#hello-world!-example)
-* [Mojit Lifecycle](#life-cycle)
+* [Hello World! Example](#hello-world-example)
+* [Mojit Lifecycle](#mojit-lifecycle)
 * [Configuration](#configuration)
 * [API](#api)
 * [Events](#events)
@@ -31,7 +31,7 @@ Pipeline consists of three components:
 
 * **PipelineFrame**: The PipelineFrame, or the Shaker equivalent ShakerPipelineFrame, is a frame mojit, similar to Mojito's [HTMLFrameMojit](https://developer.yahoo.com/cocktails/mojito/docs/topics/mojito_frame_mojits.html). It accepts one root level mojit, which it sorrounds with a full html page frame, including `html`, `head`, and `body` tags. It is responsible for embedding the PipelineClient (see [below](#pipeline-client)), and periodically flushing content to the client, including css/js assets. It accepts a configuration consisting of a tree of mojits that can appear on the page (see [configuration](#configuration)).
 
-* **Pipeline Addon**: The Pipeline addon implements [Pipeline's api](#api), which allows users to [push](#api-push) mojits and [close](#api-close) the pipeline, among other calls. It is responsible for processing mojits throughout their various stages (see [mojit lifecycle](#mojit-lifecycle)), while allowing concurrency between data retrieval, mojit execution, and the flushing of content.
+* **Pipeline Addon**: The Pipeline addon implements [Pipeline's api](#api), which allows users to [push](#api-push) mojits, [close](#api-close) the pipeline, among other calls. It is responsible for processing mojits throughout their various stages (see [mojit lifecycle](#mojit-lifecycle)), while allowing concurrency between data retrieval, mojit execution, and the flushing of content.
 
 * **Pipeline Client**: The Pipeline client handles the displaying of mojits on the client side. It is minified and inline on the first flush to the client. The Pipeline client consist of a global `pipeline` object, which is used to deserialize flushed mojits and display them, observing any user defined displaying rules.
 
