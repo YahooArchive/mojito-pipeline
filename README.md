@@ -28,9 +28,10 @@ mojito-pipeline is a [mojito](https://developer.yahoo.com/cocktails/mojito) exte
 	$ npm install mojito-pipeline
 
 2. Optional. Install mojito-shaker (it is recommended to use [Shaker](https://developer.yahoo.com/cocktails/shaker/) to automatically process assets):
+
 	$ npm install mojito-shaker
 
-3. Add or modify a route's configuration to use the PipelineHTMLFrame (see [Configuration](#configuration)).
+3. Add or modify a route's configuration to use the `PipelineFrame` or `ShakerPipelineFrame` (see [Configuration](#configuration)).
 
 4. Push mojits into the pipeline using [ac.pipeline.push](#api-push).
 
@@ -40,11 +41,45 @@ Take a look at the ["Hello World!" example](#hello-world!) below or follow the w
 
 ## Hello World!
 
-1. Create two mojits, `Root` and `Hello`.
+1. Create a new 'hello' route and point that route to application specs that use the `PipelineFrame`:
 
-2. The Hello mojit's controller simply passes the string "Hello world!" to its view.
+	**routes.json**
+	```js
+	{
+		"hello-page": {
+        "verbs": ["get"],
+        "path": "/hello",
+        "call": "hello"
+	}
+	```
+	
+	**application.json**
+	```js
+	{
+		"settings": ["master"]
+		"specs": {
+			"hello": {
+				"type": "PipelineFrame",
+				"child": {
+					"type": "Root",
+					"children": {
+						"hello": {
+							"type": "Hello"
+						}
+					}
+				}
+			}
+		}
+	}
+	```
 
-    **Hello/controller.server.js**
+The "hello" specs specify that the `PipelineFrame` mojit should be used for the "/hello" route. This mojit has one child of mojit type `Root`, which only specifies "hello" as a child under its `children` map (see [Configuration](#configuration)).
+
+2. Create two mojits, `Root` and `Hello`.
+
+3. The `Hello` mojit's controller simply passes the string "Hello world!" to its view:
+
+    **mojits/Hello/controller.server.js**
 	```js
 	YUI.add('HelloController', function (Y, NAME) {
 	    Y.namespace('mojito.controllers')[NAME] = {
@@ -54,17 +89,42 @@ Take a look at the ["Hello World!" example](#hello-world!) below or follow the w
 	            });
 	        }
         };
-	})
+	});
 	```
 	
-	**Hello/views/index.hb.html**
+	**mojits/Hello/views/index.hb.html**
 	```html
 	<div>{{text}}</div>
 	```
 
-3. The Root mojit
+4. The `Root` mojit has a single child, the `Hello` mojit, which it pushes to the pipeline:
 
-
+	**mojits/Root/controller.server.js**
+	```js
+	YUI.add('RootController', function (Y, NAME) {
+		Y.namespace('mojito.controllers')[NAME] = {
+			index: function (ac) {
+				ac.pipeline.push('hello');
+				ac.pipeline.close();
+				ac.done(ac.params.body().children);
+			}
+		}
+	}, '0.0.1', {
+		requires: [
+			'mojito-params-addon'
+			'mojito-pipeline'
+		]
+	});
+	
+	**mojits/Root/views/index.hb.html**
+	```html
+	<div>
+		{{{hello}}}
+	</div>
+	```
+	```
+	
+	The `Root` controller simply pushes its only child mojit, reference by its "hello" id. It then closes the pipeline and passes its children data to its view. As specified in the configuration above, the top level mojit is of type `Root`, which automatically gets pushed to the pipeline. Pipeline always refers to the top level mojit as `root`. Before `root` is dispatched, Pipeline populates its params.body.children with the rendered data of its children. In this case "root" only has one child, `hello`, which hasn't been rendered so ac.params.body().children.hello is equal to '&lt;div id="hello-section"&gt;&lt;/div&gt;'. This is a placeholder for the `hello` child, which Pipeline will fill, whenever `hello` is fully rendered, either before rendering `root` or at the client side.
 
 
 ## Mojit Lifecycle
