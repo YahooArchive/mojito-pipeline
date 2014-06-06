@@ -11,7 +11,6 @@ mojito-pipeline is a [Mojito](https://developer.yahoo.com/cocktails/mojito) exte
 * [Mojit Lifecycle](#mojit-lifecycle)
 * [Configuration](#configuration)
 * [API](#api)
-* [Events](#events)
 
 ## Overview
 
@@ -181,7 +180,7 @@ Property         | Requirement                   | Description
 
 ### Mojit Specs
 
-Mojit specs are defined either under Pipeline specs in application.json, or using [ac.pipeline.push](#api-push) at runtime. These specs are regular [Mojito mojit] specs(https://developer.yahoo.com/cocktails/mojito/docs/intro/mojito_configuring.html#specs-object) and can include the following Pipeline specific properties:
+Mojit specs are defined either under Pipeline specs in application.json, or using [ac.pipeline.push](#api-push) at runtime. These specs are regular [Mojito mojit] specs(https://developer.yahoo.com/cocktails/mojito/docs/intro/mojito_configuring.html#specs-object) and can include the following optional Pipeline specific properties:
 
 Property      | Requirement                 | Description
 --------------|-----------------------------|------------------------------------------------------------------------------
@@ -189,7 +188,7 @@ Property      | Requirement                 | Description
 `autoPush`    | Optional. Defaults to false | Whether to push this mojit automatically after its parent has been pushed
 `blockParent` | Optional. Defaults to false | Whether to block the parent's dispatching until this mojit has been rendered
 
-It also includes optional properties that allow fine-tune control over the mojit's flow through its execution stages (see [mojit lifecycle](#mojit-lifecycle):
+It can also include optional properties that allow precise control over the mojit's flow through its execution stages (see [mojit lifecycle](#mojit-lifecycle):
 
 **Stage Action Rules**
 
@@ -200,16 +199,15 @@ Property   | Description
 `flush`    | When to add the mojit to the flush queue. Can control when the mojit can be flushed to the page.
 `display`  | When to display the mojit on the client. Can make sure the mojit is only seen after other mojits.
 
-Stage action rules are boolean expressions that are evaluated during runtime, right before the specified stage action. Each clause is composed of a mojit instance and its state, for example, "mojit-id.dispatched". Clauses can be combined in complex manners using operands such as `&&`, `||`, and parentheses.
+Stage action rules are boolean expressions that are evaluated during runtime, right before the specified stage action. Each clause is composed of a mojit instance and its state, for example, `mojit-id.dispatched`. Clauses can be combined in complex manners using operands such as `&&`, `||`, and parentheses.
 
 **Example**
 ```js
 ...
-    "dispatch": "(myparent.flushed && child1.rendered) || pipeline.closed)
+    "dispatch": "(myparent.flushed && child1.rendered) || pipeline.closed)"
 ...
 ```
-In this example the mojit will only be dispatched after `myparent` has been flushed and `child1` has been rendered, or Pipeline has been closed. Note that `pipeline` refers to the pipeline itself, and only can reach one state, `closed`. `pipeline` is a reserved id in Pipeline.
-
+In this example the mojit will only be dispatched after `myparent` has been flushed and `child1` has been rendered, or the pipeline has been closed. Note that `pipeline` refers to the pipeline itself, and only can reach one state, `closed`. `pipeline` is a reserved id in Pipeline.
 
 ### Example application.json
 
@@ -229,12 +227,13 @@ In this example the mojit will only be dispatched after `myparent` has been flus
 						"chlildren": {
 						    "grandChild1": {
 						        "autoPush": true,
-						        "blockParent": true
+						        "blockParent": true,
+						        "config": {...}
 					        }
 						}
 					},
 					"child2": {
-						"type": "Hello",
+						"base": "hello",
 						"display": "child1.displayed"
 					}
 				}
@@ -243,3 +242,5 @@ In this example the mojit will only be dispatched after `myparent` has been flus
 	}
 }
 ```
+
+## API
