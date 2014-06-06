@@ -54,7 +54,7 @@ mojito-pipeline requires a Mojito application (Take a look at the [Mojito Quicks
 
 5. Close the pipeline using [ac.pipeline.close](#api-close), after all mojits have been pushed.
 
-Take a look at the ["Hello World! example"](#hello-world!-example) below or follow the wiki's thorough explanation of a full [example application](https://github.com/yahoo/mojito-pipeline/tree/master/examples/search).
+Take a look at the ["Hello World! example"](#hello-world-example) below or follow the wiki's thorough explanation of a full [example application](https://github.com/yahoo/mojito-pipeline/tree/master/examples/search).
 
 ## Hello World! Example
 
@@ -90,7 +90,7 @@ Take a look at the ["Hello World! example"](#hello-world!-example) below or foll
 	}
 	```
 
-The "hello-page" route specifies that the "hello" application specs should be used for the "/hello" path. The specs refer to the `PipelineFrame` mojit, which has one child of mojit type `Root`, which only specifies `hello` as a child under its `children` map (see [Configuration](#configuration)).
+    The "hello-page" route specifies that the "hello" application specs should be used for the "/hello" path. The specs refer to the `PipelineFrame` mojit, which has one child of mojit type `Root`, which only specifies `hello` as a child under its `children` map (see [Configuration](#configuration)).
 
 2. Create two mojits, `Root` and `Hello`.
 
@@ -169,69 +169,77 @@ error     | `errored`         | There was an error while dispatching the mojit o
 
 ### Application Specs
 
+A Mojito route that is handled by Pipeline requires an application specs entry that makes use of the `PipelineFrame` mojit, or its Shaker equivalent `ShakerPipelineFrame`. This entry is a regular mojit spec, requiring `type` to be either `PipelineFrame` or `ShakerPipelineFrame`, and a `config` object:
 
+**Pipeline Frame Config Object**
 
+Property         | Requirement                   | Description
+-----------------|-------------------------------|------------------------------------------------------------------------
+`child`          | Required                      | The top level mojit, which Pipeline should automatically push
+`deploy`         | Optional. Defaults to false   | Whether to deploy the mojito client (see [Deploying to Client](https://developer.yahoo.com/cocktails/mojito/docs/topics/mojito_frame_mojits.html#deploying-to-client)
+`pipelineClient` | Optional. Defaults to true    | Whether to use the pipeline client, if false then the page is flushed all at once
 
+### Mojit Specs
 
+Mojit specs are defined either under Pipeline specs in application.json, or using [ac.pipeline.push](#api-push) at runtime. These specs are regular [Mojito mojit] specs(https://developer.yahoo.com/cocktails/mojito/docs/intro/mojito_configuring.html#specs-object) and can include the following Pipeline specific properties:
 
-#API Doc.
-##Static and runtime task configuration
-###what is `runtimeTaskConfig` in `ac.pipeline.push(runtimeTaskConfig);`?
-the object passed to the `ac.pipeline.push` method will be merged with the static mojit configuration listed in application.yaml under the corresponding id. It is expected that static configurations will be located in the application.yaml, whereas the configurations that require runtime, will be the members of `runtimeTaskConfig`. If listed in both application.yaml and in the `runtimeTaskConfig`, properties will be overridden by the latter.
-Here is the list of the members that a task can receive that are meaningful to pipeline:
-###`id`
-the id that this task can be referenced with (in business rules or when setting dependencies)
-###`type`
-the mojit type that the task should instantiate. This is a normal mojito parameter.
-###`sections`
-an `Object` defining this task's children sections (see terminology above) indexed by the task ids of those sections.
-###`dependencies`
-an `Array` containing the ids of this task's dependencies (see terminology above).
-###`default`
-a `Boolean` indicating whether this task should be automatically pushed by it's parent with the static config (see terminology above).
-###`group`
-a `String` of a name for an Array allocated in the ac.params.body('children') of the parent of this task where all the rendered tasks having the same group name will be listed when they are rendered. Grouped tasks will usually be defined at runtime and be dependencies/blocking of their parent.
-###`timeout`
-a `Number` representing the time in milliseconds that this task should stay blocked on its dependencies before it should be forced to unblock itself.
-###action rules
-there is 4 possible action rules that can be defined by the user. their names are `render`, `flush`, `display`, and `error`.
-Each rule defines the condition that should trigger a new stage in the lifecycle of the task (see the lifecycle of a task above).
-Each rule is a `String` that symbolizes boolean expressions based on javascript's syntax. Each term of the expression can be a boolean `true` or `false`, or another expression based on a task attributes/states. To refer to a task in a rule, you can use the dot-notation on the task id just as if it was a javascript object. example (taken from the example above):
-```yaml
-                            "ads": {
-                                "type": "Ads",
-                                "render": "search-results.rendered",
-                                "sections": {
-					# ...
-                                }
-                            }
+Property      | Requirement                 | Description
+--------------|-----------------------------|------------------------------------------------------------------------------
+`children`    | Optional                    | A recursive mapping of child id's to mojit specs. Note id's must be unique
+`autoPush`    | Optional. Defaults to false | Whether to push this mojit automatically after its parent has been pushed
+`blockParent` | Optional. Defaults to false | Whether to block the parent's dispatching until this mojit has been rendered
+
+It also includes optional properties that allow fine-tune control over the mojit's flow through its execution stages (see [mojit lifecycle](#mojit-lifecycle):
+
+**Stage Action Rules**
+
+Property   | Description
+-----------|---------------------------------------------------------------------------------------------------------------
+`dispatch` | When to execute the controller. Can ensure certain children mojits have reach certain states.
+`render`   | When to render the view with the given data. Can ensure children mojits are embeded in mojit's view.
+`flush`    | When to add the mojit to the flush queue. Can control when the mojit can be flushed to the page.
+`display`  | When to display the mojit on the client. Can make sure the mojit is only seen after other mojits.
+
+Stage action rules are boolean expressions that are evaluated during runtime, right before the specified stage action. Each clause is composed of a mojit instance and its state, for example, "mojit-id.dispatched". Clauses can be combined in complex manners using operands such as `&&`, `||`, and parentheses.
+
+**Example**
+```js
+...
+    "dispatch": "(myparent.flushed && child1.rendered) || pipeline.closed)
+...
 ```
-In this example, the `'render'` rule means "render 'ads' whenever 'search-results' is rendered". The states of a task that you can use are: `'pushed'`, `'dispatched'`, `'rendered'`, `'flushed'`, `'displayed'`, `'errored'` and `'timedOut'`.
-In addition you can use the `'closed'` state on the id `'pipeline'` (just try to not call any of you tasks 'pipeline'...).
-
-##ac.pipeline.push(Object taskConfig)
-Pushes a given task into the pippeline. This task will be processed according to the configuration given to the pipeline and the `taskConfig` object.
-This call is non-blocking: upon return, the task will exist in the pipeline but will not have started its lifecyle.
-### taskConfig
-Some additional task configuration that will be merged with the configuration given to the pipeline in application.yaml.
-See the [API above](https://github.com/yahoo/mojito-pipeline/blob/master/README.md#static-and-runtime-task-configuration) for more details about this object.
-##ac.pipeline.close()
-Indicates to Pipeline that no more tasks will be pushed. The pipeline will trigger its 'onClose' event, flush the remaining tasks and send the closing markup.
+In this example the mojit will only be dispatched after `myparent` has been flushed and `child1` has been rendered, or Pipeline has been closed. Note that `pipeline` refers to the pipeline itself, and only can reach one state, `closed`. `pipeline` is a reserved id in Pipeline.
 
 
+### Example application.json
 
-#Code Structure
-##addons
-###ac/pipeline.server.js
-Exposes the main access points into the pipeline. Implements the public ac.pipeline addon and private `Task` class.
-###rs/pipeline.server.js
-Handles pipeline's client-side minification
-##assets/void/pipeline-client.js
-The client-side piece of the pipeline that handles the end of the processing of the tasks that are shipped to the client.
-##mojits
-###PipelineHTMLFrameMojit
-A replacement for mojito's HTMLFrameMojit that handles pipelining of the frame.
-###ShakerPipelineHTMLFrameMojit
-A replacement for mojito's HTMLFrameMojit that handles both pipelining and mojito-shaker
-###yui_modules/target-action-events.common.js
-An implementation of a publish-subscribe model that lets the subscriber choose multiple publishers and multiple events at a time.
+```js
+{
+	"settings": ["master"]
+	"specs": {
+		"main": {
+			"type": "PipelineFrame",
+			"deploy": true,
+			"pipelineClient": true,
+			"child": {
+				"type": "Main",
+				"children": {
+					"child1": {
+						"type": "Child",
+						"chlildren": {
+						    "grandChild1": {
+						        "autoPush": true,
+						        "blockParent": true
+					        }
+						}
+					},
+					"child2": {
+						"type": "Hello",
+						"display": "child1.displayed"
+					}
+				}
+			}
+		}
+	}
+}
+```
