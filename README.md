@@ -268,7 +268,6 @@ else {
 
 ac.done(Y.mix(viewData, children));
 ...
-
 ```
 
 ### Pipeline Addon
