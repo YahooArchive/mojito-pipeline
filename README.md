@@ -336,7 +336,6 @@ action   | The action that the target received.
 ac.pipeline.on('*', 'afterRender', function (event, mojit) {
     console.log(event.target + ' has been rendered: ' + mojit.toString());
 });
-
 ```
 
 ---
