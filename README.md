@@ -149,19 +149,19 @@ After being pushed into the pipeline, mojits undergo various stages before final
 
 Stage Action | Resulting State   | Description 
 -------------|-------------------|----------------------------------------------------------------------------
-push         | `pushed`          | The mojit has just been pushed using [ac.pipeline.push](#api-push)
-dispatch     | `dispatched`      | The mojit's controller has been called
-render       | `rendered`        | The data passed to ac.done has been used to render the mojit's view
-flush        | `flushed`         | The mojit has been added to the flush queue and will be sent to the client
-display      | `displayed`       | The mojit has been displayed on the client side
+push         | `pushed`          | The mojit has just been pushed using [ac.pipeline.push](#api-push).
+dispatch     | `dispatched`      | The mojit's controller has been called.
+render       | `rendered`        | The data passed to ac.done has been used to render the mojit's view.
+flush        | `flushed`         | The mojit has been added to the flush queue and will be sent to the client.
+display      | `displayed`       | The mojit has been displayed on the client side.
 
 
 **Exception States**
 
 Exception | Resulting State   | Description
 ----------|-------------------|-------------------------------------------------------------------------------
-timeout   | `timedout`        | The mojit timed out after dependencies prevented it from being dispatched
-error     | `errored`         | There was an error while dispatching the mojit or its error rule returned true
+timeout   | `timedout`        | The mojit timed out after dependencies prevented it from being dispatched.
+error     | `errored`         | There was an error while dispatching the mojit or its error rule returned true.
 
 
 ## Configuration
@@ -174,9 +174,9 @@ A Mojito route that is handled by Pipeline requires an application specs entry t
 
 Property         | Requirement                   | Description
 -----------------|-------------------------------|------------------------------------------------------------------------
-`child`          | Required                      | The top level mojit, which Pipeline should automatically push
-`deploy`         | Optional. Defaults to false   | Whether to deploy the mojito client (see [Deploying to Client](https://developer.yahoo.com/cocktails/mojito/docs/topics/mojito_frame_mojits.html#deploying-to-client))
-`pipelineClient` | Optional. Defaults to true    | Whether to use the pipeline client, if false then the page is flushed all at once
+`child`          | Required                      | The top level mojit, which Pipeline should automatically push.
+`deploy`         | Optional, defaults to false   | Whether to deploy the mojito client (see [Deploying to Client](https://developer.yahoo.com/cocktails/mojito/docs/topics/mojito_frame_mojits.html#deploying-to-client)).
+`pipelineClient` | Optional, defaults to true    | Whether to use the pipeline client, if false then the page is flushed all at once.
 
 ### Mojit Specs
 
@@ -185,9 +185,9 @@ Mojit specs are defined either under Pipeline specs in application.json, or usin
 Property      | Requirement                 | Description
 --------------|-----------------------------|------------------------------------------------------------------------------
 `id`          | Optional                    | Should only be used when pushing a mojit to pipeline; refers to a mojit id previously defined.
-`children`    | Optional                    | A recursive mapping of child id's to mojit specs. Note id's must be unique
-`autoPush`    | Optional. Defaults to false | Whether to push this mojit automatically after its parent has been pushed
-`blockParent` | Optional. Defaults to false | Whether to block the parent's dispatching until this mojit has been rendered
+`children`    | Optional                    | A recursive mapping of child id's to mojit specs. Note id's must be unique.
+`autoPush`    | Optional, defaults to false | Whether to push this mojit automatically after its parent has been pushed.
+`blockParent` | Optional, defaults to false | Whether to block the parent's dispatching until this mojit has been rendered.
 
 It can also include optional properties that allow precise control over the mojit's flow through its execution stages (see [mojit lifecycle](#mojit-lifecycle):
 
@@ -246,6 +246,33 @@ In this example the mojit will only be dispatched after `myparent` has been flus
 
 ## API
 
+### Accessing Children
+
+Before dispatching a mojit, Pipeline passes the mojit's children's data through `ac.params.body().children`. The mojit is responsible for passing the children to its own view; this allows the mojit to process the children if necessary. Each child object contains the child's reached states, and a `toString` method, which returns the html. Note that individual child objects should not be modified, since they used internally by Pipeline.
+
+    Note: Unless a child's html needs to be modified, It is unecessary to call a child object's `toString` method since when the object is passed to the view, the rendering engine automatically calls `toString` on objects. Also calling `toString` before a mojit is rendered, will result in a placeholder div, forcing the mojit to be embeded on the client side.
+
+
+**Example Controller**
+
+```js
+...
+var body = ac.params.body(),
+    children = body.children;
+    
+if (children.child1.errored) {
+    children.child1 = '<span>Error:</span>' + children.child1.toString();
+else {
+    children.child1 = '<span>Success:</span>' + children.child1.toString();
+}
+
+ac.done(Y.mix(viewData, children));
+...
+
+```
+
+### Pipeline Addon
+
 <a name="api-push">**ac.pipeline.push**</a> (specs) `async`
 Pushes a mojit into the pipeline, allowing pipeline to process the mojit through its [execution stages](#mojit-lifecycle). Note that this method is asynchronous; this allows multiple consecutive calls to ac.pipeline.push, before Pipeline actually starts processing the mojits.
 * **specs** `object` | `string` - A mojit specs object (see [mojit specs](#mojit-specs)); the `id` property should be specified when referring to a previously defined mojit specs, in which case the new specs will be mixed with the old specs, with the new specs taking precedence. This method also accepts a string, corresponding to the id of a previously defined mojit specs.
@@ -253,8 +280,10 @@ Pushes a mojit into the pipeline, allowing pipeline to process the mojit through
 
 **Example**
 ```
+ac.pipeline.push('mymojit1');
+
 ac.pipeline.push({
-    id: 'mymojit',
+    id: 'mymojit2',
     config: {
         runtimeConfig: runtimeConfig
     }
@@ -273,11 +302,43 @@ ac.pipeline.close();
 
 ---
 
-<a name="api-on">**ac.pipeline.on**</a> ()
+<a name="api-on">**ac.pipeline.on**</a> (subject, action, callback)
+Subscribes to a subject-action event, triggering a callback everytime the specified subject receives the specified action.
+* subject `string` - The subject (either 'pipeline' or a mojit's id) that received the specified action. If '*' is specified then any subject is used.
+* action `string` - The action applied to the subject (see [event actions](#event-actions) below).
+* callback(event, data) `function` - The callback function that is called after the event is triggered. The callback has two arguments: an event object (see [event object](#event object) below), and any data associated with the event (see [event actions](#event-actions) below). Note this callback is called everytime the event is triggered, to limit the triggering to only once use [ac.pipeline.once](#api-once).
+* returns subscription `object` - A subscription to the event, includes the method `unsubscribe` to stop listening to the event.
+
+### Event Actions
+
+Event                  | Event Type | Data               | Description
+-----------------------|------------|--------------------|-----------------------------------------------------------------
+`before/afterDispatch` | Mojit      | Mojit Object       | Fired before/after dispatching a mojit.
+`before/afterRender`   | Mojit      | Mojit Object       | Fired before/after rendering a mojit.
+`before/afterFlush`    | Mojit      | Mojit Object       | Fired before/after placing a mojit in flush queue.
+`onError`              | Mojit      | Mojit Object       | Fired once a mojit has reached an error.
+`onTimeout`            | Mojit      | Mojit Object       | Fired once a mojit has timed out.
+`on/afterClose`        | Pipeline   | N/A                | Fired once Pipeline finishes processing mojits, and after it has checked for any errors.
+`beforeFlush`          | Pipeline   | Mojit Object       | Fired before/after placing mojit in the flush queue.
+`onError`              | Pipeline   | Mojit Object Array | Fired after closing and determining that there were errors, passes errored mojits.
+
+### Event Object
+
+Property | Description
+---------|------------------------------------------------------------
+target   | The subject that received the event's corresponding action.
+action   | The action that the target received.
 
 
 **Example**
-```
+
+```js
+ac.pipeline.on('*', 'afterRender', function (event, mojit) {
+    console.log(event.target + ' has been rendered: ' + mojit.toString());
+});
 
 ```
+
+<a name="api-on">**ac.pipeline.once**</a> (subject, action, callback)
+Same as [ac.pipeline.on](#api-on), except the subscription is unsubscribed after the first call to the callback.
 
