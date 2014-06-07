@@ -1,6 +1,6 @@
 # mojito-pipeline [![Build Status](https://travis-ci.org/yahoo/mojito-pipeline.svg)](https://travis-ci.org/yahoo/mojito-pipeline)
 
-mojito-pipeline is a [Mojito](https://developer.yahoo.com/cocktails/mojito) extension that allows applications to render [mojits](https://developer.yahoo.com/cocktails/mojito/docs/intro/mojito_apps.html#mojits) as soon as their data is availble. It manages all the [execution stages](#mojit-lifecycle) of a mojit and pregressively flushes and displays content to the user agent. This process siginificanlty improves front-end performance by immediately showing parts of the page while concurrently rendering mojits as data arrives.
+mojito-pipeline is a [Mojito](https://developer.yahoo.com/cocktails/mojito) extension that allows applications to render [mojits](https://developer.yahoo.com/cocktails/mojito/docs/intro/mojito_apps.html#mojits) as soon as their data is availble. It manages all the [execution stages](#mojit-lifecycle) of a mojit and pregressively flushes and displays content to the user agent. This process siginificanlty improves front-end performance by immediately displaying sections of the page while concurrently rendering mojits as data arrives.
 
 [![NPM](https://nodei.co/npm/mojito-pipeline.png)](https://nodei.co/npm/mojito-pipeline/)
 
