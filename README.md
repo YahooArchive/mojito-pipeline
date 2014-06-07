@@ -250,7 +250,7 @@ In this example the mojit will only be dispatched after `myparent` has been flus
 
 Before dispatching a mojit, Pipeline passes the mojit's children's data through `ac.params.body().children`. The mojit is responsible for passing the children to its own view; this allows the mojit to process the children if necessary. Each child object contains the child's reached states, and a `toString` method, which returns the html. Note that individual child objects should not be modified, since they used internally by Pipeline.
 
-    Note: Unless a child's html needs to be modified, It is unecessary to call a child object's `toString` method since when the object is passed to the view, the rendering engine automatically calls `toString` on objects. Also calling `toString` before a mojit is rendered, will result in a placeholder div, forcing the mojit to be embeded on the client side.
+**Note**: Unless a child's html needs to be modified, It is unecessary to call a child object's `toString` method since when the object is passed to the view, the rendering engine automatically calls `toString` on objects. Also calling `toString` before a mojit is rendered, will result in a placeholder div, forcing the mojit to be embeded on the client side.
 
 
 **Example Controller**
@@ -338,6 +338,8 @@ ac.pipeline.on('*', 'afterRender', function (event, mojit) {
 });
 
 ```
+
+---
 
 <a name="api-on">**ac.pipeline.once**</a> (subject, action, callback)
 Same as [ac.pipeline.on](#api-on), except the subscription is unsubscribed after the first call to the callback.
