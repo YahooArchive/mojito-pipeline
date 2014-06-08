@@ -21,16 +21,16 @@ mojito-pipeline is a [Mojito](https://developer.yahoo.com/cocktails/mojito) exte
 * Allows full control of mojit execution stages
 * Client/server side event subscription
 * Error/timeout handling and reporting
-* Easy to use, just requires simple [configuration](#configuration) and the use of [pipeline.push](#api-push) and [pipeline.close](#api-close)
+* Easy to use, just requires a simple [configuration](#configuration), and the use of [pipeline.push](#api-push) and [pipeline.close](#api-close)
 
 
 ### How it works
 
 Pipeline consists of three components:
 
-* [**PipelineFrame**](https://github.com/yahoo/mojito-pipeline/tree/master/mojits/PipelineFrame): The PipelineFrame, or the Shaker equivalent [ShakerPipelineFrame](https://github.com/yahoo/mojito-pipeline/tree/master/mojits/ShakerPipelineFrame), is a frame mojit, similar to Mojito's [HTMLFrameMojit](https://developer.yahoo.com/cocktails/mojito/docs/topics/mojito_frame_mojits.html). It accepts one root level mojit, which it surrounds with a full html page frame, including `html`, `head`, and `body` tags. It is responsible for embedding the PipelineClient (see [below](#pipeline-client)), and periodically flushing content to the client, including css/js assets. It accepts a configuration consisting of a tree of mojits that can appear on the page (see [configuration](#configuration)).
+* [**Pipeline Frame**](https://github.com/yahoo/mojito-pipeline/tree/master/mojits/PipelineFrame): The [PipelineFrame](https://github.com/yahoo/mojito-pipeline/tree/master/mojits/PipelineFrame), or the Shaker equivalent [ShakerPipelineFrame](https://github.com/yahoo/mojito-pipeline/tree/master/mojits/ShakerPipelineFrame), is a frame mojit, similar to Mojito's [HTMLFrameMojit](https://developer.yahoo.com/cocktails/mojito/docs/topics/mojito_frame_mojits.html). It accepts one root level mojit, which it surrounds with a full html page frame, including `html`, `head`, and `body` tags. It is responsible for embedding the PipelineClient (see [below](#pipeline-client)), and periodically flushing content to the client, including css/js assets. It accepts a configuration consisting of a tree of mojits that can appear on the page (see [configuration](#configuration)).
 
-* [**Pipeline Addon**](https://github.com/yahoo/mojito-pipeline/tree/master/addons/ac/pipeline.server.js): The Pipeline addon implements [Pipeline's api](#api), which allows users to [push](#api-push) mojits, [close](#api-close) the pipeline, among other calls. It is responsible for processing mojits throughout their various stages (see [mojit lifecycle](#mojit-lifecycle)), while allowing concurrency between data retrieval, mojit execution, and the flushing of content.
+* [**Pipeline Addon**](https://github.com/yahoo/mojito-pipeline/tree/master/addons/ac/pipeline.server.js): The Pipeline addon implements [Pipeline's api](#api), which allows users to [push](#api-push) mojits, [close](#api-close) the pipeline, and [subscribe to events](#api-on). It is responsible for processing mojits throughout their various stages (see [mojit lifecycle](#mojit-lifecycle)), while allowing concurrency between data retrieval, mojit execution, and the flushing of content.
 
 * [**Pipeline Client**](https://github.com/yahoo/mojito-pipeline/blob/master/assets/void/pipeline-client.js): The Pipeline client handles the displaying of mojits on the client side. It is minified and inline on the first flush to the client. The Pipeline client consist of a global `pipeline` object, which is used to deserialize flushed mojits and display them, observing any user defined displaying rules.
 
@@ -47,13 +47,13 @@ mojito-pipeline requires a Mojito application (Take a look at the [Mojito Quicks
 
 	    $ npm install mojito-shaker
 
-3. Add or modify a route's configuration to use the `PipelineFrame` or `ShakerPipelineFrame` (see [Configuration](#configuration)).
+3. Add or modify a route's configuration to use the `PipelineFrame` or `ShakerPipelineFrame` (see [configuration](#configuration)).
 
 4. Push mojits into the pipeline using [ac.pipeline.push](#api-push).
 
 5. Close the pipeline using [ac.pipeline.close](#api-close), after all mojits have been pushed.
 
-Take a look at the ["Hello World! example"](#hello-world-example) below or follow the wiki's thorough explanation of a full [example application](https://github.com/yahoo/mojito-pipeline/tree/master/examples/search).
+Take a look at the ["Hello World! example"](#hello-world-example) below.
 
 ## Hello World! Example
 
@@ -128,7 +128,7 @@ Take a look at the ["Hello World! example"](#hello-world-example) below or follo
 	}, '0.0.1', {
 		requires: [
 			'mojito-params-addon'
-			'mojito-pipeline'
+			'mojito-pipeline-addon'
 		]
 	});
 	```
@@ -140,12 +140,12 @@ Take a look at the ["Hello World! example"](#hello-world-example) below or follo
 	</div>
 	```
 	
-	The `Root` controller simply pushes its only child mojit, reference by its `hello` id. It then closes the pipeline and passes its children data to its view. As specified in the configuration above, the top level mojit is of type `Root`, which automatically gets pushed to the pipeline. Pipeline always refers to the top level mojit as `root`. Before `root` is dispatched, Pipeline populates its `params.body.children` with the rendered data of its children. In this case `root` only has one child, `hello`, which hasn't been rendered so `ac.params.body().children.hello` is equal to `&lt;div id="hello-section"&gt;&lt;/div&gt;`. This is a placeholder for the `hello` child, which Pipeline will fill, whenever `hello` is fully rendered, either before rendering `root` or on the client side.
+	The `Root` controller simply pushes its only child mojit, reference by its `hello` id. It then closes the pipeline and passes its children data to its view. As specified in the configuration above, the top level mojit is of type `Root`, which automatically gets pushed to the pipeline. Pipeline always refers to the top level mojit as `root`. Before `root` is dispatched, Pipeline populates its `params.body.children` with the rendered data of its children. In this case `root` only has one child, `hello`, which hasn't been rendered so `ac.params.body().children.hello` is equal to `<div id="hello-section"></div>`. This is a placeholder for the `hello` child, which Pipeline will fill, whenever `hello` is fully rendered, either before rendering `root` or on the client side.
 
 
 ## Mojit Lifecycle
 
-After being pushed into the pipeline, mojits undergo various stages before finally being displayed on the client. Pipeline is fully responsible for processing mojits along these stages, but also allows users to precisely control and hook into mojit execution through [execution rules](#configuration-rules) and [event subscription](#events-subscription).
+After being pushed into the pipeline, mojits undergo various stages before finally being displayed on the client. Pipeline is fully responsible for processing mojits along these stages, but also allows users to precisely control and hook into mojit execution through [execution rules](#stage-action-rules) and [event subscription](#api-on).
 
 Stage Action | Resulting State   | Description 
 -------------|-------------------|----------------------------------------------------------------------------
@@ -184,14 +184,14 @@ Mojit specs are defined either under Pipeline specs in application.json, or usin
 
 Property      | Requirement                 | Description
 --------------|-----------------------------|------------------------------------------------------------------------------
-`id`          | Optional                    | Should only be used when pushing a mojit to pipeline; refers to a mojit id previously defined.
+`id`          | Optional                    | Only used when pushing a mojit to pipeline; refers to a previously defined mojit.
 `children`    | Optional                    | A recursive mapping of child id's to mojit specs. Note id's must be unique.
 `autoPush`    | Optional, defaults to false | Whether to push this mojit automatically after its parent has been pushed.
 `blockParent` | Optional, defaults to false | Whether to block the parent's dispatching until this mojit has been rendered.
 
-It can also include optional properties that allow precise control over the mojit's flow through its execution stages (see [mojit lifecycle](#mojit-lifecycle):
+It can also include optional properties that allow precise control over the mojit's flow through its [execution stages](#mojit-lifecycle)):
 
-**Stage Action Rules**
+#### Stage Action Rules
 
 Property   | Description
 -----------|---------------------------------------------------------------------------------------------------------------
@@ -199,6 +199,7 @@ Property   | Description
 `render`   | When to render the view with the given data. Can ensure children mojits are embeded in mojit's view.
 `flush`    | When to add the mojit to the flush queue. Can control when the mojit can be flushed to the page.
 `display`  | When to display the mojit on the client. Can make sure the mojit is only seen after other mojits.
+`error`    | When to error out the mojit. Allows the mojit to reach the error state given a specified condition.
 
 Stage action rules are boolean expressions that are evaluated during runtime, right before the specified stage action. Each clause is composed of a mojit instance and its state, for example, `mojit-id.dispatched`. Clauses can be combined in complex manners using operands such as `&&`, `||`, and parentheses.
 
@@ -227,14 +228,14 @@ In this example the mojit will only be dispatched after `myparent` has been flus
 						"type": "Child",
 						"chlildren": {
 						    "grandChild1": {
+						        "type": "Child", 
 						        "autoPush": true,
-						        "blockParent": true,
-						        "config": {...}
+						        "blockParent": true
 					        }
 						}
 					},
 					"child2": {
-						"base": "hello",
+						"base": "child2",
 						"display": "child1.displayed"
 					}
 				}
@@ -248,10 +249,9 @@ In this example the mojit will only be dispatched after `myparent` has been flus
 
 ### Accessing Children
 
-Before dispatching a mojit, Pipeline passes the mojit's children's data through `ac.params.body().children`. The mojit is responsible for passing the children to its own view; this allows the mojit to process the children if necessary. Each child object contains the child's reached states, and a `toString` method, which returns the html. Note that individual child objects should not be modified, since they used internally by Pipeline.
+Before dispatching a mojit, Pipeline passes the mojit's children's data through `ac.params.body().children`. The mojit is responsible for passing the children to its own view; this allows the mojit to process the children if necessary. Each child object contains the child's reached states, and a `toString` method, which returns the html. Note that individual child objects should not be modified, since they are used internally by Pipeline.
 
-**Note**: Unless a child's html needs to be modified, It is unnecessary to call a child object's `toString` method since when the object is passed to the view, the rendering engine automatically calls `toString` on objects. Also calling `toString` before a mojit is rendered, will result in a placeholder div, forcing the mojit to be embedded on the client side.
-
+**Note**: Unless a child's html needs to be modified, it is unnecessary to call a child object's `toString` method since the rendering engine automatically calls `toString` on objects before rendering a view. Also calling `toString` method of an unrendered mojit results in a placeholder div, forcing the mojit to be flushed separetely from its parent and be embedded on the client side.
 
 **Example Controller**
 
@@ -292,7 +292,7 @@ ac.pipeline.push({
 ---
 
 <a name="api-close">**ac.pipeline.close**</a> (specs)
-Closes the pipeline, signaling that no more mojits will be pushed. Note that the pipeline `onClose` event is fired after Pipeline finishes processing all the mojits that have been pushed (see events[#events]).
+Closes the pipeline, signaling that no more mojits will be pushed. Note that the pipeline `onClose` event is fired after Pipeline finishes processing all the mojits that have been pushed (see [event actions](#event-actions)).
 
 **Example**
 ```
@@ -305,7 +305,7 @@ ac.pipeline.close();
 Subscribes to a subject-action event, triggering a callback everytime the specified subject receives the specified action.
 * subject `string` - The subject (either 'pipeline' or a mojit's id) that received the specified action. If '*' is specified then any subject is used.
 * action `string` - The action applied to the subject (see [event actions](#event-actions) below).
-* callback(event, data) `function` - The callback function that is called after the event is triggered. The callback has two arguments: an event object (see [event object](#event object) below), and any data associated with the event (see [event actions](#event-actions) below). Note this callback is called every time the event is triggered, to limit the triggering to only once use [ac.pipeline.once](#api-once).
+* callback(event, data) `function` - The callback function that is called after the event is triggered. The callback has two arguments: an event object (see [event object](#event-object) below), and any data associated with the event (see [event actions](#event-actions) below). Note this callback is called every time the event is triggered; to limit the triggering to only once use [ac.pipeline.once](#api-once).
 * returns subscription `object` - A subscription to the event, includes the method `unsubscribe` to stop listening to the event.
 
 ### Event Actions
@@ -339,6 +339,6 @@ ac.pipeline.on('*', 'afterRender', function (event, mojit) {
 
 ---
 
-<a name="api-on">**ac.pipeline.once**</a> (subject, action, callback)
+<a name="api-once">**ac.pipeline.once**</a> (subject, action, callback)
 Same as [ac.pipeline.on](#api-on), except the subscription is unsubscribed after the first call to the callback.
 
