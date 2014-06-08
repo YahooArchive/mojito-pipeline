@@ -1,6 +1,6 @@
 # mojito-pipeline [![Build Status](https://travis-ci.org/yahoo/mojito-pipeline.svg)](https://travis-ci.org/yahoo/mojito-pipeline)
 
-mojito-pipeline is a [Mojito](https://developer.yahoo.com/cocktails/mojito) extension that allows applications to render [mojits](https://developer.yahoo.com/cocktails/mojito/docs/intro/mojito_apps.html#mojits) as soon as their data is availble. It manages all the [execution stages](#mojit-lifecycle) of a mojit and pregressively flushes and displays content to the user agent. This process siginificanlty improves front-end performance by immediately displaying sections of the page while concurrently rendering mojits as data arrives.
+mojito-pipeline is a [Mojito](https://developer.yahoo.com/cocktails/mojito) extension that allows applications to render [mojits](https://developer.yahoo.com/cocktails/mojito/docs/intro/mojito_apps.html#mojits) as soon as their data is available. It manages all the [execution stages](#mojit-lifecycle) of a mojit and progressively flushes and displays content to the user agent. This process significantly improves front-end performance by immediately displaying sections of the page while concurrently rendering mojits as data arrives.
 
 [![NPM](https://nodei.co/npm/mojito-pipeline.png)](https://nodei.co/npm/mojito-pipeline/)
 
@@ -28,7 +28,7 @@ mojito-pipeline is a [Mojito](https://developer.yahoo.com/cocktails/mojito) exte
 
 Pipeline consists of three components:
 
-* [**PipelineFrame**](https://github.com/yahoo/mojito-pipeline/tree/master/mojits/PipelineFrame): The PipelineFrame, or the Shaker equivalent [ShakerPipelineFrame](https://github.com/yahoo/mojito-pipeline/tree/master/mojits/ShakerPipelineFrame), is a frame mojit, similar to Mojito's [HTMLFrameMojit](https://developer.yahoo.com/cocktails/mojito/docs/topics/mojito_frame_mojits.html). It accepts one root level mojit, which it sorrounds with a full html page frame, including `html`, `head`, and `body` tags. It is responsible for embedding the PipelineClient (see [below](#pipeline-client)), and periodically flushing content to the client, including css/js assets. It accepts a configuration consisting of a tree of mojits that can appear on the page (see [configuration](#configuration)).
+* [**PipelineFrame**](https://github.com/yahoo/mojito-pipeline/tree/master/mojits/PipelineFrame): The PipelineFrame, or the Shaker equivalent [ShakerPipelineFrame](https://github.com/yahoo/mojito-pipeline/tree/master/mojits/ShakerPipelineFrame), is a frame mojit, similar to Mojito's [HTMLFrameMojit](https://developer.yahoo.com/cocktails/mojito/docs/topics/mojito_frame_mojits.html). It accepts one root level mojit, which it surrounds with a full html page frame, including `html`, `head`, and `body` tags. It is responsible for embedding the PipelineClient (see [below](#pipeline-client)), and periodically flushing content to the client, including css/js assets. It accepts a configuration consisting of a tree of mojits that can appear on the page (see [configuration](#configuration)).
 
 * [**Pipeline Addon**](https://github.com/yahoo/mojito-pipeline/tree/master/addons/ac/pipeline.server.js): The Pipeline addon implements [Pipeline's api](#api), which allows users to [push](#api-push) mojits, [close](#api-close) the pipeline, among other calls. It is responsible for processing mojits throughout their various stages (see [mojit lifecycle](#mojit-lifecycle)), while allowing concurrency between data retrieval, mojit execution, and the flushing of content.
 
@@ -250,7 +250,7 @@ In this example the mojit will only be dispatched after `myparent` has been flus
 
 Before dispatching a mojit, Pipeline passes the mojit's children's data through `ac.params.body().children`. The mojit is responsible for passing the children to its own view; this allows the mojit to process the children if necessary. Each child object contains the child's reached states, and a `toString` method, which returns the html. Note that individual child objects should not be modified, since they used internally by Pipeline.
 
-**Note**: Unless a child's html needs to be modified, It is unecessary to call a child object's `toString` method since when the object is passed to the view, the rendering engine automatically calls `toString` on objects. Also calling `toString` before a mojit is rendered, will result in a placeholder div, forcing the mojit to be embeded on the client side.
+**Note**: Unless a child's html needs to be modified, It is unnecessary to call a child object's `toString` method since when the object is passed to the view, the rendering engine automatically calls `toString` on objects. Also calling `toString` before a mojit is rendered, will result in a placeholder div, forcing the mojit to be embedded on the client side.
 
 
 **Example Controller**
@@ -305,7 +305,7 @@ ac.pipeline.close();
 Subscribes to a subject-action event, triggering a callback everytime the specified subject receives the specified action.
 * subject `string` - The subject (either 'pipeline' or a mojit's id) that received the specified action. If '*' is specified then any subject is used.
 * action `string` - The action applied to the subject (see [event actions](#event-actions) below).
-* callback(event, data) `function` - The callback function that is called after the event is triggered. The callback has two arguments: an event object (see [event object](#event object) below), and any data associated with the event (see [event actions](#event-actions) below). Note this callback is called everytime the event is triggered, to limit the triggering to only once use [ac.pipeline.once](#api-once).
+* callback(event, data) `function` - The callback function that is called after the event is triggered. The callback has two arguments: an event object (see [event object](#event object) below), and any data associated with the event (see [event actions](#event-actions) below). Note this callback is called every time the event is triggered, to limit the triggering to only once use [ac.pipeline.once](#api-once).
 * returns subscription `object` - A subscription to the event, includes the method `unsubscribe` to stop listening to the event.
 
 ### Event Actions
