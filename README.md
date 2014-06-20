@@ -318,7 +318,7 @@ Event                  | Event Type | Data               | Description
 `onError`              | Mojit      | Mojit Object       | Fired once a mojit has reached an error.
 `onTimeout`            | Mojit      | Mojit Object       | Fired once a mojit has timed out.
 `on/afterClose`        | Pipeline   | N/A                | Fired once Pipeline finishes processing mojits, and after it has checked for any errors.
-`beforeFlush`          | Pipeline   | Mojit Object       | Fired before/after placing mojit in the flush queue.
+`beforeFlush`          | Pipeline   | Mojit Object       | Fired before Pipeline flushes the flush queue.
 `onError`              | Pipeline   | Mojit Object Array | Fired after closing and determining that there were errors, passes errored mojits.
 
 ### Event Object
