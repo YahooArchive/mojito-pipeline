@@ -654,12 +654,20 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         /**
-         * Sets a property in the frame's data object that will be passed to its view.
-         * @param {String} property The frame data property to be set.
+         * Sets a property value in the frame's data object that will be passed to its view.
+         * @param {String} property The frame data property value to be set.
          * @param {Any} value The value to set the frame data property.
          */
         setFrameData: function (property, value) {
             this._frame.data[property] = value;
+        },
+
+        /**
+         * Gets a property value in the frame's data object.
+         * @param {String} property The frame data property value to be returned.
+         */
+        getFrameData: function (property) {
+            return this._frame.data[property];
         },
 
         /**
