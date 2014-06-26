@@ -643,14 +643,25 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
         },
 
         /**
-         * Should only be called by the frame mojit once in order to initialize Pipeline with a configuration,
-         * and give Pipeline access to the data object that it will pass to its view.
+         * Should only be called by the frame mojit once in order to initialize Pipeline, giving it access to
+         * the data object that it will pass to its view.
          * @param {Object} frameData The data object that will be passed to the frame mojit's view.
          */
         initialize: function (frameData) {
 
-            // This gives Pipeline access to the frame's view data, which can be modified through the Pipeline.setFrameData method.
-            this._frame.data = frameData;
+            // This gives Pipeline access to the frame's view data.
+            this.setFrameData = function (property, value) {
+                frameData[property] = value;
+            };
+
+            this.getFrameData = function (property) {
+                return frameData[property];
+            };
+        },
+
+        _invalidSetGetFrameData: function (method) {
+            Y.log('Cannot set/get frame data since Pipeline has not been initialized.' +
+                ' First initailize Pipeline with the frame data.', 'error', NAME);
         },
 
         /**
@@ -658,16 +669,18 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
          * @param {String} property The frame data property value to be set.
          * @param {Any} value The value to set the frame data property.
          */
-        setFrameData: function (property, value) {
-            this._frame.data[property] = value;
+        setFrameData: function (method) {
+            Y.log('Cannot set frame data since Pipeline has not been initialized.' +
+                ' First initailize Pipeline with the frame data.', 'error', NAME);
         },
 
         /**
          * Gets a property value in the frame's data object.
          * @param {String} property The frame data property value to be returned.
          */
-        getFrameData: function (property) {
-            return this._frame.data[property];
+        getFrameData: function (method) {
+            Y.log('Cannot get frame data since Pipeline has not been initialized.' +
+                ' First initailize Pipeline with the frame data.', 'error', NAME);
         },
 
         /**
