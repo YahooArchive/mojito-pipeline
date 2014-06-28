@@ -786,7 +786,16 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
          * @param {Task} task The task to be dispatched.
          */
         _push: function (task) {
-            var pipeline = this;
+            var pipeline = this,
+                taskProcessed = function () {
+                    if (taskProcessed.called) {
+                        // Make sure taskProcessed is not called more than once for
+                        // this task, which may occur after error conditions.
+                        return;
+                    }
+                    taskProcessed.called = true;
+                    pipeline._taskProcessed(task);
+                };
 
             // Subscribe to any event specified in the task's config, which the task is interested about itself.
             Y.Array.each(EVENT_TYPES, function (event) {
@@ -800,10 +809,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             // Test this task's error condition; error out and return if it passes.
             if (task.errorTest()) {
-                return pipeline._error(task, 'Error condition returned true.', function () {
-                    // After this task is errored out, this task should be considered processed
-                    pipeline._taskProcessed(task);
-                });
+                // After this task is errored out, this task should be considered processed.
+                return pipeline._error(task, 'Error condition returned true.', taskProcessed);
             }
 
             // Subscribe to error event, in order to error out this task if its error condition passes.
@@ -815,11 +822,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 done();
             });
 
-            this._prepareToDispatch(task, function () {
-                // This should be called once this task has reached the end of its lifecycle or it has been postponed
-                // due to dependencies.
-                pipeline._taskProcessed(task);
-            });
+            // taskProcessed should be called once this task has reached the end of its
+            // lifecycle or it has been postponed due to dependencies.
+            this._prepareToDispatch(task, taskProcessed);
         },
 
         /**

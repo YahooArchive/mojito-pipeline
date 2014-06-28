@@ -71,7 +71,9 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
                     var processFlushData = function () {
                         flushData.meta.assets = flushData.meta.assets || {};
                         self._processMeta(flushData.meta);
-                        self._addMojitoClient(flushData.meta);
+                        if (flushData.done) {
+                            self._addMojitoClient(flushData.meta);
+                        }
                         self._wrapFlushData(flushData);
                     };
 
@@ -196,7 +198,7 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
                 binders = this.binders;
 
             // Construct the Mojito client runtime if this it the last flush and the Mojito client should be deployed.
-            if (ac.pipeline.closed && ac.config.get('deploy') === true && ac.pipeline.client.jsEnabled) {
+            if (ac.config.get('deploy') === true && ac.pipeline.client.jsEnabled) {
                 // Clear any assets such that only the Mojito client runtime appears.
                 ac.assets.assets = {};
                 // Get the Mojito client assets.

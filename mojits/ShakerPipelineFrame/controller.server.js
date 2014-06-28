@@ -7,17 +7,6 @@
 /*jslint nomen:true, plusplus:true */
 /*global YUI */
 
-if (typeof YUI === 'function') {
-    // Making sure the PipelineFrame controller is available to this module if lazyMojits is on.
-    YUI().applyConfig({
-        modules: {
-            PipelineFrameMojit: {
-                fullpath: require('path').join(__dirname, '../PipelineFrame/controller.server.js')
-            }
-        }
-    });
-}
-
 YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
     'use strict';
 
@@ -77,7 +66,7 @@ YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
                 binders = this.binders,
                 postfetch = this.postfetch;
 
-            if (ac.pipeline.closed && ac.pipeline.client.jsEnabled) {
+            if (ac.pipeline.client.jsEnabled) {
                 // Force the mojito client to be place on the bottom.
                 ac.shaker.set('serveJs', {
                     position: 'bottom'
