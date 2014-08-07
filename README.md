@@ -11,6 +11,7 @@ mojito-pipeline is a [Mojito](https://developer.yahoo.com/cocktails/mojito) exte
 * [Mojit Lifecycle](#mojit-lifecycle)
 * [Configuration](#configuration)
 * [API](#api)
+* [Architecture](#architecture-diagrams)
 
 ## Overview
 
@@ -342,3 +343,10 @@ ac.pipeline.on('*', 'afterRender', function (event, mojit) {
 <a name="api-once">**ac.pipeline.once**</a> (subject, action, callback)
 Same as [ac.pipeline.on](#api-on), except the subscription is unsubscribed after the first call to the callback.
 
+## Architecture Diagrams
+
+### Execution Flow
+
+[![Architecture 1](https://github.com/yahoo/mojito-pipeline/raw/master/images/architecture1.png)](https://github.com/yahoo/mojito-pipeline/raw/master/images/architecture1.png)
+
+[![Architecture 2](https://github.com/yahoo/mojito-pipeline/raw/master/images/architecture2.png)](https://github.com/yahoo/mojito-pipeline/raw/master/images/architecture2.png)
