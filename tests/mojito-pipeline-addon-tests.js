@@ -14,7 +14,7 @@ YUI.add('mojito-pipeline-addon-tests', function (Y, NAME) {
             PipelineFrame: function (ac) {
                 var child = ac.command.instance.config.child;
                 child.id = 'root';
-                ac.pipeline.initialize({});
+                ac.pipeline.initialize({}, {});
                 ac.pipeline.push(child);
             },
             Pusher: function (ac) {
