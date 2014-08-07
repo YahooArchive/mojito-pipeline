@@ -647,7 +647,11 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
          * the data object that it will pass to its view.
          * @param {Object} frameData The data object that will be passed to the frame mojit's view.
          */
-        initialize: function (frameData) {
+        initialize: function (frameData, frameConfig) {
+
+            if (frameConfig.timeout !== undefined) {
+                TIMEOUT = frameConfig.timeout;
+            }
 
             // This gives Pipeline access to the frame's view data.
             this.setFrameData = function (property, value) {

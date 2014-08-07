@@ -7,6 +7,17 @@
 /*jslint nomen:true, plusplus:true */
 /*global YUI */
 
+if (typeof YUI === 'function') {
+    // Making sure the PipelineFrame controller is available to this module if lazyMojits is on.
+    YUI().applyConfig({
+        modules: {
+            PipelineFrameMojit: {
+                fullpath: require('path').join(__dirname, '../PipelineFrame/controller.server.js')
+            }
+        }
+    });
+}
+
 YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
     'use strict';
 

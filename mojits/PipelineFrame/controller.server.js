@@ -60,7 +60,7 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
                 renderedFrame;
 
             rootConfig.id = 'root';
-            ac.pipeline.initialize(self.view);
+            ac.pipeline.initialize(self.view, ac.config.get());
 
             ac.pipeline.push(rootConfig);
 
