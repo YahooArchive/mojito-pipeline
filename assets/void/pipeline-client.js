@@ -181,6 +181,7 @@ var pipeline = (function () {
 
         close: function () {
             var self = this;
+            this.closed = true;
             events.fire('pipeline', 'onClose', function () {
                 var id,
                     task;
