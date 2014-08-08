@@ -1299,6 +1299,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             // If Pipeline is closed, let the Pipeline client know.
             if (pipeline.closed && pipeline.client.enabled) {
                 flushData.data += 'pipeline.close();';
+                flushData.done = true;
             }
 
             flushData.data = flushData.data ? '<script>' + flushData.data + '</script>' : '';
