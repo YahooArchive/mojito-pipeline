@@ -513,40 +513,39 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
          */
         serialize: function () {
             var self = this,
-                serialized = 'pipeline.push({' +
-                    'markup: ' + self.stringify();
+                serialized = '{';
 
             Y.Object.each(self, function (property, propertyName) {
                 var embeddedChildren = [];
                 switch (propertyName) {
                 case 'id':
-                    serialized += ',\n' + propertyName + ': "' + property + '"';
+                    serialized += propertyName + ':"' + property + '",';
                     break;
                 case 'displayTargets':
-                    serialized += ',\n' + propertyName + ": " + JSON.stringify(property);
+                    serialized += propertyName + ":" + JSON.stringify(property) + ',';
                     break;
                 case 'embeddedChildren':
                     Y.Array.each(property, function (child, index) {
                         embeddedChildren.push(child.id);
                     });
-                    serialized += ',\n' + propertyName + ": " + JSON.stringify(embeddedChildren);
+                    serialized += propertyName + ":" + JSON.stringify(embeddedChildren) + ',';
                     break;
                 case 'displayTest':
-                    serialized += ',\n' + propertyName + ': function (pipeline) {' +
+                    serialized += propertyName + ':function(pipeline){' +
                             'return eval(\'' +
-                                RuleParser.getParsedRule(self.specs.display).rule + '\');}';
+                                RuleParser.getParsedRule(self.specs.display).rule + '\');},';
                     break;
                 case 'timedout':
                 case 'errored':
-                    serialized += ',\n' + propertyName + ': ' + property;
+                    serialized += propertyName + ':' + property + ',';
                     break;
                 default:
                 }
             });
 
-            serialized += '});\n';
+            serialized += 'markup:' + self.stringify() + '}';
 
-            return serialized;
+            return 'pipeline.push(' + serialized + ');';
         }
     };
 
@@ -723,10 +722,12 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
         /**
          * Indicates to Pipeline that no more tasks will be pushed.
+         * @param fullClose whether to prevent tasks in the pipeline from themselves pushing.
          */
-        close: function () {
+        close: function (fullClose) {
             if (!this._closeCalled) {
                 this._closeCalled = true;
+                this._fullClose = fullClose;
                 this._flushIfReady();
             }
         },
@@ -756,7 +757,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
 
             // Tasks should not be pushed after closing the Pipeline as this can result in
             // unexpected behavior such as the task not getting flushed.
-            if (this._closeCalled) {
+            // If @close is called without setting its fullClose parameter to true, then the
+            // pipeline is considered fully closed once all the tasks in the pipeline have finished;
+            // this allows tasks in the pipeline to call @push even after @close has been called.
+            if (this.closed || this._fullClose) {
                 Y.log('Task ' + task.id + ' was pushed after closing the Pipeline.', 'error', NAME);
                 return null;
             }
