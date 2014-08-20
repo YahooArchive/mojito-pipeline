@@ -497,7 +497,11 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
          */
         stringify: function () {
             return '\'' + this.data.replace(/\\/g, '\\\\')   // Escape the escape character.
-                                   .replace(/\r?\n/g, '\\n') // Remove carriage returns and escape new lines.
+                                   // TODO: this is not necessary if first passed through a html minifier.
+                                   // Removing the continuous white space in the two replace statements below
+                                   // reduces page size from 34.9 to 33.9 KB (compressed), 161 to 134 KB (uncompressed).
+                                   .replace(/>\s*</g, '><') // Remove continuous whitespace with new lines with a single new line.
+                                   .replace(/\s*\r?\n\s*/g, '\\n') // Remove continuous whitespace with new lines with a single new line.
                                    .replace(/\'/g, '\\\'')   // Escape single quotes.
                                    // Make sure ending script tags are escaped to prevent HTML parsing errors
                                    // in old browsers.
@@ -513,38 +517,37 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
          */
         serialize: function () {
             var self = this,
-                serialized = 'pipeline.push({' +
-                    'markup: ' + self.stringify();
+                serialized = 'pipeline.push({';
 
             Y.Object.each(self, function (property, propertyName) {
                 var embeddedChildren = [];
                 switch (propertyName) {
                 case 'id':
-                    serialized += ',\n' + propertyName + ': "' + property + '"';
+                    serialized += propertyName + ':"' + property + '",';
                     break;
                 case 'displayTargets':
-                    serialized += ',\n' + propertyName + ": " + JSON.stringify(property);
+                    serialized += propertyName + ":" + JSON.stringify(property) + ',';
                     break;
                 case 'embeddedChildren':
                     Y.Array.each(property, function (child, index) {
                         embeddedChildren.push(child.id);
                     });
-                    serialized += ',\n' + propertyName + ": " + JSON.stringify(embeddedChildren);
+                    serialized += propertyName + ":" + JSON.stringify(embeddedChildren) + ',';
                     break;
                 case 'displayTest':
-                    serialized += ',\n' + propertyName + ': function (pipeline) {' +
+                    serialized += propertyName + ':function(pipeline){' +
                             'return eval(\'' +
-                                RuleParser.getParsedRule(self.specs.display).rule + '\');}';
+                                RuleParser.getParsedRule(self.specs.display).rule + '\');},';
                     break;
                 case 'timedout':
                 case 'errored':
-                    serialized += ',\n' + propertyName + ': ' + property;
+                    serialized += propertyName + ':' + property + ',';
                     break;
                 default:
                 }
             });
 
-            serialized += '});\n';
+            serialized += 'markup:' + self.stringify() + '});';
 
             return serialized;
         }
@@ -924,6 +927,9 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
          */
         _dispatch: function (task, callback) {
             var pipeline = this;
+
+            clearTimeout(task.timeoutSubscription);
+            task.timeoutSubscription = null;
 
             // Set the parameters of this task. As is normally done in Mojito,
             // if no custom parameters exist, the dispatcher's parameters are used.
