@@ -728,10 +728,13 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
          * Indicates to Pipeline that no more tasks will be pushed.
          */
         close: function () {
-            if (!this._closeCalled) {
-                this._closeCalled = true;
-                this._flushIfReady();
-            }
+            var pipeline = this;
+            pipeline._events.fire('pipeline', 'beforeClose', function () {
+                if (!pipeline._closeCalled) {
+                    pipeline._closeCalled = true;
+                    pipeline._flushIfReady();
+                }
+            });
         },
 
         /**
