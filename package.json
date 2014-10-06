@@ -47,8 +47,7 @@
     },
     "engines": {
         "node": "> 0.10",
-        "npm": "> 1.2",
-        "mojito": "> 0.9"
+        "npm": "> 1.2"
     },
     "scripts": {
         "pretest": "mojito jslint app",
