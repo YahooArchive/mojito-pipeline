@@ -729,12 +729,12 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
          */
         close: function () {
             var pipeline = this;
-            pipeline._events.fire('pipeline', 'beforeClose', function () {
-                if (!pipeline._closeCalled) {
+            if (!pipeline._closeCalled) {
+                pipeline._events.fire('pipeline', 'beforeClose', function () {
                     pipeline._closeCalled = true;
                     pipeline._flushIfReady();
-                }
-            });
+                });
+            }
         },
 
         /**
