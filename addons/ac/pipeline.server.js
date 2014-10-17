@@ -371,15 +371,15 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             }
 
             if (this.pipeline.client.enabled && (
-                // If this task has not been rendered then a stub is created for it.
-                !this.rendered ||
+                    // If this task has not been rendered then a stub is created for it.
+                    !this.rendered ||
                     // If this task has already been flushed, then a stub is created instead of
                     // embedding the task since this task will be embedded in the client side.
                     this.flushed ||
                     // If this task has a flush or a display rule, then it should not be embedded,
                     // since doing so would prevent the flush and display rules from being applied.
                     (this.specs.flush || this.specs.display)
-            )) {
+                )) {
                 return '<div id="' + this.id + '-section"></div>';
             }
 
