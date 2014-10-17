@@ -370,7 +370,8 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 return this.data;
             }
 
-            if (// If this task has not been rendered then a stub is created for it.
+            if (this.pipeline.client.enabled && (
+                // If this task has not been rendered then a stub is created for it.
                 !this.rendered ||
                     // If this task has already been flushed, then a stub is created instead of
                     // embedding the task since this task will be embedded in the client side.
@@ -378,7 +379,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                     // If this task has a flush or a display rule, then it should not be embedded,
                     // since doing so would prevent the flush and display rules from being applied.
                     (this.specs.flush || this.specs.display)
-            ) {
+            )) {
                 return '<div id="' + this.id + '-section"></div>';
             }
 
@@ -1167,6 +1168,14 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                             } else if (task.pushed && !task[endState]) {
                                 errorMessage = task.getName() + ' was never ' + endState + '. ' +
                                     'Make sure dependencies are satisfied in order for this task to reach the ' + endState + ' state.';
+                            } else if (task.pushed && !pipeline.client.enabled && !task.embedded && task.id !== 'root') {
+                                if (task.parentId) {
+                                    errorMessage = task.getName() + ' was rendered but its parent ' +  task.parentId +
+                                        ' did not embed it and flushing is disabled. Make sure that its parent places this task in its view.';
+                                } else {
+                                    errorMessage = task.getName() + ' was rendered but it doesn\'t have a parent to embed it and flushing is disabled. ' +
+                                        'Make sure that this task is listed as a child of another task.';
+                                }
                             }
 
                             if (errorMessage) {
@@ -1293,7 +1302,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             var pipeline = this,
                 flushHandler = function () {
                     if (pipeline.closed) {
-                        pipeline._frame.ac.done(flushData.data + '</body></html>', flushData.meta);
+                        pipeline._frame.ac.done(flushData.data, flushData.meta);
                     } else {
                         pipeline._frame.ac.flush(flushData.data, flushData.meta);
                     }
@@ -1306,9 +1315,11 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
             pipeline._pipelineFlushQueue.push(flushHandler);
 
             // If Pipeline is closed, let the Pipeline client know.
-            if (pipeline.closed && pipeline.client.enabled) {
-                flushData.data += 'pipeline.close();';
+            if (pipeline.closed) {
                 flushData.done = true;
+                if (pipeline.client.enabled) {
+                    flushData.data += 'pipeline.close();';
+                }
             }
 
             flushData.data = flushData.data ? '<script>' + flushData.data + '</script>' : '';
