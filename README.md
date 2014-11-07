@@ -62,32 +62,37 @@ Take a look at the ["Hello World! example"](#hello-world-example) below.
 
 	**routes.json**
 	```js
-	{
-		"hello-page": {
-        "verbs": ["get"],
-        "path": "/hello",
-        "call": "hello"
-	}
+	[{
+	    "settings": [ "master" ],
+	
+	    "hello-page": {
+	        "verbs": ["get"],
+	        "path": "/hello",
+	        "call": "hello.index"
+	    }
+	}]
 	```
 	
 	**application.json**
 	```js
-	{
-		"settings": ["master"]
-		"specs": {
-			"hello": {
-				"type": "PipelineFrame",
-				"child": {
-					"type": "Root",
-					"children": {
-						"hello": {
-							"type": "Hello"
-						}
-					}
-				}
-			}
-		}
-	}
+	[{
+	    "settings": ["master"],
+	    "specs": {
+	        "hello": {
+	            "type": "PipelineFrame",
+	            "config": {
+	                "child": {
+	                    "type": "Root",
+	                    "children": {
+	                        "hello": {
+	                            "type": "Hello"
+	                        }
+	                    }
+	                }
+	            }
+	        }
+	    }
+	}]
 	```
 
     The "hello-page" route specifies that the "hello" application specs should be used for the "/hello" path. The specs refer to the `PipelineFrame` mojit, which has one child of mojit type `Root`, which only specifies `hello` as a child under its `children` map (see [Configuration](#configuration)).
@@ -100,12 +105,12 @@ Take a look at the ["Hello World! example"](#hello-world-example) below.
 	```js
 	YUI.add('HelloController', function (Y, NAME) {
 	    Y.namespace('mojito.controllers')[NAME] = {
-	        index: function () {
+	        index: function (ac) {
 	            ac.done({
 	                text: "Hello World!"
 	            });
 	        }
-        };
+	    };
 	});
 	```
 	
@@ -128,7 +133,7 @@ Take a look at the ["Hello World! example"](#hello-world-example) below.
 		}
 	}, '0.0.1', {
 		requires: [
-			'mojito-params-addon'
+			'mojito-params-addon',
 			'mojito-pipeline-addon'
 		]
 	});
