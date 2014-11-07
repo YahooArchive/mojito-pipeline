@@ -57,6 +57,7 @@ mojito-pipeline requires a Mojito application (Take a look at the [Mojito Quicks
 Take a look at the ["Hello World! example"](#hello-world-example) below.
 
 ## Hello World! Example
+The source code to the Hello World exmple can be found under [example/helloworld ](https://github.com/yahoo/mojito-pipeline/tree/master/example/helloworld). Run `ynpm install`, start the application using `node app`, and access the application at [http://localhost:8666/hello](http://localhost:8666/hello).
 
 1. Create a new "hello-page" route and point that route to application specs that use the `PipelineFrame` mojit:
 
