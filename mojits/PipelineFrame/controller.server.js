@@ -75,6 +75,9 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
                             self._addMojitoClient(flushData.meta);
                         }
                         self._wrapFlushData(flushData);
+                        if (flushData.done) {
+                            flushData.data += '</body></html>';
+                        }
                     };
 
                     if (renderedFrame === undefined) {
@@ -108,7 +111,7 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
 
                 // Prepend the flush data with the rendered frame.
                 ac.pipeline.on('pipeline', 'beforeFlush', function (event, flushData) {
-                    flushData.data = renderedFrame + flushData.data;
+                    flushData.data = renderedFrame + flushData.data + '</body></html>';
                     flushData.meta = self.meta;
                 });
             }
