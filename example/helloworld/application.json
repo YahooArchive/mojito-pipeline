@@ -1,0 +1,18 @@
+[{
+    "settings": ["master"],
+    "specs": {
+        "hello": {
+            "type": "PipelineFrame",
+            "config": {
+                "child": {
+                    "type": "Root",
+                    "children": {
+                        "hello": {
+                            "type": "Hello"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}]

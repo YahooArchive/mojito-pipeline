@@ -1,0 +1,9 @@
+[{
+    "settings": [ "master" ],
+
+    "hello-page": {
+        "verbs": ["get"],
+        "path": "/hello",
+        "call": "hello.index"
+    }
+}]

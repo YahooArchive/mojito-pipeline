@@ -1,0 +1,11 @@
+{
+    "name": "mojito-pipeline-helloworld",
+    "version": "0.0.1",
+    "description": "Hello World Application",
+    "dependencies": {
+        "mojito": "0.9.x",
+        "mojito-cli": "0.2.x",
+        "mojito-pipeline": "0.0.x",
+        "express": "3.5.x"
+    }
+}
