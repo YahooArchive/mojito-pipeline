@@ -130,7 +130,7 @@ Take a look at the ["Hello World! example"](#hello-world-example) below.
 				ac.pipeline.close();
 				ac.done(ac.params.body().children);
 			}
-		}
+		};
 	}, '0.0.1', {
 		requires: [
 			'mojito-params-addon',
