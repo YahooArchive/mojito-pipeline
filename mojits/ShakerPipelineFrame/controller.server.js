@@ -72,15 +72,17 @@ YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
                     position: 'bottom'
                 });
 
+                // Add any postfetch assets that has been queued.
+                Y.mojito.util.metaMerge(meta.assets, {
+                    'postfetch': postfetch
+                });
+
                 // Add bottom rollups, mojito client runtime, and bootstrap.
                 ac.shaker._addRouteRollups(meta.assets, ['bottom']);
                 ac.shaker._addYUILoader(meta.assets, binders);
                 ac.shaker._addBootstrap(meta.assets);
 
-                // Add any postfetch assets that has been queued.
-                Y.mojito.util.metaMerge(meta.assets, {
-                    'postfetch': postfetch
-                });
+
             }
         },
 

@@ -657,6 +657,10 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                 TIMEOUT = frameConfig.timeout;
             }
 
+            if (frameConfig.pipelineClient === false) {
+                this.client.enabled = false;
+            }
+
             // This gives Pipeline access to the frame's view data.
             this.setFrameData = function (property, value) {
                 frameData[property] = value;
