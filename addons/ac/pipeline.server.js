@@ -501,7 +501,7 @@ YUI.add('mojito-pipeline-addon', function (Y, NAME) {
                                    // TODO: this is not necessary if first passed through a html minifier.
                                    // Removing the continuous white space in the two replace statements below
                                    // reduces page size from 34.9 to 33.9 KB (compressed), 161 to 134 KB (uncompressed).
-                                   .replace(/>\s*</g, '> <') // Remove continuous whitespace with a single space.
+                                   .replace(/>\s+</g, '> <') // Remove continuous whitespace with a single space.
                                    .replace(/\s*\r?\n\s*/g, '\\n') // Remove continuous new lines with a single new line.
                                    .replace(/\'/g, '\\\'')   // Escape single quotes.
                                    // Make sure ending script tags are escaped to prevent HTML parsing errors
