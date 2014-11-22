@@ -81,8 +81,6 @@ YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
                 ac.shaker._addRouteRollups(meta.assets, ['bottom']);
                 ac.shaker._addYUILoader(meta.assets, binders);
                 ac.shaker._addBootstrap(meta.assets);
-
-
             }
         },
 
@@ -92,15 +90,26 @@ YUI.add('ShakerPipelineFrameMojit', function (Y, NAME) {
             PipelineFrameMojit._wrapFlushData.apply(this, arguments);
         },
 
-        _concatRenderedAssets: function (renderedAsset, renderedAssets, location, type) {
-            var ac = this.ac;
+        _concatRenderedAssets: function (flushData, renderedAssets) {
+            var ac = this.ac,
+                top = '',
+                bottom = '',
+                postfetch = '';
 
-            // Add postfetch and assets below shakerTop to the bottom, and the rest to the top
-            if (location === 'postfetch' || ac.shaker.PAGE_POSITIONS.indexOf(location) > 2) {
-                renderedAssets.bottom  += renderedAsset;
-            } else {
-                renderedAssets.top += renderedAsset;
-            }
+            Y.Object.each(renderedAssets, function (renderedAssetLocation, location) {
+                Y.Object.each(renderedAssetLocation, function (renderedAsset, type) {
+                    // Add postfetch and assets below shakerTop to the bottom, and the rest to the top
+                    if (location === 'postfetch') {
+                        postfetch = renderedAsset;
+                    } else if (ac.shaker.PAGE_POSITIONS.indexOf(location) > 2) {
+                        bottom += renderedAsset;
+                    } else {
+                        top += renderedAsset;
+                    }
+                });
+            });
+
+            flushData.data = top + flushData.data + bottom + postfetch;
         }
     });
 

@@ -226,46 +226,54 @@ YUI.add('PipelineFrameMojit', function (Y, NAME) {
          */
         _wrapFlushData: function (flushData) {
             var self = this,
-                renderedAssets = {
-                    'top': '',
-                    'bottom': ''
-                },
+                renderedAssets = {},
                 ac = this.ac;
 
             // Surround flush data with top and bottom rendered assets.
             Y.Object.each(flushData.meta.assets, function (locationAssets, location) {
+                renderedAssets[location] = {};
+
                 Y.Object.each(locationAssets, function (typeAssets, type) {
                     // Don't add JS assets if JS is disabled.
                     if (type === 'js' && !ac.pipeline.client.jsEnabled) {
                         return;
                     }
+                    renderedAssets[location][type] = '';
+
                     Y.Array.each(typeAssets, function (asset) {
                         var renderedAsset = type === 'js' ? '<script type="text/javascript" src="' + asset + '"></script>' :
                                         type === 'css' ? '<link type="text/css" rel="stylesheet" href="' + asset + '"></link>' : asset;
-                        // Concatenates the rendered assets to the renderedAssets.top/bottom buffers.
-                        self._concatRenderedAssets(renderedAsset, renderedAssets, location, type);
+
+                        renderedAssets[location][type] += renderedAsset;
                     });
                 });
             });
 
-            flushData.data = renderedAssets.top + flushData.data + renderedAssets.bottom;
+            self._concatRenderedAssets(flushData, renderedAssets);
         },
 
         /**
-         * Concatenates the rendered assets to the top and bottom buffers of renderedAssets.
+         * Concatenates the rendered assets to the top and bottom of flushData.data.
          * This function can be used by HTML frames extending this frame in order to define where
          * a rendered assets should be placed based on its location and type.
-         * @param {String} renderedAsset The rendered JS or CSS asset.
-         * @param {Object} renderedAssets Object containing top and bottom string buffers for rendered assets.
-         * @param {String} location The location of the rendered asset.
-         * @param {String} type The type of the rendered asset.
+         * @param {Object} flushData The data to be flushed.
+         * @param {Object} renderedAssets Object containing rendered assets for each view location and type.
          */
-        _concatRenderedAssets: function (renderedAsset, renderedAssets, location, type) {
-            if (location === 'top') {
-                renderedAssets.top += renderedAsset;
-            } else {
-                renderedAssets.bottom += renderedAsset;
-            }
+        _concatRenderedAssets: function (flushData, renderedAssets) {
+            var top = '',
+                bottom = '';
+
+            Y.Object.each(renderedAssets, function (renderedAssetLocation, location) {
+                Y.Object.each(renderedAssetLocation, function (renderedAsset, type) {
+                    if (location === 'top') {
+                        top += renderedAsset;
+                    } else {
+                        bottom += renderedAsset;
+                    }
+                });
+            });
+
+            flushData.data = top + flushData.data + bottom;
         }
     };
 
